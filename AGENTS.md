@@ -234,12 +234,14 @@ An exception must state:
 Read the smallest relevant set after this file:
 
 - Product behaviour / social flows → `docs/product/vision-and-social-loops.md`
+- New game / game contract changes → `docs/games/README.md` + that game's canonical spec
 - ECS / systems / simulation boundaries → `docs/architecture/runtime-and-ecs.md`
 - Reuse / capability ownership → `docs/architecture/capabilities-and-reuse.md`
 - TypeScript / state / hooks / constants → `docs/engineering/code-standards.md`
 - Task lifecycle / swarm roles → `docs/engineering/agent-workflow.md`
 - Merge/change acceptance → `docs/engineering/change-acceptance.md`
 - Machine enforcement → `docs/engineering/architecture-guard.md`
+- Architecture-significant decisions → `docs/decisions/README.md`
 
 ## 11. Final rule
 
