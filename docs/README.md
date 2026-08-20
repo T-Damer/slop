@@ -6,7 +6,7 @@ This documentation is written for an AI-swarm codebase. Agents should not load e
 
 1. [`../AGENTS.md`](../AGENTS.md)
 2. [`engineering/agent-workflow.md`](./engineering/agent-workflow.md)
-3. the architecture/product document relevant to the task
+3. the architecture/product/game document relevant to the task
 4. [`engineering/change-acceptance.md`](./engineering/change-acceptance.md) before declaring completion
 
 ## Product
@@ -24,6 +24,14 @@ Read when changing:
 - achievements/social moments;
 - monetization surfaces;
 - join/rejoin behaviour.
+
+## Games
+
+### [`games/README.md`](./games/README.md)
+
+Read before implementing a new game or changing a game's contract. Every substantial game should have a canonical specification based on [`games/_template.md`](./games/_template.md).
+
+The game spec defines product/session/network behaviour so implementation agents do not invent it while coding.
 
 ## Architecture
 
@@ -64,7 +72,13 @@ Defines when a change is allowed to be accepted and what evidence the implementa
 
 ### [`engineering/architecture-guard.md`](./engineering/architecture-guard.md)
 
-Defines the machine-enforced checks we intend to build: Biome/custom lint, dependency boundaries, dead-code detection, domain-specific AST rules, duplication/capability checks, and CI gates.
+Defines the machine-enforced checks we intend to build: generic/custom lint, dependency boundaries, dead-code detection, domain-specific AST rules, duplication/capability checks, and CI gates.
+
+## Architecture decisions
+
+### [`decisions/README.md`](./decisions/README.md)
+
+Read before making an architecture-significant change. Existing accepted decisions must not be silently contradicted. Use [`decisions/_template.md`](./decisions/_template.md) when a new ADR is required.
 
 ## How to change documentation
 
