@@ -1,107 +1,59 @@
 # Architecture Guard
 
-## Purpose
+## Hard rules
 
-`AGENTS.md` is not enough. AI agents can forget rules, interpret them differently, or optimize for a local task. The repository therefore intends to convert important architecture rules into machine-enforced checks.
+1. Important architecture rules must become machine-enforced; prose alone is insufficient for an AI-written codebase.
+2. Use generic tools for syntax/dependencies/dead code and a small TypeScript-aware `slop-guard` only for domain rules generic tools cannot express.
+3. Domain literals must resolve through approved typed registries/config objects; naming a local constant is not sufficient.
+4. Architectural boundaries that require local instructions must contain `AGENTS.md`.
+5. Guard failures may be suppressed only by explicit narrow architecture exceptions.
+6. Do not build a new programming language or an excessively clever validator.
 
-This document describes the target enforcement model. Tooling mentioned here is **planned until the corresponding configuration/scripts exist in the repository**.
+Tooling described here is planned until its configuration/scripts exist in the repository.
 
-## 1. Guard layers
-
-The intended guard stack is:
+## 1. Intended guard stack
 
 ```text
-Biome / formatter + generic lint
+Biome / formatter / generic lint
         ↓
-project-specific structural lint
+structural/custom lint
         ↓
 dependency graph validation
         ↓
-dead-code / unused export validation
+dead-code / unused-export validation
         ↓
-slop-specific AST/domain guard
+slop-guard (AST + repository metadata)
         ↓
-tests / typecheck
+tests + typecheck
         ↓
 independent reviewer
 ```
 
-No single tool is expected to understand the whole architecture.
+Candidate tools:
 
-## 2. Why a domain guard is needed
+- Biome for format/lint and structural rules where practical;
+- dependency-cruiser or equivalent for dependency graph invariants;
+- Knip or equivalent for dead code/unused exports/dependencies;
+- project-owned `slop-guard` for ECS/domain/instruction rules.
 
-Generic lint can detect syntax/style problems, but it cannot reliably answer questions such as:
+Tool choice can change through an ADR; rule semantics should remain stable.
 
-- did a system declare a component it writes?
-- did a game reimplement an existing capability?
-- is a raw string actually a platform event identifier?
-- did shared runtime branch on a game ID?
-- is authoritative simulation calling a forbidden side-effect API?
-- did a UI component accumulate workflow state that should have another owner?
-
-The project should eventually provide a small `game-guard`/`slop-guard` tool that understands repository conventions.
-
-Do not build a new programming language. Operate on TypeScript/project metadata/AST and dependency information.
-
-## 3. Proposed tooling responsibilities
-
-### Biome
-
-Use for:
-
-- formatting;
-- standard linting;
-- import/style consistency;
-- complexity/size rules where supported;
-- custom structural lint rules where practical.
-
-Custom plugin/rule support may be used for patterns that are syntactic and do not require whole-repository semantic analysis.
-
-### Dependency graph tool
-
-Use a dependency graph validator such as `dependency-cruiser` or an equivalent tool for rules such as:
-
-```text
-games/* !-> games/*
-engine/simulation !-> presentation
-shared packages !-> concrete games
-contracts !-> implementation packages
-no circular dependencies
-```
-
-The exact package should be selected when the initial project structure exists.
-
-### Dead-code analysis
-
-Use a tool such as Knip or an equivalent for:
-
-- unused files;
-- unused exports;
-- unused dependencies;
-- obsolete entrypoints after refactors.
-
-### `slop-guard`
-
-Custom TypeScript-aware validator for domain-specific rules that generic tools cannot express safely.
-
-## 4. Guard principles
+## 2. Guard design principles
 
 Rules should be:
 
 - deterministic;
-- fast enough for local use;
-- explicit about why they failed;
+- fast enough to run locally;
+- explicit about the violated contract;
 - linked to canonical docs;
-- narrow enough to avoid constant false positives;
-- suppressible only through explicit documented exceptions.
+- conservative where semantics are uncertain;
+- difficult to silence accidentally.
 
-A guard that developers/agents routinely disable is a failed guard.
+Warnings are appropriate for heuristic complexity checks. Architecture ownership/dependency/identifier violations should become hard failures once detection is reliable.
 
-## 5. Proposed rule catalogue
+## 3. Dependency rules
 
-Rule IDs are provisional but should remain stable once implemented.
-
-### `SLOP001` — forbidden cross-game import
+### `SLOP001` — cross-game import
 
 A game implementation imports another game implementation.
 
@@ -109,19 +61,25 @@ A game implementation imports another game implementation.
 games/fishing → games/pool
 ```
 
-Action: move genuinely shared behaviour into an approved shared capability or keep implementations independent.
+Move genuinely shared semantics to an approved shared capability or keep implementations independent.
 
 ### `SLOP002` — shared package imports concrete game
 
-Shared runtime/SDK/platform contracts cannot depend on concrete game implementations.
+Shared runtime/SDK/platform code cannot depend on concrete game implementations.
 
-### `SLOP003` — simulation imports presentation/UI
+### `SLOP003` — simulation imports presentation
 
-Authoritative/deterministic simulation cannot import UI, rendering, browser presentation, or framework component modules.
+Authoritative/deterministic simulation cannot depend on UI/rendering/browser presentation.
+
+### `SLOP004` — dependency cycle
+
+Architectural/package dependency cycles are failures unless an explicitly approved generated/tooling case exists.
+
+## 4. Determinism / side-effect rules
 
 ### `SLOP010` — forbidden simulation side effect
 
-Simulation directly accesses APIs such as:
+Simulation directly accesses uncontrolled APIs such as:
 
 ```text
 Date.now
@@ -135,80 +93,135 @@ DOM APIs
 analytics/payment SDKs
 ```
 
-Approved runtime adapters/context are required.
+Use controlled runtime adapters/context.
 
-### `SLOP011` — raw random source
+### `SLOP011` — raw gameplay randomness
 
-Gameplay-affecting random generation bypasses the controlled RNG API.
+Gameplay-affecting randomness bypasses the controlled RNG owner.
 
-### `SLOP012` — raw wall-clock timer
+### `SLOP012` — raw gameplay timer
 
-Authoritative simulation uses `setTimeout`/`setInterval` or raw wall-clock time for gameplay timing.
+Authoritative simulation uses raw `setTimeout`/`setInterval`/wall clock instead of the controlled time/scheduler contract.
 
-### `SLOP020` — component contains behaviour
+## 5. ECS rules
 
-An ECS component module contains methods/side-effectful behaviour instead of data/schema definitions.
+### `SLOP020` — behaviour inside ECS component
 
-The rule should be carefully defined to avoid rejecting harmless constructors/schema helpers.
+A gameplay component owns behavioural/side-effectful methods rather than data/schema.
 
-### `SLOP021` — undeclared system read/write
+Schema constructors/serialization helpers may be allowed when they do not become domain behaviour.
 
-A system accesses a component not declared in its metadata contract, once the runtime API supports static analysis of this pattern.
+### `SLOP021` — undeclared system access
+
+A system reads/writes a component outside its declared contract once runtime metadata permits reliable static validation.
 
 ### `SLOP022` — shared system branches on game identity
 
-Shared runtime code compares/switches on concrete game IDs to implement game-specific behaviour.
+Shared runtime compares/switches on concrete `gameId` to implement game-specific behaviour.
 
-### `SLOP030` — raw domain identifier
+Composition/configuration/game-local systems are required instead.
 
-An identifier category that must come from a typed registry appears as an inline string.
+## 6. Domain literal / registry rules
 
-Candidate categories:
+### `SLOP030` — raw domain string
+
+A domain-significant string appears inline instead of through its canonical registry/config object.
+
+Target categories include:
 
 ```text
-events
-commands
-moments
+event/action/moment IDs
 network messages
-game IDs
-component IDs
-system IDs
+game/component/system IDs
 asset IDs
 route IDs
-storage keys
+storage/cache keys
+permissions
+feature flags
+analytics IDs
 ```
 
-This rule should be context-aware. It must not reject arbitrary user-facing text/import paths.
+Bad:
 
-### `SLOP031` — magic gameplay/config number
+```ts
+emit("fishing.caught");
+```
 
-A domain-significant numeric value appears inline in a known gameplay/configuration context.
+Expected:
 
-This rule should begin conservatively. Excessive false positives would encourage useless constant extraction.
+```ts
+emit(fishingEvents.caught);
+```
+
+### `SLOP031` — raw domain number
+
+A gameplay/product/protocol numeric literal appears directly in an implementation context.
+
+Bad:
+
+```ts
+if (distance <= 2.5) { ... }
+setTimeout(fn, 300);
+```
+
+Expected:
+
+```ts
+if (distance <= fishingDistances.minCatchDistanceMeters) { ... }
+schedule(fn, fishingTimers.pickupAnimationMs);
+```
+
+The rule must distinguish narrow structural values such as array index `0`, simple increment `1`, mathematical identities, and explicit test fixtures.
+
+### `SLOP032` — orphan domain constant
+
+A domain literal was extracted only into a standalone local/module constant rather than a cohesive owned registry/config.
+
+Bad:
+
+```ts
+const MIN_CATCH_DISTANCE = 2.5;
+const FISH_CAUGHT = "fishing.caught";
+```
+
+Expected:
+
+```ts
+fishingDistances.minCatchDistanceMeters
+fishingEvents.caught
+```
+
+Detection can begin with naming/context heuristics and become stricter after project layout stabilizes.
+
+### `SLOP033` — generic constants junk drawer
+
+A module accumulates unrelated domain constants under generic ownership such as repository-wide `constants.ts`.
+
+This may begin as a reviewer warning because file naming alone is not enough to prove bad ownership.
+
+## 7. UI/state rules
 
 ### `SLOP040` — boolean workflow soup
 
-A UI/controller unit has several related boolean states that appear to encode mutually exclusive workflow modes.
+Several related booleans appear to represent mutually exclusive workflow states.
 
-Initially this may be a warning/reviewer signal rather than a hard CI failure.
+Initially warning/review-level.
 
-### `SLOP041` — component state complexity
+### `SLOP041` — component orchestration complexity
 
-A UI component exceeds the project threshold for coordinated local state/effects without a documented exception.
+A UI component coordinates excessive local state/effects/subscriptions without a focused owner.
 
-Suggested first heuristic:
+Initial signal:
 
 ```text
-> 3 related local state hooks → warning/review required
+> 3 related state hooks → review
 ```
 
-Do not hard-fail solely on raw hook count until false-positive behaviour is understood.
+Do not hard-fail on raw hook count alone until false-positive behaviour is known.
 
-### `SLOP042` — oversized semantic unit
+### `SLOP042` — complexity budget
 
-Function/file complexity exceeds configured review budgets.
-
-Initially warning-level:
+Review signals:
 
 ```text
 function > 40 lines
@@ -217,270 +230,138 @@ nesting > 3
 cyclomatic complexity > 8
 ```
 
-Potential hard-review thresholds:
+Hard review thresholds may be higher. Generated files are exempt.
 
-```text
-function > 80 lines
-file > 500 lines
-cyclomatic complexity > 12
-```
+These are not automatic instructions to split code.
 
-Generated files are exempt.
+## 8. Reuse/refactor rules
 
 ### `SLOP050` — duplicate capability candidate
 
-New helper/hook/system appears semantically or structurally similar to an existing registered capability.
+New helper/hook/system/service appears semantically equivalent to an existing capability.
 
-This is difficult to enforce perfectly and may combine:
+Whole-repository semantic detection will be imperfect; start with metadata/naming/registries and reviewer tooling rather than pretending AST similarity proves semantic duplication.
 
-- capability metadata;
-- names/imports;
-- AST signatures;
-- optional similarity reports for reviewer agents.
+### `SLOP051` — third equivalent implementation
 
-Treat false-positive-prone detection as reviewer evidence, not automatic rejection, until mature.
+When capability metadata/registry explicitly records two equivalent implementations, creation of another without an exception should hard-fail.
 
-### `SLOP051` — third equivalent local implementation
+### `SLOP052` — active deprecated migration path receives new callers
 
-A capability already appears in multiple locations and another equivalent implementation is added without a documented reason.
+After a refactor marks an API/path deprecated for migration, new callers may not depend on it.
 
-Hard failure once capability metadata is mature enough.
+### `SLOP053` — game-specific special case in shared layer
+
+Shared code contains a game-specific branch/config escape hatch that belongs in game-local composition.
+
+This overlaps `SLOP022` but can apply outside ECS systems.
+
+## 9. Local instruction rules
+
+### `SLOP070` — missing local `AGENTS.md`
+
+A configured architectural boundary is created without its required local instruction file.
+
+Initial boundary patterns:
+
+```text
+apps/*
+packages/*
+games/*
+services/*
+tools/*
+```
+
+Deeper boundaries can opt in through repository metadata/config when they own public APIs/state/schema/runtime rules.
+
+### `SLOP071` — oversized local instructions
+
+Local `AGENTS.md` exceeds the configured agent-context budget without an exception.
+
+Initial target: <= 120 lines.
+
+This is a context-quality guard, not prose style policing.
+
+### `SLOP072` — local rule attempts to relax root invariant
+
+Full semantic detection is difficult. Start with prohibited override/suppression syntax and reviewer validation; do not claim machine certainty where none exists.
+
+## 10. Suppression policy
+
+Never use blanket disables to make CI green.
+
+A narrow architecture exception must contain:
+
+```text
+rule ID
+reason
+scope
+owner/follow-up
+removal/expiry condition when practical
+```
+
+Example shape:
+
+```ts
+// slop-allow SLOP012
+// reason: external tournament clock adapter boundary
+// issue: ARCH-182
+// remove: after ClockAdapter migration
+```
+
+Suppressions themselves are scanned. Unknown/untracked suppression syntax should fail.
 
 ### `SLOP060` — untracked suppression
 
-Broad lint/type/architecture suppression lacks the required structured exception comment/record.
+A lint/type/guard disable is introduced without an approved narrow exception format.
 
-### `SLOP061` — expired architecture exception
+## 11. Implementation order
 
-An exception with an expiry condition/date remains active after expiry.
+Do not attempt the entire guard at once.
 
-### `SLOP070` — direct external data trust
+Recommended bootstrap:
 
-Unvalidated external/network/persisted data enters trusted domain state through designated boundaries.
+### Phase 1
 
-Likely requires schema conventions before implementation.
+- strict TypeScript;
+- Biome format/lint;
+- dependency graph rules;
+- Knip/dead-code checks;
+- local `AGENTS.md` boundary existence check;
+- grep/AST rules for obvious raw domain strings and raw timer/random APIs.
 
-### `SLOP080` — unused replacement path
+### Phase 2
 
-A refactor leaves obsolete exports/dependencies/old implementation paths detectable by dead-code tooling.
+- `slop-guard` AST skeleton;
+- registry-aware `SLOP030`/`031`/`032`;
+- ECS component/system metadata validation;
+- suppression scanner.
 
-## 6. Magic-literal enforcement strategy
+### Phase 3
 
-Do not implement the naive rule:
+- capability registry integration;
+- refactor/deprecation checks;
+- context/instruction metadata checks;
+- heuristics promoted from warning to failure only after false positives are measured.
 
-> every string and every number must be a constant.
+## 12. Guard output
 
-That produces code such as:
-
-```ts
-const ZERO = 0;
-const ONE = 1;
-const DIV = "div";
-```
-
-which reduces readability and teaches agents to satisfy the checker instead of architecture.
-
-Instead, enforce known semantic contexts.
-
-Examples:
-
-```ts
-emit("fish.caught")             // reject: event identifier
-send("activity:join")           // reject: protocol identifier
-loadAsset("fish-blue")          // reject: asset identifier
-setTimeout(retry, 3000)          // reject/review: timeout literal
-if (distance < 2.5)              // reject/review in gameplay system
-array[0]                         // allowed structural literal
-count += 1                       // allowed structural arithmetic
-```
-
-The goal is named behaviour, not constant ceremony.
-
-## 7. Capability metadata
-
-To make reuse machine-checkable, shared capabilities should eventually expose canonical metadata.
-
-Conceptual example:
-
-```ts
-export const CARRY_CAPABILITY = defineCapability({
-  id: CAPABILITY_IDS.CARRY_OBJECT,
-  components: [COMPONENT_IDS.CARRIER, COMPONENT_IDS.CARRYABLE],
-  systems: [SYSTEM_IDS.CARRY],
-  keywords: ["carry", "pickup", "held item", "attach"],
-});
-```
-
-A generated registry can then help:
-
-- agents search before implementation;
-- reviewers discover nearby concepts;
-- guard tools detect duplicate registrations;
-- docs stay synchronized with code.
-
-Avoid maintaining the same registry manually in multiple formats.
-
-## 8. Architecture exceptions
-
-A guard suppression must be structured and local.
-
-Conceptual format:
-
-```ts
-// slop-allow SLOP010
-// reason: external tournament clock is the authoritative source
-// issue: #182
-// expires: 2026-10-01
-```
-
-Exact syntax will be standardized when the guard exists.
-
-Required fields should include:
-
-- rule ID;
-- reason;
-- tracking issue/ADR for non-trivial exceptions;
-- expiration/removal condition where practical.
-
-Forbidden:
-
-```text
-eslint-disable
-@ts-ignore
-architecture-ignore-all
-```
-
-without the approved exception mechanism.
-
-## 9. CI levels
-
-Suggested stages:
-
-### Fast local gate
-
-Runs frequently:
-
-```text
-format check
-lint
-typecheck
-architecture dependency rules
-focused tests
-```
-
-### Full PR gate
-
-Runs before acceptance:
-
-```text
-all fast checks
-full tests
-slop-guard
-dead-code analysis
-build
-integration/e2e where applicable
-```
-
-### Optional expensive analysis
-
-May run on shared-runtime changes or scheduled CI:
-
-```text
-duplicate/similarity report
-bundle/performance checks
-replay determinism suites
-asset validation
-```
-
-## 10. Severity model
-
-Rules should support at least:
-
-- `error` — cannot be accepted;
-- `warning` — requires reviewer inspection;
-- `info` — discovery/reporting only.
-
-Start uncertain heuristics as warnings. Promote them to errors only after they are reliable.
-
-## 11. Error messages must teach the fix
-
-Bad guard output:
-
-```text
-SLOP030 failed
-```
+Errors should tell the agent what owner to use, not only say “wrong”.
 
 Good:
 
 ```text
-SLOP030: raw event identifier "fish.caught" in games/fishing/catch.system.ts.
-Use the canonical GAME_EVENTS registry or register a new typed event if this is a new contract.
-See docs/engineering/code-standards.md#3-no-magic-domain-strings-or-numbers
+SLOP031 games/fishing/systems/catch.system.ts:42
+Raw gameplay distance `2.5` is not allowed.
+Use a value from the fishing domain configuration, e.g. `fishingDistances.*`,
+or add the value to that canonical registry if it is genuinely new.
+See: docs/engineering/code-standards.md#2-domain-literals-must-have-typed-owners
 ```
 
-The guard should make the correct path easier than bypassing it.
+This makes CI part of the swarm's navigation system.
 
-## 12. Agent preflight integration
+## 13. Final principle
 
-Once tooling exists, agents should be able to run a discovery command before coding, conceptually:
+Enforce ownership and boundaries, not arbitrary aesthetics.
 
-```text
-pnpm guard:capability "carry item"
-```
-
-Output might include:
-
-```text
-Existing capability: carry-object
-Components: Carrier, Carryable
-System: CarrySystem
-Docs: ...
-Consumers: fishing, salvage
-```
-
-This is a target feature, not currently implemented.
-
-## 13. Agent review integration
-
-A review-oriented command may eventually produce a compact architecture report for a diff:
-
-```text
-pnpm guard:diff origin/main...HEAD
-```
-
-Potential output:
-
-```text
-new capabilities: 1
-shared API changes: 0
-new domain literals: 0
-dependency violations: 0
-duplicate candidates: 1 warning
-architecture exceptions: 0
-```
-
-Reviewer agents can use this as evidence but should still inspect the diff.
-
-## 14. Do not overbuild the guard first
-
-Implementation order should follow real failures observed during prototypes.
-
-Recommended starting enforcement:
-
-1. strict TypeScript;
-2. Biome/lint/format;
-3. dependency boundaries/cycles;
-4. dead-code analysis;
-5. raw event/ID registries;
-6. forbidden simulation side effects;
-7. component/system metadata validation;
-8. state/component complexity warnings;
-9. capability duplication heuristics.
-
-Do not spend months building a perfect static analyzer before the first vertical game slice exists.
-
-## 15. Success criterion
-
-The Architecture Guard succeeds when an implementation agent trying to create a convenient local patch receives a precise failure that points it toward the canonical reusable architecture.
-
-It should make good code the path of least resistance.
+The guard exists to prevent agents from solving local tasks by creating hidden global complexity.
