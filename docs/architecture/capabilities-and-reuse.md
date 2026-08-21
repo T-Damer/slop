@@ -1,326 +1,244 @@
 # Capabilities and reuse
 
-## Purpose
+## Hard rules
 
-AI implementation tends to produce locally correct copies of the same idea. This document defines how the repository prevents that failure mode.
+1. Search before creating any helper/hook/system/service/component/schema/event/config/adapter/UI primitive.
+2. Search by semantics and synonyms, not only the intended name.
+3. Prefer: reuse → extend → compose → game-local implementation → shared abstraction.
+4. Shared abstractions represent shared **semantics**, not merely similar syntax.
+5. First occurrence may stay local; second independent occurrence requires an explicit reuse decision; a third equivalent implementation is an architecture defect without exception.
+6. Copy-paste-and-modify variants are not an acceptable reuse strategy.
+7. Shared code never gains concrete game special cases to satisfy one caller.
+8. New reusable capabilities need a discoverable owner, public contract, tests, and eventually registry metadata.
+9. Refactoring to create/change shared capabilities follows `../engineering/refactoring.md`.
+10. Domain values/IDs belonging to a capability live in that capability's typed registries/config, not in callers.
 
-The repository should behave as a library of discoverable capabilities, not a collection of task-specific patches.
+## 1. Mandatory search protocol
 
-## 1. Search-before-create is mandatory
-
-Before creating any of the following:
-
-- ECS component;
-- ECS system;
-- hook;
-- helper;
-- service;
-- adapter;
-- event;
-- command;
-- schema;
-- constant registry;
-- UI primitive;
-- network message;
-
-an agent must search for equivalent or adjacent behaviour.
-
-Search by **concept**, not only by the name you intend to use.
-
-Example for a planned `useHeldItem` hook:
-
-Search for terms such as:
+Before creating:
 
 ```text
-held item
-carry
-carrier
-pickup
-inventory
-attached entity
+ECS component/system
+hook/helper/service/controller
+adapter/schema/event/command
+config/registry
+UI primitive
+network message/API
 ```
 
-A missing exact name does not mean the capability is missing.
+search:
+
+- intended name;
+- synonyms;
+- domain concept;
+- neighbouring imports/exports;
+- tests/call sites;
+- capability metadata when available.
+
+Example: before implementing “player holds fish”, search:
+
+```text
+carry
+carrier
+carryable
+pickup
+held item
+attach
+inventory
+```
+
+A missing exact identifier is not evidence that the capability is missing.
 
 ## 2. Decision order
 
-Use this order:
-
 ```text
-1. Reuse existing capability unchanged
-2. Extend existing capability without breaking semantics
-3. Compose existing lower-level capabilities
-4. Create game-local capability
-5. Promote to shared capability when reuse is demonstrated
+1. reuse existing capability unchanged
+2. extend its contract when it already owns the semantics
+3. compose existing lower-level capabilities
+4. keep genuinely game-specific behaviour local
+5. create/promote a shared capability only when semantics are demonstrated as shared
 ```
 
-Do not jump directly to step 5 merely because code looks generic.
+Do not jump to generic abstraction because code “looks reusable”.
 
-## 3. Semantic reuse, not text reuse
+## 3. Semantic reuse
 
-Two pieces of code are reusable when they represent the same domain concept, not merely when their syntax looks similar.
-
-Good shared concept:
+Good candidate:
 
 ```text
-Carryable + Carrier + CarrySystem
+Carrier + Carryable + CarrySystem
 ```
 
-used by fish, boxes, loot, groceries, and tools.
+used consistently by fish, boxes, loot, groceries, tools.
 
-Potentially bad abstraction:
+Weak candidate:
 
 ```text
 GenericThingThatMovesBetweenTwoPlaces
 ```
 
-created only because two implementations happened to share ten lines.
+created because two code blocks happen to look similar.
 
-## 4. First/second/third occurrence policy
+The question is:
 
-### First occurrence
+> Are callers participating in the same domain operation with the same invariants/lifecycle?
 
-Keep genuinely game-specific behaviour local if the shared abstraction is not yet clear.
+not:
+
+> Can these lines be parameterized?
+
+## 4. First / second / third occurrence
+
+### First
+
+Keep behaviour local when shared semantics are not proven.
 
 ### Second independent occurrence
 
-The implementation agent must explicitly evaluate whether the capability should be shared.
+The agent/reviewer must explicitly choose:
 
-The result must be one of:
-
-- promote/refactor into an existing shared capability;
-- create a new shared capability;
-- document why the two behaviours are semantically different.
+- reuse/extend an existing capability;
+- promote both to one shared capability;
+- document why they are semantically different.
 
 ### Third equivalent occurrence
 
-Treat it as an architecture defect unless an explicit exception explains why reuse is inappropriate.
+Reject without an architecture exception. The repository should not accumulate a third competing owner for the same semantic operation.
 
-The planned architecture guard should eventually detect likely duplicates and require review.
+## 5. Capability ownership
 
-## 5. Capability registry
+A shared capability owns a coherent contract such as:
 
-Shared capabilities should have a machine-readable registry generated or maintained from canonical metadata.
+```text
+components/state
+systems/behaviour
+commands/events
+configuration/registries
+public entrypoint
+contract tests
+```
 
-Target concept:
+Example values should be owned by the capability/domain:
+
+```ts
+carryEvents.started
+carryEvents.completed
+carryRules.maxCarryDistanceMeters
+```
+
+Callers do not redefine them locally.
+
+## 6. Capability registry
+
+The project should eventually expose machine-readable capability metadata.
+
+Conceptual entry:
 
 ```json
 {
   "carry-object": {
+    "entrypoint": "game-sdk/carry",
     "components": ["Carrier", "Carryable"],
     "systems": ["CarrySystem"],
-    "entrypoints": ["game-sdk/carry"],
     "summary": "Attach, transport and release carryable entities"
   }
 }
 ```
 
-The exact format will be decided when the runtime exists.
+The exact format is deferred until runtime/package structure exists.
 
-The registry should allow agents/tools to answer:
+The registry should let agents answer:
 
-- does this behaviour already exist?
-- which package owns it?
-- what APIs/components/systems implement it?
-- who consumes it?
-- what tests define its contract?
+- does this capability already exist?
+- where is its canonical entrypoint?
+- what systems/components/config own it?
+- which games use it?
+- what contract/tests define it?
 
-Do not manually create a second source of truth if this can be generated from code metadata.
+Do not create speculative registry entries for capabilities with no implementation/contract.
 
-## 6. Shared vs game-local code
+## 7. Game-local vs shared
 
-Shared code belongs in shared packages only if its semantics are stable across consumers.
+Game-local behaviour stays under the game boundary when its rules are genuinely specific.
 
-Game-local code belongs under the game when:
+Example:
 
-- behaviour is unique to that game;
-- the abstraction is still uncertain;
-- sharing it would introduce game-specific flags/options into a generic API;
-- no other consumer exists and the generic abstraction would be speculative.
+```text
+shared: CarrySystem
+fishing-local: FishCatchEligibilitySystem
+```
 
-Moving a file to `shared/` does not make it good architecture.
+Fishing can decide **which fish may be picked up** without teaching `CarrySystem` about fishing.
 
-## 7. No game-specific branching in shared capabilities
+Promotion to shared code requires semantic evidence from another consumer, not prediction that one may exist later.
 
-Forbidden:
+## 8. Extending existing capabilities
+
+Extend when:
+
+- the capability already owns the semantic operation;
+- the new case preserves coherent invariants;
+- API growth benefits/represents the capability rather than one caller.
+
+Do not extend shared code with:
 
 ```ts
-switch (gameId) {
-  case GAME_IDS.FISHING:
-    return fishPickupRules();
-  case GAME_IDS.SALVAGE:
-    return salvagePickupRules();
-}
+if (gameId === gameIds.fishing) { ... }
 ```
 
-inside a shared `CarrySystem`.
+or options whose only purpose is to emulate one game-specific branch.
 
-Prefer configuration/components/composition:
+Prefer composition/game-local systems when semantics differ.
 
-```text
-CarrySystem
-+ Carryable
-+ Carrier
-+ game-specific EligibilitySystem or rule component
-```
+## 9. Helpers/hooks
 
-Shared code knows capabilities, not game identities.
+A reusable helper/hook must have:
 
-## 8. Helper rules
+- a coherent responsibility;
+- semantic naming;
+- stable input/output contract;
+- appropriate tests when non-trivial;
+- an owner where agents can discover it.
 
-Helpers should usually be:
+Do not create generic dumping grounds such as unrelated `utils.ts`/`helpers.ts` exports.
 
-- small;
-- pure where possible;
-- named after domain meaning;
-- independently testable when non-trivial;
-- located where agents searching the relevant domain will find them.
+Do not move a 200-line workflow into a “shared hook” merely to hide component complexity.
 
-Do not create generic dumping grounds such as:
+## 10. Events/config/schemas are capabilities too
 
-```text
-utils.ts
-helpers.ts
-common.ts
-misc.ts
-```
+Duplicate code is not the only duplication problem.
 
-for unrelated functions.
+Do not create parallel:
 
-Prefer:
+- event identifiers for the same occurrence;
+- schemas representing the same canonical state;
+- configs with overlapping ownership;
+- network commands with equivalent semantics;
+- UI flows that become competing domain owners.
 
-```text
-inventory/calculate-stack-space.ts
-math/clamp.ts
-activity/is-session-joinable.ts
-```
+Reuse policy applies to contracts/data ownership as strongly as implementation code.
 
-or a cohesive module with several tightly related functions.
+## 11. Refactor boundary
 
-## 9. Hook rules
+If reuse requires moving/changing an existing owner:
 
-Hooks encapsulate coherent UI/application behaviour, not arbitrary extracted lines.
+1. read `../engineering/refactoring.md`;
+2. identify callers/behaviour to preserve;
+3. define target ownership;
+4. avoid dual paths unless migration is explicitly bounded;
+5. update capability/local `AGENTS.md`/docs/tests together;
+6. run `grill-me`/adversarial review for a non-trivial shared refactor.
 
-Good hook responsibility:
+## 12. Review questions
 
-```text
-useActivityPresence
-useJoinActivity
-useSpectatorQueue
-```
+Before accepting a new reusable concept:
 
-Bad:
+- What exact existing terms/capabilities were searched?
+- Why is this not an extension/composition of one of them?
+- Who owns the new semantics?
+- Is there a real second consumer or only a hypothetical future one?
+- Does the API encode one caller's special case?
+- Are config/events/state also centralized under the owner?
+- Will the next agent find this before reimplementing it?
 
-```text
-useEverythingOnGameScreen
-```
-
-A hook should expose the smallest useful API and hide internal coordination state/effects.
-
-Before creating a hook, search for:
-
-- an existing hook;
-- a lower-level store/service selector;
-- an ECS/runtime selector;
-- a helper that already implements the transformation.
-
-## 10. Constants and registries
-
-Do not duplicate the same semantic literal across packages.
-
-Canonical registries should eventually own identifiers such as:
-
-```text
-GAME_IDS
-COMPONENT_IDS
-SYSTEM_IDS
-GAME_EVENTS
-GAME_COMMANDS
-GAME_MOMENTS
-ASSET_IDS
-ACTIVITY_STATES
-JOIN_POLICIES
-ROUTE_IDS
-STORAGE_KEYS
-NETWORK_MESSAGES
-```
-
-A domain-specific constant should live near the domain that owns it.
-
-Do not create one enormous global `constants.ts` containing unrelated values.
-
-## 11. Configuration reuse
-
-Shared configuration types are preferable to copy/pasted object shapes.
-
-However, do not turn every game tuning value into a global constant.
-
-Correct separation:
-
-```text
-shared type/contract: MovementConfig
-shared default if genuinely universal: DEFAULT_MOVEMENT_CONFIG
-specific game tuning: FISHING_PLAYER_MOVEMENT_CONFIG
-```
-
-## 12. API growth policy
-
-Do not add an option to a shared API solely to support one caller if composition can express the requirement more cleanly.
-
-Warning sign:
-
-```ts
-carry(entity, {
-  fishingMode: true,
-  salvageMode: false,
-  ignorePoolRules: true,
-});
-```
-
-Shared option sets that grow by game name are architecture failures.
-
-## 13. Duplicate implementation review
-
-Reviewer agents should compare new code against repository-wide concepts, not only files touched by the task.
-
-Ask:
-
-- is there already another implementation of this behaviour?
-- did the agent create a new name for an existing concept?
-- could an existing helper/system be extended safely?
-- is the new abstraction prematurely generic?
-- did the change create a second source of truth?
-
-## 14. Deleting replaced capabilities
-
-When a change intentionally replaces an old implementation:
-
-- migrate all intended consumers;
-- remove obsolete code/export/configuration;
-- remove obsolete tests or convert them to the new contract;
-- run dead-code/unused-export checks;
-- do not leave a legacy path “just in case” without an explicit compatibility requirement.
-
-## 15. Discoverability is part of implementation
-
-A shared capability that future agents cannot find is effectively duplicated code waiting to happen.
-
-Shared capability work should include:
-
-- clear naming;
-- canonical exports;
-- searchable domain vocabulary;
-- concise docs/metadata;
-- tests demonstrating intended use.
-
-## 16. Reuse gate for every change
-
-Before completion, the implementation agent must be able to answer:
-
-1. What existing capabilities were searched?
-2. What existing capability was reused or why none fit?
-3. Did this change create a concept that another game is likely to need?
-4. If similar code already exists elsewhere, why was it not unified?
-5. Did this change add another source of truth?
-
-If these questions cannot be answered, the change is not ready for review.
+If discoverability is poor, the capability is not finished.
