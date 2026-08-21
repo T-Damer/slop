@@ -1,53 +1,67 @@
 # Game specifications
 
-Every game in `slop` should have a concise canonical specification before substantial implementation begins.
+## Hard rules
 
-The specification exists so implementation agents do not invent product/session/network behaviour while writing code.
+1. Every substantial game gets a canonical spec before substantial implementation.
+2. Every game implementation boundary (`games/<game>/`) gets its own concise `AGENTS.md` before code is added.
+3. The spec defines game-specific behaviour; local `AGENTS.md` defines implementation ownership/dependency/reuse rules.
+4. Neither may override root/shared architecture invariants.
+5. Unknown permanent decisions remain explicit `TBD`; implementation agents do not silently invent them.
 
-Use [`_template.md`](./_template.md) for new games.
+Use [`_template.md`](./_template.md) for a new game spec and [`../engineering/local-agents-template.md`](../engineering/local-agents-template.md) for the implementation boundary.
 
-## Rules
+## Why two files
 
-- one canonical spec per game;
-- the spec describes behaviour/contracts, not implementation trivia;
-- implementation must link/reuse platform capabilities instead of redefining them in prose;
-- unknown decisions are marked explicitly as `TBD`; agents must not silently choose a permanent architecture for a `TBD` item;
-- when behaviour changes intentionally, update the game spec in the same change;
-- temporary prototype omissions must be listed under `Prototype scope`, so “not implemented yet” is not mistaken for the final design.
+A game spec answers **what the game does**:
 
-## Required topics
+- loop/session/join/spectator rules;
+- win/loss/progression/social moments;
+- networking authority;
+- visual/asset/performance requirements.
 
-Every game spec should answer, as applicable:
+`games/<game>/AGENTS.md` answers **how agents may change that implementation**:
 
-- core loop;
-- target session length;
+- owned state/contracts;
+- reusable ECS/platform capabilities;
+- allowed dependencies;
+- canonical registries such as `<game>Events`, `<game>Rules`, `<game>Timers`;
+- local refactor restrictions;
+- required tests.
+
+Keeping these separate prevents either document from becoming a giant handbook.
+
+## Required spec topics
+
+As applicable:
+
+- core loop and target session length;
 - input model;
 - player count;
 - online/offline/bot policy;
-- join policy;
-- spectator behaviour;
-- reconnect/leave behaviour;
+- join/spectator/reconnect/leave behaviour;
 - win/loss/end conditions;
-- progression/rating policy;
-- meaningful social moments;
-- chat/presence summary;
+- progression/rating;
+- social moments and presence summary;
 - monetization/cosmetic surfaces;
-- reusable ECS capabilities required;
+- reusable ECS/platform capabilities;
 - genuinely game-specific systems/data;
 - authoritative networking model;
 - deterministic/random requirements;
 - visual/theme requirements;
 - asset/audio requirements;
 - performance constraints;
-- acceptance tests for the current milestone.
+- current prototype scope;
+- acceptance tests.
 
 ## Agent reading rule
 
-An agent implementing a game must read:
+An agent implementing `games/<game>/...` reads only:
 
 1. root `AGENTS.md`;
-2. `docs/README.md` routing;
-3. this game specification;
-4. the relevant architecture docs for the systems it changes.
+2. `games/<game>/AGENTS.md` plus any deeper applicable local instructions;
+3. that game's canonical spec;
+4. the smallest architecture/engineering docs routed by the local instructions/task.
 
-The game spec does not override repository-wide architecture rules.
+Do not require the agent to ingest every game or the entire documentation tree.
+
+When behaviour changes intentionally, update the game spec in the same change. When ownership/dependencies/reuse rules change, update the local `AGENTS.md` in the same change.
