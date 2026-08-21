@@ -1,252 +1,235 @@
 # AGENTS.md
 
-This file is the mandatory entry point for every agent that reads, plans, edits, reviews, or merges code in this repository.
+Mandatory entry point for every agent that plans, edits, reviews, or accepts work in this repository.
 
-The project is intentionally designed for AI-swarm development. Correctness is not enough: a change must also preserve architecture, reuse existing capabilities, remain understandable to future agents, and pass the acceptance gates below.
+`slop` is intentionally optimized for AI-swarm development. A change is acceptable only when it works **and** preserves the system for the next agent.
 
-## 1. Mandatory preflight before touching code
+## 1. Rule hierarchy
 
-Do **not** edit code before completing this sequence.
+For every file you may touch, read rules in this order:
 
-1. Read this file completely.
-2. Read [`docs/README.md`](./docs/README.md) and the documents listed there for the task type.
-3. Inspect the current worktree/branch and existing diff. Never overwrite unrelated work.
-4. Search the repository for the requested capability, similar systems, hooks, helpers, constants, events, schemas, and tests.
-5. Check whether the change belongs in an existing capability instead of creating a new local implementation.
-6. Identify the layer(s) that must change and verify the dependency direction in the architecture docs.
-7. Write down the expected behaviour and acceptance conditions before implementation.
-8. If the task changes a shared contract, ECS primitive, public API, dependency boundary, persistence/network schema, or cross-game behaviour, stop implementation until the architecture impact is explicit in the task plan.
+1. this root `AGENTS.md` — always applies;
+2. every ancestor/local `AGENTS.md` from repository root to the target directory;
+3. the task-specific canonical documents linked by those files and `docs/README.md`;
+4. accepted ADRs when the task touches an architectural decision.
 
-The default behaviour is **search first, reuse second, extend third, create last**.
+Local `AGENTS.md` files may **tighten or specialize** root rules. They may not silently relax them. A relaxation requires an explicit architecture decision and an update to the canonical rule.
 
-## 2. Non-negotiable engineering rules
+## 2. Mandatory preflight — no code before this
 
-### 2.1 No magic domain literals
+Before the first code edit:
 
-Do not scatter domain-significant strings or numbers through implementation code.
+1. read this file;
+2. discover and read the complete applicable `AGENTS.md` chain;
+3. read only the relevant task/domain documents from `docs/README.md`;
+4. inspect branch/worktree/current diff and preserve unrelated work;
+5. search for the requested capability, synonyms, helpers, hooks, systems, registries, schemas, tests, and call sites;
+6. identify canonical state/behaviour ownership and dependency layers;
+7. write expected behaviour, scope, and acceptance criteria;
+8. determine whether the task is a refactor or changes shared contracts/runtime/schema;
+9. for non-trivial features, refactors, or architecture changes, run the `grill-me` skill when the active harness provides it; if unavailable, perform the same adversarial plan review explicitly before implementation.
+
+Default order:
+
+> **search → reuse → extend → create**
+
+## 3. Context refresh loop
+
+Agents must not rely on a rule read hundreds of tokens ago.
+
+During active implementation, perform a context checkpoint **at least every 6 tool calls**, and immediately when any of these occurs:
+
+- task scope expands;
+- a new helper/hook/system/service is about to be introduced;
+- work crosses a package/subsystem boundary;
+- shared runtime/API/schema is about to change;
+- a refactor becomes necessary;
+- failed tests invalidate the current plan;
+- before final handoff/review.
+
+At a checkpoint:
+
+1. re-read the closest applicable local `AGENTS.md`;
+2. re-read the hard-rule section of the relevant canonical document;
+3. inspect the current diff;
+4. search again before introducing a new reusable concept;
+5. verify that state ownership, dependency direction, and task scope have not drifted;
+6. revise the plan before continuing if they have.
+
+The 6-call checkpoint is intentionally lightweight and non-interactive. `grill-me` is required at the start of non-trivial/refactor work and again after a **material plan/architecture change**, not mechanically every 6 calls when doing so would repeatedly interrupt the user.
+
+## 4. Local `AGENTS.md` files are mandatory architectural boundaries
+
+Create a local `AGENTS.md` **before implementation** when creating a new boundary such as:
+
+- `apps/*`;
+- `packages/*`;
+- `games/*`;
+- `services/*`;
+- `tools/*`;
+- a subsystem with its own public API;
+- a subsystem owning authoritative state;
+- a subsystem owning network/persistence schemas;
+- a subsystem with materially different dependency/test/runtime rules.
+
+Do not create one in every tiny folder. Create them where ownership or rules change.
+
+Local files should be short (target **<= 120 lines**) and contain only:
+
+- scope/purpose;
+- owned state/contracts;
+- allowed/forbidden dependencies;
+- capabilities that must be reused;
+- local refactor restrictions;
+- tests/checks required;
+- links to canonical docs.
+
+Do not copy the root handbook into child folders.
+
+See `docs/engineering/agent-context.md`.
+
+## 5. No floating domain strings or numbers
+
+A meaningful domain literal must have a stable typed owner. It must not live inline **or as an ad-hoc local constant beside the code that uses it**.
 
 Bad:
 
 ```ts
-if (distance < 2.5) emit("fish.caught");
+emit("fishing.caught");
+const MIN_CATCH_DISTANCE = 2.5;
+setTimeout(runPickupAnimation, 300);
 ```
 
-Preferred:
+Good:
 
 ```ts
-const AUTO_INTERACT_DISTANCE_METERS = 2.5;
-const FISH_CAUGHT_EVENT = GAME_EVENTS.FISH_CAUGHT;
+emit(fishingEvents.caught);
 
-if (distance < AUTO_INTERACT_DISTANCE_METERS) {
-  emit(FISH_CAUGHT_EVENT);
+if (distance <= fishingDistances.minCatchDistanceMeters) {
+  // ...
 }
+
+schedule(runPickupAnimation, fishingTimers.pickupAnimationMs);
 ```
 
-Rules:
+Canonical domain values belong in cohesive typed registries/config objects, for example:
 
-- stable/tunable numeric values use named `const` values or typed configuration;
-- event names, storage keys, asset IDs, route IDs, game IDs, action IDs, component IDs, and protocol message names come from typed registries/constants;
-- use `let` only for values that are intentionally reassigned;
-- prefer `const` by default;
-- do not hide magic values inside helper calls merely to satisfy linting;
-- structural literals such as array indexes, mathematical identities, test fixture values, import paths, and user-facing copy may use documented exceptions where extracting a constant would reduce clarity.
+```ts
+export const fishingEvents = {
+  caught: "fishing.caught",
+  escaped: "fishing.escaped",
+} as const;
 
-The intent is not constant spam. The intent is that meaningful behaviour can be located, named, reviewed, tuned, and reused from one place.
+export const fishingDistances = {
+  minCatchDistanceMeters: 2.5,
+} as const;
 
-### 2.2 ECS is the gameplay model
-
-Gameplay state and behaviour must follow the ECS rules in [`docs/architecture/runtime-and-ecs.md`](./docs/architecture/runtime-and-ecs.md).
-
-Core principles:
-
-- components are small data containers;
-- systems own behaviour;
-- entities gain behaviour by composition;
-- shared runtime code must not branch on a specific `gameId` to implement game behaviour;
-- UI components do not become alternative gameplay state stores;
-- presentation reads gameplay state/events but does not own authoritative gameplay rules.
-
-### 2.3 Components must stay simple
-
-UI/framework components should primarily compose presentation and connect already-defined behaviour.
-
-Extract logic when a component begins to coordinate state, effects, orchestration, transformations, or reusable behaviour.
-
-Default review triggers:
-
-- more than 3 related local state values;
-- boolean flags that together describe one workflow/state machine;
-- effects that coordinate multiple state variables;
-- non-trivial async logic;
-- non-trivial data transformation;
-- logic reused or likely to be reused elsewhere.
-
-Use a dedicated hook/controller/service as appropriate. Do not create a hook merely to move lines out of a file; the extracted unit must have a coherent responsibility and explicit API.
-
-### 2.4 Helpers must be reusable and discoverable
-
-Before creating a helper:
-
-1. search for equivalent behaviour;
-2. search the capability registry/documentation;
-3. extend an existing helper if semantics match;
-4. create a new helper only when the responsibility is genuinely different.
-
-Prefer pure helpers. Keep domain-specific helpers close to their domain. Promote behaviour into shared code only when the semantics are actually shared.
-
-Copying a helper and changing a few lines is not acceptable.
-
-### 2.5 Do not patch around architecture
-
-Forbidden patterns include:
-
-- local workaround because the shared API is inconvenient;
-- duplicate systems/helpers/hooks for the same capability;
-- game-specific branches inside shared runtime code;
-- direct network/storage/time/random calls from deterministic simulation;
-- one-off event strings or protocol messages;
-- introducing a second source of truth;
-- adding a dependency to avoid understanding an existing subsystem;
-- broad refactors unrelated to the task.
-
-When the shared abstraction is missing, either extend it deliberately or raise an architecture change. Do not bypass it.
-
-## 3. State rules
-
-- one piece of state must have one owner;
-- derived state should be computed, not independently stored;
-- multiple booleans describing mutually exclusive states should become a tagged union/state machine;
-- simulation state is not duplicated into UI state unless there is an explicit synchronization contract;
-- server-authoritative state must not become client-authoritative through convenience code;
-- persistent/networked state requires an explicit schema and versioning strategy.
-
-See [`docs/engineering/code-standards.md`](./docs/engineering/code-standards.md).
-
-## 4. Dependency and layer rules
-
-The intended dependency direction is:
-
-```text
-games / app features
-        ↓
-     game-sdk
-        ↓
-      engine
-        ↓
-     contracts
+export const fishingTimers = {
+  pickupAnimationMs: 300,
+} as const;
 ```
 
-Platform services integrate through explicit contracts/adapters.
+This applies to gameplay tuning, timers, distances, probabilities, event/action/moment IDs, game/component/system IDs, asset IDs, routes, protocol messages, storage keys, feature flags, permissions, analytics IDs, and other domain-significant literals.
+
+Use `const` by default and `let` only for intentional reassignment.
+
+Structural literals (`array[0]`, `count += 1`, mathematical identities, explicit test fixtures) are narrow exceptions. Do not use the exception to hide gameplay/product values.
+
+See `docs/engineering/code-standards.md`.
+
+## 6. ECS is the gameplay model
+
+Gameplay follows `docs/architecture/runtime-and-ecs.md`.
 
 Hard rules:
 
-- one game cannot import another game;
-- shared packages cannot import game implementations;
-- simulation cannot depend on UI/presentation;
-- deterministic simulation cannot access raw wall-clock time, randomness, network, storage, analytics, or DOM APIs;
+- components are small data-only state;
+- systems own behaviour;
+- behaviour is composed from components/capabilities;
+- shared systems do not branch on a specific `gameId`;
+- UI is not an alternative authoritative gameplay store;
+- presentation may read state/events but does not own simulation rules;
+- deterministic simulation does not directly access wall-clock time, uncontrolled randomness, network, storage, analytics, or DOM APIs.
+
+## 7. UI/components stay simple
+
+UI/framework components primarily compose presentation and bind explicit actions.
+
+Extract a focused hook/controller/service when a component starts owning a workflow, related effects, async orchestration, significant transformations, or multiple related state values.
+
+Review triggers include:
+
+- more than 3 related local state values;
+- several booleans representing mutually exclusive states;
+- effects coordinating multiple states;
+- non-trivial async lifecycle/subscriptions;
+- reusable behaviour.
+
+Do not move complexity into a mega-hook just to reduce file length.
+
+## 8. Reuse is mandatory
+
+Before creating a helper, hook, system, service, schema, event, or capability:
+
+1. search by name and semantics;
+2. inspect the capability/reuse docs;
+3. reuse when semantics match;
+4. extend deliberately when the abstraction owns the behaviour;
+5. create only when genuinely new.
+
+Copying an existing implementation and changing a few lines is a defect.
+
+A second independent occurrence must trigger an explicit reuse decision. A third equivalent implementation without an architecture exception is unacceptable.
+
+## 9. Refactoring is controlled work
+
+Read `docs/engineering/refactoring.md` before any non-trivial refactor.
+
+Hard rules:
+
+- no opportunistic refactor outside task scope;
+- do not mix broad cleanup with behavioural changes;
+- do not create an abstraction from one speculative use case;
+- prove existing capability/search results before adding another abstraction;
+- shared/public refactors require architecture impact review;
+- preserve behaviour with tests before structural rewrites;
+- if the refactor expands materially, update the plan and run `grill-me`/adversarial review again before continuing.
+
+## 10. State and dependency invariants
+
+- one piece of state has one canonical owner;
+- derived state is computed, not synchronized as a second source of truth;
+- mutually exclusive boolean soup becomes a tagged union/state machine;
+- one game never imports another game;
+- shared packages never import game implementations;
+- simulation never depends on presentation;
 - circular dependencies are defects;
-- cross-layer imports require an explicit documented boundary.
+- public/shared contract changes are explicit architecture changes.
 
-## 5. Change scope rules
+## 11. Testing and acceptance
 
-Every task must have a narrow declared scope.
+Behaviour changes require evidence. Bugs require regression coverage when practical. Shared capabilities require contract tests.
 
-Agents must:
+A change is not complete until applicable checks pass:
 
-- modify only files needed for the task;
-- preserve unrelated user/agent changes;
-- avoid opportunistic cleanup outside the task;
-- avoid renames/moves unless they are part of the task or required to remove duplication;
-- keep public API changes explicit;
-- update docs when a contract or rule changes.
+1. requested behaviour;
+2. tests;
+3. formatting/lint;
+4. type checking;
+5. architecture/dependency guard;
+6. dead-code/unused-export checks;
+7. no duplicate capability;
+8. no floating domain literals;
+9. docs/local `AGENTS.md` updated when ownership/contracts changed;
+10. final diff contains no unrelated changes;
+11. an independent reviewer agent reviews the diff against task + rules.
 
-If implementation reveals a separate defect, record it separately instead of silently expanding scope unless it blocks the requested work.
+The reviewer may reject code that works but violates architecture.
 
-## 6. Testing rules
-
-Every behavioural change requires evidence.
-
-At minimum:
-
-- changed pure logic has unit tests;
-- ECS systems have deterministic system tests where practical;
-- bugs receive a regression test before or with the fix;
-- cross-package behaviour has integration coverage;
-- gameplay-critical flows should eventually support replay/simulation tests;
-- tests must assert behaviour, not implementation trivia.
-
-A change is not complete because it works once in a manual run.
-
-## 7. Acceptance gate
-
-An implementation agent must not mark work complete until all applicable gates pass:
-
-1. requested behaviour is implemented;
-2. relevant tests pass;
-3. formatter/linter passes;
-4. type checking passes;
-5. architecture/dependency checks pass;
-6. dead-code/unused-export checks pass;
-7. no duplicated capability was introduced;
-8. no unexplained magic domain literals were introduced;
-9. documentation/contracts are updated when needed;
-10. the diff contains no unrelated changes;
-11. a reviewer agent has inspected the final diff against the task and these rules.
-
-The reviewer must review the **diff**, not only the final runtime result.
-
-## 8. Review policy
-
-Implementation and review are separate roles.
-
-The reviewer should actively look for:
-
-- patch solutions that bypass existing abstractions;
-- duplicated helpers/hooks/systems;
-- new sources of truth;
-- hidden magic values;
-- oversized components/functions;
-- invalid ECS ownership;
-- dependency violations;
-- missing tests;
-- accidental API expansion;
-- changed behaviour not represented in docs/contracts;
-- code that passes tests but makes future agent work harder.
-
-A reviewer may reject a working change if its architecture is wrong.
-
-## 9. Architecture exceptions
-
-Rules may occasionally need exceptions, but exceptions must be deliberate, local, documented, and removable.
-
-Never use blanket lint disables or broad suppressions.
-
-An exception must state:
-
-- which rule is bypassed;
-- why the normal architecture cannot be used;
-- scope of the exception;
-- follow-up issue/ADR when appropriate;
-- expiry/removal condition where practical.
-
-## 10. Documentation routing
-
-Read the smallest relevant set after this file:
-
-- Product behaviour / social flows → `docs/product/vision-and-social-loops.md`
-- New game / game contract changes → `docs/games/README.md` + that game's canonical spec
-- ECS / systems / simulation boundaries → `docs/architecture/runtime-and-ecs.md`
-- Reuse / capability ownership → `docs/architecture/capabilities-and-reuse.md`
-- TypeScript / state / hooks / constants → `docs/engineering/code-standards.md`
-- Task lifecycle / swarm roles → `docs/engineering/agent-workflow.md`
-- Merge/change acceptance → `docs/engineering/change-acceptance.md`
-- Machine enforcement → `docs/engineering/architecture-guard.md`
-- Architecture-significant decisions → `docs/decisions/README.md`
-
-## 11. Final rule
+## 12. Final invariant
 
 Never optimize for “make this task pass” at the expense of the system.
 
 Optimize for:
 
-> the smallest correct change that fits existing architecture, increases reuse, remains easy for the next agent to understand, and can be mechanically validated.
+> **the smallest correct change that fits existing ownership, reuses existing capabilities, is mechanically checkable, and is easier for the next agent to understand.**
