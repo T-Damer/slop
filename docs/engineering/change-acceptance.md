@@ -1,296 +1,238 @@
 # Change acceptance policy
 
-## Purpose
+## Hard rules
 
-This document defines when a change is allowed to be considered complete and accepted. It is intentionally stricter than “the feature works”.
-
-A change must satisfy product behaviour, architecture, tests, scope discipline, and maintainability for future agents.
-
-## 1. Acceptance principle
-
-A patch is acceptable only when all applicable statements are true:
+A change is complete only when all applicable conditions hold:
 
 ```text
 requested behaviour is correct
-AND architecture remains valid
-AND state ownership remains clear
+AND applicable root/local instructions were followed
+AND architecture/state ownership remain valid
 AND existing capabilities were reused where appropriate
+AND domain literals have canonical typed owners
+AND refactors satisfy refactoring policy
 AND tests/checks provide evidence
-AND the diff is scoped
-AND documentation/contracts remain truthful
-AND an independent reviewer has inspected the final diff
+AND final diff is scoped
+AND docs/contracts/local AGENTS remain truthful
+AND an independent reviewer inspected the final diff
 ```
 
-Passing tests cannot override an architecture violation.
+Passing tests never waives an architecture violation.
 
-## 2. Before implementation may be accepted
+## 1. Required evidence
 
-The task must have a clear answer to:
+The final handoff/review must answer:
 
-- what changed?
-- why is it needed?
-- what is the canonical owner of the changed behaviour/state?
-- which existing capabilities were searched/reused?
-- what observable behaviour proves completion?
-- what files/layers were intentionally changed?
-- did any shared/public contract change?
+- what changed and why;
+- canonical owner of changed state/behaviour;
+- applicable local `AGENTS.md` chain;
+- existing capabilities searched/reused;
+- new capabilities introduced and why they are genuinely new;
+- observable acceptance behaviour;
+- files/layers intentionally changed;
+- shared/public/schema/refactor impact;
+- exact checks actually run.
 
-If the answers changed during implementation, the final handoff must reflect the new reality.
+Do not claim a check ran when it did not.
 
-## 3. Required automated checks
+## 2. Automated checks
 
-Once the toolchain exists, the default gate should include:
+Once implemented, the default CI/local gate should include:
 
 ```text
 format
 lint
 TypeScript typecheck
-unit/system/integration tests relevant to change
-architecture/dependency checks
-dead-code/unused-export checks
-domain architecture guard
+relevant tests
+dependency architecture
+dead-code / unused exports
+slop-guard
+local AGENTS boundary check
 ```
 
-The exact commands will be added here when package scripts exist.
+Planned checks are not considered executed until the tooling exists.
 
-Agents must never claim a check passed when the command was not run.
+## 3. Behaviour/testing gate
 
-## 4. Behavioural evidence
+Use the lowest stable useful boundary:
 
-### New behaviour
+```text
+pure logic          → unit test
+ECS behaviour       → deterministic system test
+routing/domain flow → domain/integration test
+network contract    → serialization/contract test
+critical user flow  → integration/e2e where practical
+```
 
-Requires tests at the lowest useful stable boundary.
+Bug fixes normally include a regression test.
 
-Examples:
+Shared capabilities require contract coverage.
 
-- pure calculation → unit test;
-- ECS behaviour → deterministic system test;
-- activity routing → domain/integration test;
-- network contract → serialization/contract test;
-- critical user flow → integration/e2e test where practical.
+A refactor must preserve behaviour with tests and satisfy `refactoring.md`.
 
-### Bug fix
+## 4. Architecture/state gate
 
-Normally requires a regression test that fails before the fix and passes after it.
+Reject without an explicit approved architecture change if the diff introduces:
 
-If a regression test is genuinely impractical, the handoff must explain why and provide alternative evidence.
+- a second authoritative state owner;
+- stored derived state without justification;
+- boolean workflow soup instead of an explicit state model;
+- game → another game imports;
+- shared runtime → concrete game imports;
+- simulation → presentation dependencies;
+- uncontrolled time/random/network/storage in deterministic simulation;
+- game-specific branches in shared capabilities;
+- hidden cross-layer mutation;
+- circular dependencies;
+- public API growth solely to patch a local caller;
+- schema changes without compatibility/version handling.
 
-### Refactor
+## 5. Domain literal gate
 
-Must preserve behaviour and should not expand public APIs or dependencies without a separate reason.
+Reject a domain-significant string/number when it is:
 
-Relevant tests/checks must remain green.
+- inline; or
+- merely extracted into a standalone local/module constant with no canonical domain owner.
 
-### Documentation-only change
+Bad:
 
-Must be internally consistent and must not claim tooling/contracts already exist when they are only planned.
+```ts
+emit("fishing.caught");
+const MIN_CATCH_DISTANCE = 2.5;
+```
 
-## 5. Architecture gate
+Expected ownership:
 
-Reject a change if it introduces any of the following without an explicit approved architecture change:
+```ts
+fishingEvents.caught
+fishingDistances.minCatchDistanceMeters
+fishingTimers.pickupAnimationMs
+```
 
-- second authoritative source of state;
-- game importing another game;
-- shared runtime importing a game implementation;
-- simulation importing presentation/UI;
-- direct uncontrolled time/random/network/storage access from deterministic simulation;
-- game-specific branches in shared capability code;
-- duplicate semantic helper/hook/system/capability;
-- protocol/event IDs as ad-hoc raw strings;
-- circular dependency;
-- public API growth solely to patch one caller;
-- hidden cross-layer mutation.
+Review applies to gameplay values, timings, thresholds, identifiers, routes, assets, protocol messages, storage keys, permissions, flags, analytics IDs, and other domain/boundary values.
 
-## 6. Reuse gate
+Narrow structural/test-fixture exceptions follow `code-standards.md`.
 
-The implementation handoff/review must be able to explain:
+## 6. Reuse/refactor gate
 
-- which existing concepts were searched;
-- which existing capabilities were reused;
-- why any new capability was necessary;
-- whether similar logic exists elsewhere;
-- whether a shared abstraction is premature or justified.
+For a new helper/hook/system/service/capability, reviewer must be able to see:
 
-A reviewer should search independently when the change introduces a new shared concept.
+- repository search was performed;
+- existing owner/capability was considered;
+- reuse/extension was rejected for a concrete semantic reason when a new concept was created.
 
-## 7. State gate
+Reject copy-paste variants.
 
-Reject or revise when:
+A second equivalent occurrence requires an explicit reuse decision. A third equivalent implementation without an architecture exception is unacceptable.
 
-- state is duplicated merely for convenience;
-- derived state is stored without need;
-- several booleans encode a mutually exclusive workflow;
-- UI owns authoritative gameplay state;
-- client owns server-authoritative data without an explicit prediction/cache contract;
-- persistence/network schema changes without explicit compatibility/version handling.
+For non-trivial refactors also require:
 
-## 8. Component/hook gate
+- concrete defect/evidence;
+- target owner;
+- preserved behaviour;
+- caller/migration impact;
+- validation;
+- non-goals;
+- obsolete path removed or a bounded migration plan.
 
-A UI/framework component should be reviewed when it becomes a behaviour container rather than presentation/composition.
+## 7. Component/hook gate
 
-Warning signs:
+Review UI/framework code when it becomes a workflow/state/effect orchestrator.
 
-- more than 3 related local state values;
-- coordinated async/effect lifecycle;
-- workflow booleans;
-- substantial transformation logic;
-- duplicated behaviour from another component;
-- direct domain/network/storage side effects.
+Signals:
 
-The correct response is not automatically “extract hook”. The reviewer should identify a coherent owner: hook, service, helper, store, runtime system, or domain module.
+- more than 3 related local states;
+- several mutually exclusive boolean flags;
+- coordinated async/effect/subscription lifecycle;
+- significant transformation logic;
+- domain/network/storage side effects;
+- duplicated behaviour.
 
-## 9. Literal/configuration gate
+Do not automatically “extract a hook”. Identify the correct coherent owner: hook, controller, service, store, helper, runtime system, or domain module.
 
-Reject unexplained domain-significant magic strings/numbers.
+## 8. Scope/dependency/API gate
 
-Review new literals for:
-
-- tunable gameplay value;
-- duration/threshold/limit;
-- event/command/moment ID;
-- asset/game/route/storage/network identifier;
-- feature/permission key;
-- duplicated semantic value.
-
-Meaningful values need named ownership in constants/configuration/typed registries.
-
-Do not reject obvious structural literals that are clearer inline under the exceptions in `code-standards.md`.
-
-## 10. Scope gate
-
-The final diff must not contain unrelated modifications.
-
-Reject or split:
+Reject/split unrelated:
 
 - opportunistic refactors;
-- formatting unrelated directories;
-- dependency upgrades unrelated to the task;
-- renames/moves unrelated to the requested behaviour;
-- cleanup of unrelated legacy code;
-- generated changes that are not required.
+- broad formatting;
+- dependency upgrades;
+- renames/moves;
+- legacy cleanup;
+- generated changes.
 
-If unrelated work is discovered, create a separate task/issue instead of silently expanding scope.
+New dependencies require justification against existing capabilities/platform primitives plus maintenance/license/security/runtime impact.
 
-## 11. Dependency gate
+Shared/public APIs and network/persistence schemas require explicit contract/consumer/migration/test review.
 
-A new external dependency must have a stated reason.
+## 9. Local instructions/documentation gate
 
-Review:
+If a change creates a new architectural boundary, its local `AGENTS.md` must exist **before acceptance** and satisfy `agent-context.md`.
 
-- existing dependency/standard capability alternatives;
-- runtime/bundle impact;
-- maintenance maturity;
-- license/security suitability;
-- whether the dependency is excessive for the problem.
+If ownership/dependency/reuse/test rules of a subsystem changed, update its local instructions in the same change.
 
-Do not accept a dependency added only because it made an implementation agent's task easier.
+If product/architecture/game contract changed, update its canonical document/ADR when applicable.
 
-## 12. API/schema gate
+Reject documentation that claims planned tooling already exists.
 
-Shared/public APIs and persisted/network schemas are high-cost changes.
+## 10. Cleanup gate
 
-Acceptance requires, as applicable:
-
-- explicit contract update;
-- consumer impact review;
-- migration/backward compatibility strategy;
-- contract tests;
-- documentation update.
-
-Do not silently change event payload meaning while preserving its identifier.
-
-## 13. Cleanup gate
-
-If the new implementation replaces an old path:
+When replacing an implementation:
 
 - migrate intended callers;
-- delete obsolete path;
-- delete unused exports/dependencies;
-- update tests;
-- verify dead-code tooling.
+- remove obsolete path when migration completes;
+- remove unused exports/dependencies;
+- search old names/imports/callers;
+- do not allow new callers onto a deprecated migration path.
 
-Maintaining two paths needs an explicit compatibility reason.
+Dual paths require a bounded compatibility reason and removal condition.
 
-## 14. Performance gate
+## 11. Context-discipline gate
 
-For gameplay/runtime hot paths, consider:
+For a non-trivial agent task, reviewer should confirm the handoff reflects the current rules/plan rather than an obsolete initial assumption.
 
-- per-frame allocation;
-- unnecessary entity queries;
-- network payload size/frequency;
-- repeated expensive computation;
-- rendering/mobile cost.
+The process expectation is:
 
-Do not prematurely micro-optimize ordinary application code. Performance changes should target measurable or clearly hot paths.
+- recurring 6-tool-call context checkpoints during implementation;
+- `grill-me` when available before non-trivial/refactor/architecture work;
+- another adversarial plan pass after material plan expansion.
 
-## 15. Security/privacy gate
+This is primarily an orchestrator/reviewer process rule; do not fabricate logs merely to prove it happened. Prefer tool/harness automation later.
 
-Changes touching identity, chat, presence privacy, payments, network authority, user-generated content, or persistence require explicit review of trust boundaries.
+## 12. Independent review
 
-Client data is not trusted for competitive/authoritative outcomes merely because it is typed.
+Implementation agent is not sole approver.
 
-Do not log credentials, tokens, private chat data, or unnecessary personal data.
+Reviewer returns:
 
-## 16. Documentation gate
+### `PASS`
 
-Docs must change when the change modifies:
+State what diff/rules/evidence were reviewed and any non-blocking follow-ups.
 
-- architecture invariants;
-- component/system semantics;
-- public/shared API;
-- state ownership;
-- game integration contract;
-- agent workflow/quality rules.
+### `REQUEST CHANGES`
 
-Do not update docs for trivial implementation details that are better expressed by types/tests/code.
+Each blocker states the concrete problem, violated contract, and acceptable correction direction.
 
-## 17. Independent review
+Avoid vague “clean this up”.
 
-The implementation agent cannot be the sole approver of its own change.
+## 13. Merge-readiness checklist
 
-Reviewer output should be one of:
+- [ ] Requested behaviour/acceptance criteria satisfied.
+- [ ] Final diff inspected; no unrelated work.
+- [ ] Applicable root/local `AGENTS.md` rules satisfied.
+- [ ] New architectural boundaries have local `AGENTS.md`.
+- [ ] Existing capabilities searched/reused; no semantic duplicate added.
+- [ ] State ownership is singular and layer/ECS boundaries are valid.
+- [ ] No floating domain literals or orphan domain constants.
+- [ ] Refactor policy satisfied where applicable.
+- [ ] Relevant tests/checks actually pass.
+- [ ] Shared API/schema changes are explicit/migrated/tested.
+- [ ] Replaced/deprecated code is cleaned or bounded.
+- [ ] Canonical docs/local instructions remain accurate.
+- [ ] Independent reviewer returned `PASS`.
 
-### PASS
-
-Include:
-
-- what was reviewed;
-- critical checks/evidence considered;
-- any non-blocking follow-ups.
-
-### REQUEST CHANGES
-
-Each blocking item should explain:
-
-- concrete problem;
-- violated requirement/architecture rule;
-- expected correction or acceptable design direction.
-
-Avoid vague feedback such as “clean this up”.
-
-## 18. Merge readiness checklist
-
-Before a change is considered merge-ready:
-
-- [ ] Task acceptance behaviour is satisfied.
-- [ ] Final diff was inspected.
-- [ ] No unrelated work is present.
-- [ ] Existing capabilities were searched/reused.
-- [ ] No semantic duplication was introduced.
-- [ ] State ownership is explicit and singular.
-- [ ] ECS/layer boundaries are respected.
-- [ ] Domain literals are named/configured/typed.
-- [ ] Relevant tests exist and pass.
-- [ ] Type/lint/architecture/dead-code checks pass when available.
-- [ ] Shared API/schema changes are explicit.
-- [ ] Replaced code has been cleaned up.
-- [ ] Docs remain accurate.
-- [ ] Independent reviewer returned PASS.
-
-## 19. “Works” is not a waiver
-
-The following argument is never sufficient:
+## 14. “Works” is not a waiver
 
 > This implementation works for the current case.
 
-The architecture exists specifically because many agents will solve many current cases. Acceptance protects the shape of the system across those tasks.
+is never sufficient by itself. Acceptance protects the shape of the system across many autonomous agent changes.
