@@ -1,20 +1,26 @@
 # Runtime and ECS architecture
 
-## Purpose
+## Hard rules
 
-This document defines the gameplay runtime contract. It exists to keep many independently implemented games compatible with one platform and to prevent agents from creating local object-oriented or component-state shortcuts that fragment behaviour.
+1. ECS is the gameplay composition model.
+2. Components are small data-only state/schema; systems own behaviour.
+3. Do not build a second generic client ECS when the chosen engine already provides one; our contract is the semantic component/system vocabulary and ownership.
+4. Shared systems never branch on a concrete game identity.
+5. Gameplay/system behaviour declares what state it reads/writes/emits as runtime tooling permits.
+6. Deterministic simulation receives controlled clock/RNG/input/services; it does not directly call wall clock, random, network, storage, analytics, or DOM APIs.
+7. UI/presentation does not become an authoritative gameplay state store.
+8. Server-authoritative state remains server-authoritative; client convenience code does not redefine authority.
+9. Reusable behaviour is expressed through components/capabilities/configuration, not copy-pasted game variants.
+10. Domain identifiers/tuning values use canonical typed registries/config objects.
 
-## 1. ECS is the gameplay composition model
+## 1. Composition model
 
-Gameplay entities are composed from data components and processed by systems.
-
-The engine/runtime may provide its own ECS primitives. Do not build a second generic client ECS merely for abstraction purity. Our contract is the **semantic component/system vocabulary and its ownership rules**.
+Gameplay entities gain behaviour by component composition.
 
 Example:
 
 ```text
 Fishing player
-Entity
 ├ Transform
 ├ PlayerControlled
 ├ Movement
@@ -23,7 +29,6 @@ Entity
 └ ActivityParticipant
 
 Fish
-Entity
 ├ Transform
 ├ Interactable
 ├ Carryable
@@ -31,11 +36,17 @@ Entity
 └ FishData
 ```
 
-Behaviour emerges from systems acting on component combinations.
+The engine may physically store these using its own ECS/component API. Do not wrap it in a second generic ECS merely for aesthetic purity.
+
+The stable project contract is:
+
+- component semantics;
+- system semantics;
+- ownership;
+- deterministic boundaries;
+- network/presentation boundaries.
 
 ## 2. Components are data-only
-
-Components should contain serializable state or references explicitly permitted by the runtime contract.
 
 Good:
 
@@ -50,406 +61,266 @@ Bad:
 
 ```ts
 class MovementComponent {
-  speed = 4;
+  speedMetersPerSecond = 4;
 
   move() {
-    // behaviour hidden inside component
+    // hidden behaviour
   }
 }
 ```
 
-Rules:
+Components should:
 
-- no gameplay methods inside components;
-- no hidden network/storage access;
-- no timers implemented by wall-clock side effects;
-- prefer small components representing one capability/state concern;
-- avoid components that become miscellaneous bags of unrelated state;
-- use typed IDs/enums/registries for categorical values.
+- represent one coherent state/capability concern;
+- be serializable when network/replay semantics require it;
+- avoid hidden service/network/storage references;
+- avoid timers implemented through wall-clock side effects;
+- use typed IDs/contracts for categorical/domain values.
+
+A component becoming a miscellaneous bag of unrelated fields is a refactor signal.
 
 ## 3. Systems own behaviour
 
-Systems operate over entities/components and declare their dependencies.
-
-Target conceptual shape:
+Conceptual shape:
 
 ```ts
 defineSystem({
-  id: SYSTEM_IDS.MOVEMENT,
-  phase: SYSTEM_PHASES.SIMULATION,
-  reads: [COMPONENT_IDS.MOVEMENT, COMPONENT_IDS.TRANSFORM],
-  writes: [COMPONENT_IDS.TRANSFORM],
-  emits: [GAME_EVENTS.MOVEMENT_STARTED, GAME_EVENTS.MOVEMENT_STOPPED],
+  id: systemIds.movement,
+  phase: systemPhases.simulation,
+  reads: [componentIds.movement, componentIds.transform],
+  writes: [componentIds.transform],
+  emits: [movementEvents.started, movementEvents.stopped],
   update(context) {
     // behaviour
   },
 });
 ```
 
-The exact runtime API may evolve, but the metadata intent is mandatory: system ownership and side effects must remain discoverable.
+The exact API may change, but behaviour/state access must remain discoverable enough for tests, review, networking, replay, and `slop-guard`.
 
-Benefits:
+## 4. Shared systems are semantic capabilities
 
-- architecture validation;
-- deterministic simulation;
-- easier code review;
-- replay/debug tooling;
-- server/client portability;
-- better AI-agent search and reasoning.
-
-## 4. Prefer composition over game-specific classes
-
-Avoid hierarchies such as:
+A shared capability such as carrying should operate from component semantics:
 
 ```text
-BaseGameObject
-└ InteractiveObject
-  └ CarryableObject
-    └ FishingFishObject
+Carrier + Carryable + interaction state
+→ CarrySystem
 ```
 
-Prefer:
-
-```text
-Entity + Interactable + Carryable + Collectible + FishData
-```
-
-Game-specific data is acceptable. Reimplementing generic capability behaviour is not.
-
-## 5. Shared semantic components
-
-The initial vocabulary is expected to include concepts such as:
-
-```text
-Transform
-Movement
-PlayerControlled
-BotControlled
-
-Interactable
-AutoInteract
-Carryable
-Carrier
-DropZone
-
-Collectible
-Inventory
-RewardSource
-
-Health
-Damageable
-
-Spawner
-Timer
-Cooldown
-
-Team
-ActivityParticipant
-Spectator
-
-RoundParticipant
-Score
-Objective
-
-NavigationTarget
-Visibility
-FogReveal
-
-AnimationState
-AudioEmitter
-```
-
-This list is a starting vocabulary, not permission to pre-build every component before a game requires it.
-
-Each new shared component must have:
-
-- one clear semantic responsibility;
-- documented ownership;
-- typed schema;
-- at least one real consumer;
-- tests for systems relying on it.
-
-## 6. Shared systems
-
-Likely reusable systems include:
-
-```text
-MovementSystem
-AutoInteractionSystem
-CarrySystem
-DropSystem
-CollectionSystem
-SpawnSystem
-TimerSystem
-ObjectiveSystem
-ScoreSystem
-RoundSystem
-NavigationSystem
-VisibilitySystem
-FogSystem
-MomentSystem
-```
-
-A shared system must not contain branches that identify a specific game and implement that game's rules.
-
-Forbidden:
+Forbidden shared logic:
 
 ```ts
-if (gameId === GAME_IDS.FISHING) {
-  // special fishing behaviour in shared CarrySystem
+if (gameId === gameIds.fishing) {
+  // fishing special case
 }
 ```
 
-Game-specific behaviour belongs in game-specific systems/configuration/events composed around shared primitives.
+If fishing needs additional eligibility:
 
-## 7. Simulation phases
+- configure shared semantics through an owned contract; or
+- add a fishing-local system/component that composes with the shared capability.
 
-The runtime should expose explicit phases rather than relying on arbitrary registration order.
+Do not contaminate shared systems with game identity branches.
 
-A tentative phase model:
+## 5. State ownership
+
+Before adding ECS state, identify its canonical owner.
+
+Typical categories:
 
 ```text
-input
-→ pre-simulation
-→ simulation
-→ post-simulation
-→ event resolution
-→ presentation sync
+authoritative gameplay simulation
+server/platform domain
+client prediction/interpolation cache
+presentation-only state
+persisted preferences/config
+pure derived state
 ```
 
-Final phases should be kept small and stable.
+Do not duplicate gameplay state into UI/application state merely because it is convenient to render.
 
-If a system requires a particular ordering, it should declare that relationship or belong to a phase that guarantees it. Do not rely on incidental import order.
+Derived values are computed unless they have their own independent domain semantics/performance contract.
 
-## 8. Deterministic simulation boundary
+## 6. Determinism boundary
 
-Gameplay simulation should be deterministic wherever practical.
-
-Simulation code must not directly access:
+Deterministic/authoritative simulation must not directly use:
 
 ```text
-Date.now / performance.now
+Date.now
+performance.now
 Math.random
-fetch / raw WebSocket
+setTimeout / setInterval for gameplay timing
+fetch / WebSocket
 localStorage / IndexedDB
-analytics SDKs
-payment SDKs
-DOM/browser presentation APIs
+DOM
+analytics / payment SDKs
 ```
 
-Use injected runtime facilities instead:
+Instead receive controlled owners such as:
 
-```text
+```ts
 context.clock
 context.rng
+context.input
 context.events
 context.commands
 context.services
 ```
 
-Examples:
+Their exact names are runtime decisions; controlled injection/ownership is the invariant.
 
-```ts
-const now = context.clock.simulationTime;
-const roll = context.rng.next();
-```
+This enables:
 
-This supports:
-
-- authoritative servers;
-- deterministic/replay tests;
+- server execution;
+- deterministic tests;
+- replay;
+- prediction/reconciliation where used;
 - bots;
-- debugging;
-- reconnect/resimulation strategies;
-- future server-side simulation implementation.
+- debugging.
 
-## 9. Randomness
+## 7. Time
 
-Randomness affecting gameplay must come from a seeded/controlled RNG source.
+Gameplay timing is simulation/configuration state, not scattered milliseconds.
 
-The seed/stream ownership must be explicit for networked gameplay.
-
-Presentation-only randomness may use a separate visual RNG that cannot change authoritative outcomes.
-
-Do not mix cosmetic random effects into the gameplay RNG stream unless their order is intentionally part of simulation.
-
-## 10. Time
-
-Gameplay time uses simulation clocks/ticks, not raw wall-clock calls.
-
-Distinguish:
-
-- simulation time;
-- server wall time;
-- UI/presentation time;
-- persisted timestamps.
-
-A timer component stores data; a timer system advances/resolves it.
-
-Bad:
+Use canonical owners, for example:
 
 ```ts
-setTimeout(() => explode(), 3000);
+fishingTimers.biteWindowMs
+fishingTimers.pickupAnimationMs
+activityTimers.reconnectGraceMs
 ```
 
-inside authoritative simulation.
+Simulation time comes from the controlled clock/scheduler.
 
-Preferred concept:
+Presentation animation timing may use presentation infrastructure but still follows the domain-literal ownership rules when the value is product/style significant.
+
+## 8. Randomness
+
+Gameplay-affecting randomness uses the controlled RNG owner and explicit seeds where deterministic replay/server verification requires them.
+
+Probabilities live in owned configuration:
 
 ```ts
-const EXPLOSION_DELAY_MS = GAMEPLAY_TIMINGS.EXPLOSION_DELAY_MS;
-
-addComponent(entity, COMPONENT_IDS.TIMER, {
-  remainingMs: EXPLOSION_DELAY_MS,
-  eventId: GAME_EVENTS.EXPLODE,
-});
+fishingProbabilities.legendaryCatch
+lootRules.rareDropChance
 ```
 
-## 11. Events and commands
+Do not call raw randomness from gameplay systems.
 
-Events describe something that happened.
+## 9. Presentation boundary
 
-Commands request an action.
+Presentation may:
 
-Keep them distinct.
+- render ECS/domain state;
+- interpolate visual transforms;
+- play animations/audio/effects from semantic events;
+- own ephemeral visual state.
 
-Example:
+Presentation may not:
+
+- decide authoritative hit/catch/reward outcomes;
+- mutate canonical game rules outside commands/actions;
+- maintain a competing gameplay truth.
+
+Visual theme/style is presentation/configuration unless the game spec explicitly defines a gameplay rule. Shared theme code must not secretly change mechanics.
+
+## 10. Networking and authority
+
+Each game spec declares authority/session model.
+
+For server-authoritative games:
 
 ```text
-Command: AttemptPickup
-Event: ItemPickedUp
+client input/intent
+→ authoritative simulation
+→ state/events
+→ clients/spectators
 ```
 
-All cross-system/game-platform event identifiers come from typed registries. Do not use floating string event names.
+Clients may predict/interpolate only through explicit contracts. Prediction is not ownership.
 
-Payloads must have explicit types/schemas.
+Networked/persisted ECS data requires explicit schema/version semantics when compatibility matters.
 
-Avoid using a global event bus as a substitute for clear ownership. Prefer direct system/component relationships when no decoupling is needed.
+## 11. Spectators/participants
 
-## 12. Authoritative state
+Participant role should be explicit data/state rather than inferred from UI.
 
-For online competitive/co-op simulation, authoritative gameplay state belongs to the server unless a specific architecture decision says otherwise.
+Example roles:
 
-Clients may:
+```text
+player
+spectator
+queued-next-round
+bot
+```
 
-- predict local movement/interactions where useful;
-- render interpolation;
-- maintain ephemeral presentation state;
-- submit input/commands.
+Games define join policy; shared activity/session infrastructure owns generic participant lifecycle where possible.
 
-Clients must not become authoritative because an implementation shortcut is easier.
+## 12. Bots
 
-## 13. Presentation boundary
+Bots should drive the same semantic command/input boundary as human players where practical.
 
-Presentation converts simulation state/events into visuals/audio/UI.
+Avoid creating a parallel gameplay implementation solely for bots.
 
-Presentation may own ephemeral concerns such as:
+Bot difficulty/behaviour values belong to typed bot/game configuration.
 
-- animation blending;
-- camera smoothing;
-- particle lifetime;
-- UI transitions;
-- purely cosmetic effects.
+## 13. Events
 
-Presentation must not silently change authoritative gameplay state.
-
-Bad:
+Systems emit semantic events from canonical registries:
 
 ```ts
-// React component
-if (animationFinished) {
-  authoritativeInventory.remove(itemId);
-}
+fishingEvents.caught
+carryEvents.started
+roundEvents.completed
 ```
 
-The simulation owns inventory removal. Presentation reflects it.
+Do not couple simulation directly to notifications, chat cards, analytics, or achievements.
 
-## 14. UI and ECS
+Higher layers decide which semantic gameplay events become social moments, notifications, progression, analytics, or presentation effects.
 
-UI framework state is not an alternate ECS.
+## 14. Local game systems
 
-Use UI state for presentation-specific concerns. Gameplay state should be selected/derived from runtime stores/contracts.
+Game-specific systems are expected. They stay under the game boundary and compose shared capabilities.
 
-If a UI interaction requests gameplay behaviour, emit a typed command/action through the approved boundary.
+Promote behaviour to shared code only under `capabilities-and-reuse.md`.
 
-## 15. Entity identity
+A game-local system does not justify a new generic abstraction until semantics are demonstrably shared.
 
-Do not use display names, scene names, or mutable labels as entity identity.
+## 15. System phases
 
-Entity IDs are typed identifiers.
+The runtime should eventually expose a small stable phase model such as:
 
-Asset IDs and entity IDs are different concepts.
-
-Network identity, persistence identity, and runtime entity handles may also be different concepts and should not be conflated.
-
-## 16. Configuration vs state
-
-Configuration defines rules/tuning.
-
-State describes the current session.
-
-Example configuration:
-
-```ts
-const FISHING_CONFIG = {
-  autoInteractDistanceMeters: 2.5,
-  carryCapacity: 1,
-} as const;
+```text
+input
+simulation
+post-simulation/events
+presentation synchronization
 ```
 
-Example state:
+Do not create arbitrary ordering dependencies between systems when an explicit phase/dependency contract can represent them.
 
-```ts
-interface CarrierComponent {
-  carriedEntityId: EntityId | null;
-}
-```
+## 16. Tests
 
-Do not mutate configuration to represent live gameplay state.
+Shared/system gameplay behaviour should be testable without full rendering/UI.
 
-## 17. Theme/style independence
+Prefer deterministic tests for:
 
-Visual themes operate through presentation configuration/semantic asset mapping.
+- component eligibility;
+- state transitions;
+- system interactions;
+- emitted semantic events;
+- controlled timing/randomness;
+- reconnect/authority boundaries where relevant.
 
-Theme code must not contain hidden gameplay rules.
+## 17. Change rule
 
-If dark mode needs shorter vision as a mechanic, shorter vision is a game configuration value; the theme may render corresponding fog but does not own the gameplay radius.
+Adding/changing a shared component/system contract is architecture-significant.
 
-## 18. System size and responsibility
+Before doing so:
 
-A system should own one coherent capability or simulation responsibility.
-
-Signals that a system should be split:
-
-- unrelated component sets;
-- unrelated events;
-- multiple independent reasons to change;
-- game-specific branches accumulating in shared logic;
-- complex lifecycle unrelated to the primary system function.
-
-Do not split systems merely to meet line-count limits. Split on semantic boundaries.
-
-## 19. Server-side ECS
-
-A data-oriented server ECS may be introduced when it materially simplifies authoritative simulation or performance.
-
-Do not introduce a second ECS simply because a library exists.
-
-If client and server use different ECS implementations, shared contracts/components must remain semantically equivalent and serialization boundaries must be explicit.
-
-## 20. New gameplay capability checklist
-
-Before adding a new gameplay capability:
-
-1. search for an existing component/system/helper;
-2. decide whether the behaviour is game-specific or platform-shared;
-3. define state ownership;
-4. define component data;
-5. define the system(s) that read/write it;
-6. define events/commands, if any;
-7. identify deterministic side effects;
-8. identify network authority;
-9. write tests;
-10. register/document the capability if shared.
-
-If steps 3–8 cannot be answered, implementation should not start yet.
+1. search existing capability semantics/callers;
+2. read local `AGENTS.md` and reuse/refactor policy;
+3. identify affected games/consumers;
+4. define migration/compatibility if necessary;
+5. update tests/docs/ADR when applicable;
+6. run `grill-me`/adversarial architecture review for a non-trivial change.
