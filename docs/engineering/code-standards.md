@@ -1,146 +1,194 @@
 # Code standards
 
-## Purpose
+## Hard rules
 
-These rules are optimized for a codebase written mostly by AI agents. They favor explicit ownership, discoverability, small coherent units, typed contracts, and mechanical validation over cleverness.
+1. TypeScript is strict; do not weaken types to make a patch compile.
+2. `const` by default, `let` only for intentional reassignment, never `var`.
+3. Domain-significant strings/numbers live in typed domain registries/config objects — never inline and never as one-off local constants.
+4. One piece of state has one canonical owner; derived state is computed.
+5. Mutually exclusive boolean state becomes a discriminated union/state machine.
+6. UI components render/compose; workflows, effects, subscriptions, and non-trivial state orchestration move to focused hooks/controllers/services.
+7. Search before creating helpers/hooks/systems/services; copy-paste variants are defects.
+8. Pure/domain logic keeps side effects at explicit boundaries.
+9. Public APIs and dependencies stay minimal.
+10. Behaviour changes require behavioural tests; bugs normally require regression tests.
+
+These rules are optimized for a codebase written mostly by AI agents: explicit ownership and discoverability are more valuable than cleverness.
 
 ## 1. TypeScript baseline
 
-Use TypeScript in strict mode.
-
-Target rules:
+Use strict TypeScript.
 
 - no implicit `any`;
-- avoid explicit `any`; use `unknown` + validation/narrowing when the type is not known;
-- no unchecked type assertions to bypass compiler errors;
-- no `@ts-ignore` without a documented architecture exception;
-- prefer discriminated unions for state variants;
-- use exhaustive checks for closed unions;
-- external/untrusted data is parsed/validated at the boundary.
+- avoid explicit `any`; prefer `unknown` + validation/narrowing;
+- no unchecked assertions used to bypass compiler errors;
+- no `@ts-ignore` without a documented exception;
+- prefer discriminated unions for closed state variants;
+- external/untrusted data is validated at boundaries;
+- closed unions should be handled exhaustively.
 
-Do not weaken global compiler settings to make a local change compile.
+Do not weaken global compiler settings for a local task.
 
-## 2. `const` and `let`
+## 2. Domain literals must have typed owners
 
-Use `const` by default.
+The following must not float through implementation code:
 
-Use `let` only when reassignment is intentional and local.
-
-Do not use `var`.
-
-A mutable object does not require `let` unless the binding itself is reassigned.
-
-## 3. No magic domain strings or numbers
-
-Meaningful literals must have names and owners.
-
-Values that should normally be named/configured include:
-
-- gameplay tuning values;
-- timeouts/durations;
+- gameplay values and tuning;
+- timers/durations/cooldowns;
 - distances/speeds/limits;
-- thresholds/probabilities;
-- event/command/moment identifiers;
+- probabilities/thresholds;
+- event/command/moment/action identifiers;
 - game/component/system IDs;
 - asset IDs;
 - route IDs;
+- network/protocol message names;
 - storage/cache keys;
-- protocol message names;
 - feature flags;
-- analytics event identifiers;
-- permission names.
+- analytics identifiers;
+- permissions;
+- other values whose change alters product/domain behaviour or a boundary contract.
+
+### Inline literals are forbidden
 
 Bad:
 
 ```ts
-if (score >= 100 && room.state === "waiting") {
-  send("round:start");
+if (distance <= 2.5) {
+  emit("fishing.caught");
 }
+
+setTimeout(animatePickup, 300);
 ```
+
+### One-off local constants are also forbidden
+
+This is still bad:
+
+```ts
+const MIN_CATCH_DISTANCE = 2.5;
+const FISH_CAUGHT_EVENT = "fishing.caught";
+const PICKUP_ANIMATION_MS = 300;
+```
+
+It names the values but leaves ownership beside one implementation, which makes discovery, reuse, tuning, and validation worse.
+
+### Use cohesive typed domain registries/config objects
 
 Preferred:
 
 ```ts
-const WIN_SCORE = POOL_RULES.WIN_SCORE;
-const WAITING_STATE = ACTIVITY_STATES.WAITING;
-const ROUND_START_MESSAGE = NETWORK_MESSAGES.ROUND_START;
+export const fishingEvents = {
+  caught: "fishing.caught",
+  escaped: "fishing.escaped",
+} as const;
 
-if (score >= WIN_SCORE && room.state === WAITING_STATE) {
-  send(ROUND_START_MESSAGE);
+export const fishingDistances = {
+  minCatchDistanceMeters: 2.5,
+} as const;
+
+export const fishingTimers = {
+  pickupAnimationMs: 300,
+} as const;
+```
+
+Usage:
+
+```ts
+if (distance <= fishingDistances.minCatchDistanceMeters) {
+  emit(fishingEvents.caught);
 }
+
+schedule(animatePickup, fishingTimers.pickupAnimationMs);
 ```
 
-### Narrow exceptions
+Use `satisfies`/explicit types where the object represents a contract:
 
-Do not create meaningless constants for literals whose meaning is already structural and obvious, for example:
-
-- `0` as an initial array index;
-- `1` in a simple increment;
-- mathematical identities;
-- local test fixture data;
-- import/module paths;
-- short user-facing copy owned by a presentation component;
-- standard syntax/options where extracting a constant would obscure intent.
-
-If a literal changes product/game behaviour, crosses a boundary, or is repeated semantically, it is not a structural exception.
-
-## 4. Constants belong to domains
-
-Avoid a repository-wide junk drawer:
-
-```text
-src/constants.ts
+```ts
+export const fishingRules = {
+  maxPlayers: 8,
+  rareCatchMultiplier: 1.5,
+} as const satisfies FishingRules;
 ```
 
-Prefer:
+### Ownership rules
+
+- game-specific values live with the game/domain;
+- cross-game values live in the shared capability that owns their semantics;
+- protocol identifiers live with the protocol contract;
+- asset identifiers live in typed asset registries;
+- user-facing product copy should move through the localization/message system once defined, not become scattered implementation strings;
+- do not create a global `constants.ts` junk drawer.
+
+Good shapes include:
 
 ```text
-activity/activity.constants.ts
-fishing/fishing.config.ts
-runtime/runtime-events.ts
+fishing/fishing-events.ts
+fishing/fishing-rules.ts
+fishing/fishing-config.ts
+activity/activity-states.ts
+network/protocol-messages.ts
 assets/asset-ids.ts
 ```
 
-Shared semantic identifiers should use typed registries/`as const` objects or another type-safe mechanism chosen by the architecture.
+The exact file split is secondary; **stable semantic ownership is mandatory**.
 
-## 5. UI component responsibility
+### Narrow structural exceptions
 
-A UI component should primarily:
-
-- receive/select data;
-- compose smaller UI units;
-- bind event handlers to explicit actions;
-- render presentation.
-
-A component should not quietly become the owner of domain workflows, networking, persistence, gameplay rules, or complex derived state.
-
-## 6. Local state and hooks
-
-Local presentation state is allowed.
-
-Extract a dedicated hook/controller when state is a coherent behaviour rather than a trivial visual toggle.
-
-Default review triggers:
-
-- more than 3 related `useState`/equivalent local states;
-- multiple booleans that encode mutually exclusive modes;
-- effects coordinating multiple state values;
-- async lifecycle logic;
-- retry/loading/error orchestration;
-- subscriptions;
-- data transformations reused across renders/components;
-- same behaviour appears in another component.
-
-Example smell:
+Structural literals may remain explicit when extracting them would reduce clarity and they do not encode domain behaviour, for example:
 
 ```ts
-const [isLoading, setLoading] = useState(false);
-const [isJoining, setJoining] = useState(false);
-const [isSpectating, setSpectating] = useState(false);
-const [hasFailed, setFailed] = useState(false);
+items[0]
+count += 1
+Math.max(value, 0)
 ```
 
-Prefer a coherent model:
+Also acceptable:
+
+- mathematical identities;
+- explicit test fixture/sample data;
+- import/module paths;
+- syntax/library options whose meaning is already defined by an external API.
+
+If changing a literal changes gameplay, UX timing, protocol behaviour, persistence, permissions, routing, or product semantics, it is not structural.
+
+## 3. State ownership
+
+Every state value has one canonical owner.
+
+Before adding state, classify it as:
+
+- authoritative simulation;
+- server/platform domain;
+- client application state;
+- UI presentation state;
+- persisted configuration/preferences;
+- derived state.
+
+Do not synchronize duplicate representations without an explicit contract.
+
+Bad:
+
+```ts
+const [players, setPlayers] = useState(...);
+const [playerCount, setPlayerCount] = useState(players.length);
+```
+
+Prefer deriving `playerCount` unless it has independent semantics.
+
+## 4. State machines over boolean soup
+
+Several booleans describing mutually exclusive states are a smell.
+
+Bad:
+
+```text
+isLoading
+isJoining
+isSpectating
+hasFailed
+```
+
+Prefer:
 
 ```ts
 type JoinFlowState =
@@ -150,48 +198,44 @@ type JoinFlowState =
   | { kind: "failed"; reason: JoinFailure };
 ```
 
-and move orchestration into a focused hook/service when appropriate.
+The string discriminants above are type-level structural values of the state contract; keep them defined with the contract rather than scattering comparisons across unrelated modules.
 
-## 7. Do not abuse hooks
+## 5. UI components and hooks
 
-Extracting a 100-line hook from a 150-line component does not automatically improve architecture.
+A UI component should primarily:
 
-A hook must have:
+- receive/select data;
+- compose presentation;
+- bind explicit actions;
+- render.
 
-- one coherent responsibility;
-- a small explicit API;
-- ownership of related state/effects;
-- a name matching domain intent;
-- tests when behaviour is non-trivial.
+Review/extraction triggers:
 
-Avoid mega-hooks that become hidden controllers for whole screens.
+- more than 3 related local state values;
+- effects coordinating multiple states;
+- non-trivial async/retry/loading/error flow;
+- subscriptions/lifecycle orchestration;
+- reusable transformation/behaviour;
+- component starts owning a domain workflow.
 
-## 8. Helpers
+Move coherent behaviour to a focused hook/controller/service.
 
-Extract non-trivial reusable transformations/logic into named helpers when that creates a coherent unit.
+Do **not** create a hook merely to move lines. A hook must have one responsibility, a small API, and tests when behaviour is non-trivial. A 300-line mega-hook is not an improvement.
 
-Prefer pure functions.
+## 6. Helpers and reuse
 
-Bad:
+Before creating any helper/hook/system/service:
 
-```ts
-function helper(data: any) { ... }
-```
+1. search by intended name;
+2. search by synonyms/semantics;
+3. inspect neighbouring capability APIs/tests;
+4. reuse when semantics match;
+5. extend when the existing owner should support the case;
+6. create only when genuinely different.
 
-Preferred:
+Prefer pure helpers and domain-specific names.
 
-```ts
-function calculateAvailablePartySlots(
-  memberCount: number,
-  maxPlayerCount: number,
-): number { ... }
-```
-
-Search before creating helpers. Follow [`../architecture/capabilities-and-reuse.md`](../architecture/capabilities-and-reuse.md).
-
-## 9. Avoid generic dump files
-
-Do not accumulate unrelated exports in:
+Avoid generic dump modules such as:
 
 ```text
 utils.ts
@@ -201,256 +245,116 @@ misc.ts
 shared.ts
 ```
 
-A cohesive domain module is acceptable. A miscellaneous bucket is not.
+unless the module has a specific documented responsibility despite the name.
 
-## 10. State ownership
+Follow `../architecture/capabilities-and-reuse.md` and `refactoring.md`.
 
-Every state value must have one canonical owner.
+## 7. Functions and modules
 
-Before adding state, identify whether it belongs to:
+Functions/modules have coherent responsibilities.
 
-- authoritative simulation;
-- platform/server domain;
-- client application state;
-- UI presentation state;
-- persisted configuration/preferences;
-- derived/computed state.
-
-Derived values should usually be computed from canonical state rather than separately synchronized.
-
-Bad:
-
-```ts
-const [players, setPlayers] = useState(...);
-const [playerCount, setPlayerCount] = useState(players.length);
-```
-
-Prefer deriving `playerCount` from `players` unless there is an independent domain meaning.
-
-## 11. State machines over boolean soup
-
-If several booleans define mutually exclusive workflow states, replace them with a discriminated union/state machine.
-
-Bad:
+Starting review signals:
 
 ```text
-isLoading
-isReady
-isFailed
-isDisconnected
-isReconnecting
-```
-
-when only one can be true.
-
-Prefer one explicit state whose legal transitions can be reviewed and tested.
-
-## 12. Functions
-
-Functions should have one coherent responsibility.
-
-Starting review budgets, to be enforced only when tooling exists:
-
-```text
-function length: warning > 40 lines, hard review > 80
+function length: warning > 40 lines; hard review > 80
 nesting depth: target <= 3
-cyclomatic complexity: warning > 8, hard review > 12
+cyclomatic complexity: warning > 8; hard review > 12
 positional parameters: target <= 3
+file length: warning > 250; hard review > 500
 ```
 
-These are signals, not reasons to split code arbitrarily.
+These are review signals, not reasons to fragment coherent code.
 
-Prefer an options object/context when many parameters represent one operation.
+Use options/context objects when many parameters form one operation.
 
-## 13. Files/modules
+## 8. Naming
 
-Starting review budgets:
+Names reveal domain intent.
 
-```text
-file length: warning > 250 lines, hard review > 500
-```
+Avoid vague names such as `data`, `thing`, `process`, `helper`, `manager`, `item2` when a semantic name exists.
 
-Generated files are exempt.
-
-A long cohesive file can occasionally be better than five fragments. The reviewer should optimize for semantic boundaries and discoverability rather than chasing line metrics.
-
-## 14. Naming
-
-Names should reveal domain intent.
-
-Avoid vague names:
-
-```text
-data
-info
-manager
-handler
-helper
-thing
-item2
-process
-```
-
-unless the surrounding domain makes the meaning genuinely obvious.
-
-Use consistent suffixes where they carry architectural meaning:
+Use architectural suffixes consistently when useful:
 
 ```text
 *.system.ts
 *.component.ts
-*.hook.ts / use-*.ts
+*.hook.ts
 *.service.ts
 *.adapter.ts
 *.schema.ts
 *.config.ts
-*.constants.ts
 ```
 
-The exact repository convention should be automated once the project layout is implemented.
+## 9. Events and boundaries
 
-## 15. Events and callbacks
+Use typed domain events/actions with explicit payload types.
 
-Prefer typed domain actions/events over anonymous chains of callbacks crossing layers.
+Do not emit arbitrary event strings inline.
 
-Do not create arbitrary string event names inline.
+Subscriptions have explicit lifecycle cleanup.
 
-Event payloads have explicit types.
+Pure/deterministic code does not directly:
 
-Listeners/subscriptions must have clear lifecycle cleanup.
-
-## 16. Async code
-
-All promises must be intentionally handled.
-
-Do not silently swallow errors.
-
-At a boundary, choose one:
-
-- recover;
-- convert to a typed/domain error;
-- report and rethrow;
-- propagate to an owner that is documented to handle it.
-
-Avoid broad `catch {}`.
-
-Retry policies, backoff, and timeouts are configuration with named values, not repeated literals.
-
-## 17. Errors
-
-Use domain-specific errors/results when callers need to branch on failure reason.
-
-Do not make callers parse human-readable error messages.
-
-Bad:
-
-```ts
-if (error.message.includes("room full")) { ... }
-```
-
-Prefer:
-
-```ts
-if (error.code === ACTIVITY_ERROR_CODES.ROOM_FULL) { ... }
-```
-
-User-facing copy is presentation responsibility.
-
-## 18. Side effects
-
-Keep side effects at boundaries.
-
-Pure domain logic should not directly:
-
-- fetch;
+- fetch/network;
 - mutate storage;
-- send analytics;
 - access DOM;
-- read uncontrolled clocks/randomness.
+- send analytics;
+- read uncontrolled wall-clock time;
+- use uncontrolled randomness.
 
-Use explicit services/adapters/context boundaries.
+Use explicit adapters/context/services at boundaries.
 
-## 19. Logging
+## 10. Async/errors/logging
 
-Do not leave ad-hoc `console.log` debugging in committed code.
+Promises are intentionally handled.
 
-Use the platform logger once defined.
+At an error boundary, explicitly recover, convert to typed/domain failure, report/rethrow, or propagate to a documented owner.
 
-Log events should use stable fields/categories rather than interpolated prose where structured querying matters.
+Never make callers parse human-readable error text to determine behaviour.
 
-Never log secrets/auth tokens/private payloads.
+Do not leave ad-hoc `console.log` debugging in committed code. Use the platform logger when defined and never log secrets/private payloads.
 
-## 20. Comments
-
-Prefer code that expresses intent without commentary.
-
-Useful comments explain:
-
-- why a non-obvious constraint exists;
-- protocol/spec quirks;
-- performance trade-offs;
-- temporary architecture exceptions with a follow-up.
-
-Bad comments merely restate syntax.
-
-Do not use comments to excuse unclear architecture.
-
-## 21. TODO/FIXME policy
-
-Do not introduce an untracked `TODO`/`FIXME` as a substitute for completing the requested change.
-
-If deferred work is legitimate, associate it with an issue/explicit follow-up and explain why it is outside the current scope.
-
-## 22. Dependencies
+## 11. Dependencies and public APIs
 
 Before adding a dependency:
 
-1. search for existing project capability;
-2. confirm the standard library/current dependencies do not solve it adequately;
-3. document why the dependency is preferable;
-4. consider bundle/runtime/server impact;
-5. verify license/security/maintenance suitability.
+1. search existing project capability;
+2. check platform/runtime primitives;
+3. justify why a dependency is better;
+4. consider runtime/bundle/security/license/maintenance impact.
 
-Do not add an npm package for a tiny helper that is simpler and safer to implement locally.
+Do not add a package for a tiny helper.
 
-## 23. Public APIs
+Minimize public exports. Do not export internals “for later”. Shared contracts must have documented semantics and contract tests.
 
-Minimize public exports.
+## 12. Comments and TODOs
 
-Do not export internals “in case another module needs them later”.
+Comments explain **why** a non-obvious constraint exists, not what syntax does.
 
-If an API is shared, document its semantics and test its contract.
+Do not use comments to excuse bad architecture.
 
-Changing a shared public contract is an architecture-significant change and requires reviewer attention.
+Untracked `TODO`/`FIXME` is not a substitute for completing a change. Legitimate deferred work needs an explicit follow-up/owner and reason.
 
-## 24. Tests
+## 13. Tests
 
-Prefer behavioural tests with named fixtures/builders over opaque literal setup.
+Prefer behavioural tests with named fixtures/builders.
 
-Tests may use convenient explicit fixture literals when they improve readability; do not mirror production constant extraction mechanically.
+Tests may use explicit fixture literals when that improves readability; they do not need to mirror production registry extraction mechanically.
 
-Avoid snapshot tests as the sole verification of important gameplay/domain behaviour.
+Do not rely on snapshot tests alone for important domain/gameplay behaviour.
 
-## 25. No copy-paste variants
+## 14. Final self-review
 
-When tempted to duplicate a block and edit it:
+Before handoff ask:
 
-- stop;
-- determine whether there is a shared semantic operation;
-- search the repo;
-- extract/extend only if the abstraction is coherent.
+- Did any domain string/number appear inline?
+- Did I hide one behind a local standalone constant instead of its domain registry?
+- Did I add a second state owner?
+- Did I create something semantically equivalent to an existing helper/hook/system?
+- Did UI become a domain orchestrator?
+- Did boolean soup appear?
+- Did I weaken typing or boundaries?
+- Did I add unnecessary dependency/public API surface?
+- Does every new reusable concept have a discoverable owner?
 
-Copy-paste is allowed only for intentionally independent data/examples/tests where abstraction would reduce clarity.
-
-## 26. Final self-review questions
-
-Before handoff, the implementation agent asks:
-
-- Did I introduce any domain-significant raw strings/numbers?
-- Did I create state that already has another owner?
-- Did I create a helper/hook/system that already exists semantically?
-- Did a component become an orchestrator instead of presentation?
-- Did I use boolean flags where a state machine is clearer?
-- Did I weaken types to make the task easier?
-- Did I add a dependency or public API unnecessarily?
-- Is any side effect happening in the wrong layer?
-- Can the next agent discover and reuse what I added?
+If the answer exposes structural work, follow `refactoring.md` instead of patching around it.
