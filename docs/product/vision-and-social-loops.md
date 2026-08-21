@@ -1,100 +1,151 @@
-# Product vision and social loops
+# Product vision and social/retention loops
 
-## Purpose
+## Hard rules
 
-This document defines product invariants that game implementations must preserve. It describes what the platform is trying to optimize, not the visual design of one screen or the mechanics of one game.
+1. Gameplay and social interaction are equal product loops; games are social places, not isolated apps.
+2. There should be no dead end after a match, loss, achievement, spectator session, or friend activity.
+3. Joining a person/activity should usually be easier than starting from a game catalogue.
+4. Every game defines join/spectator/reconnect behaviour; spectators are participants with reactions/chat/queue, not passive video viewers.
+5. Games emit semantic moments/events; platform layers decide whether they become achievements, chat cards, feed items, notifications, analytics, or monetization context.
+6. Losing may reduce competitive rating but should rarely erase broad account progression or create a close-app moment.
+7. Notifications are relevance-ranked and throttled; friends are not spam generators.
+8. Monetization primarily sells identity/expression/collection/shared-space value, not frustration relief or competitive power.
+9. Mobile realtime games default to one-handed input: joystick + automatic/contextual interaction + occasional tap/choice.
+10. Visual themes are parameterized presentation/style; they do not secretly alter gameplay rules.
 
-## 1. Core thesis
+## 1. Product shape
 
-`slop` is a social game platform, not a catalogue of disconnected mini-games.
+`slop` is a social game platform containing multiple games and an optional shared/meta world.
 
-Gameplay and social interaction are equal product loops:
-
-```text
-Gameplay loop
-enter → understand → act → result → reward → continue
-
-Relationship loop
-see person/activity → watch/join → interact → create a moment → talk/react/share → play again
-```
-
-A mechanically complete game is still incomplete if it produces no useful social surfaces.
-
-A social feature is incomplete if it cannot lead naturally back into an activity.
-
-## 2. No dead ends
-
-Every meaningful user state should expose a useful next action.
-
-Examples:
-
-- win → replay / challenge / share / watch friends / switch activity;
-- lose → rematch / personal progress / chat / watch / another activity;
-- spectate → react / chat / queue / join next round;
-- achievement → show friends / challenge friend / inspect collection;
-- friend leaves → continue / bot replacement / invite / switch activity;
-- room full → spectate + queue instead of hard rejection;
-- activity ended → result/moment + related action instead of an error page.
-
-Result screens and notifications are routers, not endpoints.
-
-## 3. Person-first navigation
-
-When possible, prefer:
+Users may enter through:
 
 ```text
-person → current activity → join/watch
+home
+chat
+friend profile
+party
+guild
+notification
+achievement/social moment
+deep link
+meta world
 ```
 
-over:
+The meta world is another navigation/activity surface, not a mandatory corridor before playing a game.
+
+## 2. Two equal loops
+
+### Gameplay loop
 
 ```text
-game catalogue → game → matchmaking → strangers
+enter
+→ understand
+→ act
+→ result
+→ reward/progress
+→ next action
 ```
 
-The game catalogue still exists, but friends, parties, chat, notifications, guilds, and activity feeds should be first-class game entry points.
+### Relationship loop
 
-## 4. One-handed mobile default
+```text
+see friend/activity
+→ watch/join/react/message
+→ play together
+→ interesting moment happens
+→ moment becomes visible
+→ conversation/challenge/join
+→ stronger future social relevance
+```
 
-Realtime games should be designed for one-handed play whenever the mechanic permits it.
+A mechanically good game that produces no useful social interaction is incomplete for this platform.
 
-Default interaction vocabulary:
+## 3. Macro retention router
 
-- virtual joystick for movement;
-- automatic/contextual interaction near relevant objects;
-- contextual single tap for meaningful choices/actions;
-- drag/swipe only when precision itself is the mechanic.
+After meaningful activity, the platform should rank a small set of natural next actions:
 
-Avoid making ordinary movement require simultaneous movement and camera controls. First/third-person twin-stick interaction is not the default platform pattern.
+```text
+replay/rematch
+join a friend
+invite someone
+watch another activity
+continue conversation
+switch game
+customize/collect
+```
 
-This constraint does not prohibit games such as chess, pool, or match-3 that naturally use direct touch instead of a joystick.
+The result screen is a router, not a tombstone.
 
-## 5. Activity presence
+A modal whose only meaningful action is `OK` is usually a product smell.
 
-A player's current activity is a platform concept.
+## 4. Social moments
 
-A presence payload should eventually be able to represent:
+Games emit semantic moments rather than implementing notification/feed/chat logic directly.
+
+Example concept:
 
 ```ts
-interface ActivityPresence {
-  userId: UserId;
-  activity?: {
-    gameId: GameId;
-    sessionId: SessionId;
-    state: ActivityState;
-    joinPolicy: JoinPolicy;
-    playerCount: number;
-    maxPlayers?: number;
-    progress?: ActivityProgressSummary;
-  };
-}
+emitMoment({
+  type: fishingMoments.catch,
+  significance: momentSignificance.high,
+  actorId,
+  data: {
+    speciesId,
+    weightKg,
+    personalBest: true,
+  },
+  actions: [momentActions.join, momentActions.react, momentActions.challenge],
+});
 ```
 
-Relevant surfaces may show concise activity state, for example:
+The platform may turn this into:
+
+- nothing;
+- local toast;
+- achievement;
+- chat card;
+- friend feed item;
+- in-app notification;
+- push notification;
+- challenge/deep link.
+
+Possible high-value moments:
+
+```text
+personal record
+rare item/catch
+comeback
+win streak
+close result
+friend record beaten
+team rescue
+funny cooperative failure
+first completion
+rare extraction/boss result
+```
+
+The strongest content unit should often be **something that happened between/around players**, not merely “a game exists”.
+
+## 5. Presence
+
+Presence is a first-class platform object.
+
+It should be able to summarize:
+
+```text
+game/activity
+room/session
+playing / waiting / spectating / idle
+progress summary
+joinability
+player count/capacity
+```
+
+Example UI:
 
 ```text
 Ben
-Pool · Round 3 · leading 2–1
+Pool · 2–1
 Watch · Ask to join
 ```
 
@@ -106,198 +157,142 @@ Fishing · caught 8.1 kg Pike
 Join
 ```
 
-Presence must remain privacy-aware. Visibility is ultimately configurable per user/context.
+Presence is privacy-aware and can be restricted by user policy.
 
-## 6. Activity Router
+## 6. Activity routing
 
-Every platform surface should route to a common activity decision instead of reimplementing game-specific join rules.
-
-Conceptually:
+A deep link/activity card should target the activity/person directly, for example conceptually:
 
 ```text
-activity link/request
-        ↓
-Activity Router
-        ↓
-current session state + join policy + permissions
-        ↓
-join now / spectate / queue / request / show result
+activity → room/player
 ```
 
-Examples of entry surfaces:
+The router decides:
 
-- home;
-- chat card;
-- friend profile;
-- party;
-- guild;
-- notification;
-- achievement/moment;
-- deep link;
-- shared world/hub.
+```text
+hot join
+request to join
+spectate
+spectate + queue
+join next round
+show finished result / start new session
+```
 
-A user should not normally be sent through an unnecessary game landing page before reaching the requested activity.
+Do not make every surface understand each game's session rules.
 
 ## 7. Join policies
 
-Every game/session type explicitly declares how late joining works.
+Each game spec chooses one or more clear policies.
 
-Initial vocabulary:
+### Hot join
 
-### `hot`
+Player can enter immediately.
 
-A player can become an active participant immediately.
-
-Suitable for continuous social activities such as fishing, farming, exploration, or open co-op.
-
-### `checkpoint`
-
-A player can join at the next safe simulation transition.
-
-Suitable for waves, staged co-op, extraction-style sessions, or races with controlled checkpoints.
-
-### `next-round`
-
-A player cannot alter the current competitive round and becomes a spectator/queued participant until the round ends.
-
-Suitable for pool, chess, cards, or competitive puzzle rounds.
-
-### `spectate-only`
-
-Current session cannot accept more participants, but spectators are allowed.
-
-### `closed`
-
-Session is intentionally not visible/joinable to the requester.
-
-Games must not invent arbitrary equivalent strings outside the typed platform registry.
-
-## 8. Spectators are participants
-
-Spectating is a first-class activity state, not an error fallback.
-
-Depending on game rules, spectators may:
-
-- react;
-- chat;
-- inspect players/progress;
-- queue for the next round;
-- predict results;
-- use cosmetic reactions/emotes;
-- invite another friend;
-- follow/share the match.
-
-Spectator actions must never mutate authoritative gameplay state unless a game explicitly defines such a mechanic.
-
-## 9. Game Moments
-
-Games emit semantic moments. They do not directly implement notification delivery, chat cards, achievement UI, or feed ranking.
-
-Example conceptual API:
-
-```ts
-emitMoment({
-  type: GAME_MOMENTS.FISHING_CATCH,
-  actorId: playerId,
-  significance: MOMENT_SIGNIFICANCE.HIGH,
-  payload: {
-    speciesId,
-    weightKg,
-    personalBest,
-  },
-  actions: [
-    MOMENT_ACTIONS.JOIN,
-    MOMENT_ACTIONS.REACT,
-    MOMENT_ACTIONS.CHALLENGE,
-  ],
-});
-```
-
-The platform may transform one moment into zero or more surfaces:
-
-- in-game feedback;
-- achievement;
-- chat card;
-- friend feed item;
-- in-app toast;
-- push notification;
-- profile history;
-- challenge entry point.
-
-This separation is important: **games create interesting facts; the platform decides how aggressively to surface them.**
-
-### Candidate moments
-
-Generic:
-
-- personal best;
-- rare find;
-- comeback;
-- close result;
-- streak;
-- first completion;
-- surprising failure;
-- teammate rescue;
-- unusually strong/creative play;
-- achievement completion.
-
-The moment schema must be typed and versionable. Do not put presentation copy into the authoritative gameplay event unless the copy is itself game data.
-
-## 10. Social retention loop
-
-A preferred loop is:
+Useful for:
 
 ```text
-play
-  ↓
-interesting moment
-  ↓
-platform surfaces it to relevant people
-  ↓
-friend reacts / messages / joins / challenges
-  ↓
-shared activity
-  ↓
-new moments and stronger relationship signal
-  ↓
-future activity becomes more relevant
+fishing
+farming/open exploration
+social spaces
+many continuous co-op modes
 ```
 
-The strongest content unit should often be **something that happened between players**, not merely the existence of a game.
+### Checkpoint join
 
-## 11. Notifications
+Player joins at a safe transition.
 
-Notifications are derived from platform events and relevance, not hard-coded inside each game.
+Useful for:
+
+```text
+waves
+co-op stages
+dungeon rooms
+some races
+```
+
+### Next-round join
+
+Current competitive round cannot be disturbed.
+
+Useful for:
+
+```text
+pool
+chess
+cards
+competitive match-3
+```
+
+Until then the user can spectate/queue.
+
+## 8. Spectators
+
+Spectators should be socially active.
+
+Possible actions:
+
+```text
+react
+chat
+inspect players/results
+queue for next round
+challenge winner
+invite another friend
+follow/predict outcome
+```
+
+A game with locked mid-round joining should explicitly design spectator/queue experience rather than leaving the friend at an error screen.
+
+## 9. Designing loss
+
+Loss can create tension and competitive rating movement.
+
+It should usually still provide at least two of:
+
+```text
+progress
+useful feedback
+personal record/improvement
+collection/achievement progress
+funny/social moment
+rematch
+watch/challenge
+alternative activity
+```
+
+Separate broad account progression from individual competitive skill.
+
+Conceptual profile:
+
+```text
+Global Level / Collection / Achievements / Social
+
+Game skill ratings
+├ Pool
+├ Chess
+├ Match-3
+├ Fishing competition
+└ ...
+```
+
+Competitive ratings may fall. General account value should not feel erased by one loss.
+
+Offline/bot play may support practice/progression/achievements but has little or no competitive rating impact unless results can be server-verified.
+
+## 10. Notifications and feed relevance
 
 Candidate sources:
 
 ```text
-friend.activity.started
-friend.activity.joinable
-friend.moment.notable
-friend.personal-record
-friend.challenge
-party.slot-opened
-guild.activity
+friend activity started/joinable
+friend notable moment/personal record
+challenge
+party slot opened
+guild activity
+followed game event
 ```
 
-Possible actions should usually include a direct next step:
-
-```text
-Ben started Pool
-Join
-```
-
-or:
-
-```text
-Yesterday Ben made 15 long pots
-Try Pool · Message Ben
-```
-
-### Relevance concept
-
-Notification ranking may eventually use signals such as:
+Relevance conceptually depends on:
 
 ```text
 relationship strength
@@ -308,148 +303,129 @@ relationship strength
 - notification fatigue
 ```
 
-Never optimize retention by simply increasing notification volume.
+Use per-person/per-game throttling and push budgets.
 
-Use per-user/per-friend/per-game throttling and a push budget.
+Good:
 
-## 12. Loss design
+> Ben started Pool · Join
 
-Losing may reduce a competitive rating. It should not usually destroy the player's sense of global progress.
-
-A loss should ideally preserve at least two useful outputs:
-
-- progression;
-- feedback;
-- personal record/improvement;
-- funny/social moment;
-- collection progress;
-- rematch opportunity;
-- another relevant activity.
+> Yesterday Ben made 15 long pots · Try it · Message Ben
 
 Bad:
 
+> Fishing misses you!!!
+
+Every notification should have an internally explainable reason.
+
+## 11. Chat integration
+
+Chat can show lightweight live activity/progress cards and allow:
+
 ```text
-YOU LOST
--25 coins
-OK
+watch
+join
+request to join
+react
+message/challenge
 ```
 
-Better:
+Gameplay moments can become chat content, but games do not directly own chat formatting/delivery.
+
+A social action should preserve context: “tell Ben you beat his record” is better than dumping the user into an empty composer with no reference.
+
+## 12. In-app live activity
+
+While the user is already in the app, lightweight activity surfaces can announce relevant events such as:
 
 ```text
-Ben wins 7–6
-New personal longest shot: 14.2 m
-Rating: -8
-
-Rematch · Watch Ben · Try another table
+Anna joined your fishing area
+Ben started a game you often play
+party needs one more player
+friend achieved a notable record
 ```
 
-The platform should distinguish competitive skill from persistent/global progression.
+Do not interrupt active gameplay for low-significance activity.
 
-## 13. Rating model
+## 13. Monetization
 
-Do not use one Elo number as a universal representation of player skill.
-
-Conceptually:
+Prefer cross-game durable expression:
 
 ```text
-Global progression / collection / achievements / social profile
-
-Per-game skill ratings:
-- Pool
-- Chess
-- Match-3
-- Fishing competitions
-- ...
+avatar clothes/styles
+emotes/reactions
+victory animations
+profile frames/titles
+pets
+home/shared-space decoration
+guild cosmetics
+game equipment skins (rod/cue/etc.)
+seasonal collections
 ```
 
-A global competitive index may later be derived from normalized per-game skill/confidence, but it is not the source of individual game ratings.
+A purchase ideally retains meaning across multiple games.
 
-Offline/bot activity may contribute to practice/progression/achievements. It should have little or no effect on competitive rating unless results are verifiable by the authoritative platform.
-
-## 14. Post-session router
-
-At the end of a round/session, rank next actions based on current context.
-
-Possible actions:
-
-- rematch;
-- continue current continuous activity;
-- join friends in another activity;
-- challenge another player;
-- open chat;
-- inspect/share a moment;
-- customize avatar/collection;
-- play another game.
-
-The same static buttons are not always optimal.
-
-Example: if three close friends have just started another game, joining them may rank above an immediate replay.
-
-## 15. Monetization principles
-
-Primary monetization should focus on identity, expression, collection, and shared spaces rather than buying competitive power.
-
-Candidate surfaces:
-
-- avatar clothes/accessories;
-- character styles;
-- reactions/emotes;
-- victory animations;
-- game-specific cosmetics that do not alter competitive mechanics;
-- profile frames/titles;
-- pets;
-- home/shared-space decorations;
-- guild cosmetics;
-- seasonal collections.
-
-Prefer cosmetics that are usable across multiple games because they have higher perceived platform value.
-
-Do not immediately exploit a frustrating loss with a power purchase prompt.
-
-A better monetization transition is:
+Good monetization moment:
 
 ```text
-positive event → relevant cosmetic/collection context → preview → optional purchase
+positive achievement
+→ relevant cosmetic/collection preview
+→ optional purchase
 ```
 
-## 16. Shared world is optional navigation
-
-A future shared world/hub may spatially represent activities:
+Avoid:
 
 ```text
-lake → Fishing
-pool hall → Pool
-arcade → Match-3
-terminal → co-op activity
+frustrating loss
+→ immediate power/frustration purchase prompt
 ```
 
-However, the shared world must not become a mandatory loading/navigation tax.
+## 14. One-handed control principle
 
-Every game must remain directly reachable from social surfaces and game discovery.
-
-## 17. Configurable visual identity
-
-Games should separate semantic gameplay from visual mood.
-
-Gameplay can refer to concepts such as:
+Realtime mobile games should default to:
 
 ```text
-Player
+move → joystick
+auto/context interact → proximity/intent
+important action → contextual tap
+choice → tap
+```
+
+Avoid requiring simultaneous movement + free camera + attack/action button clusters unless a game explicitly proves the need.
+
+This supports simple hyper/hybrid-casual mechanics and social attention while playing.
+
+## 15. Visual/theme parameterization
+
+Gameplay uses semantic concepts; style profiles decide presentation.
+
+Examples:
+
+```text
 Ground
-Interactable
 Danger
 Reward
+Player
+Interactable
 Water
 Fog
 Environment
 ```
 
-A theme/style layer can map those semantics to lighting, materials, fog, palette, audio, animation feel, and UI treatment.
+A profile can control:
 
-A dark/horror style must not secretly change mechanics through theme branches. Mechanical changes belong in typed gameplay configuration.
+```text
+lighting/fog/contrast
+palette/material treatment
+geometry detail/exaggeration
+animation feel
+camera presentation
+UI theme
+audio/ambience
+```
 
-Bad shared code:
+Same mechanics may render as cozy, horror, space mining, etc.
+
+Forbidden:
 
 ```ts
 if (theme === "horror") {
@@ -457,25 +433,34 @@ if (theme === "horror") {
 }
 ```
 
-If a horror game needs a lower speed, its game configuration owns the value.
+If slower movement is a mechanic, it belongs to gameplay configuration, not visual theme.
 
-## 18. Definition of product-complete game integration
+## 16. Game integration contract
 
-A game is not platform-complete because its core mechanic works.
+Every game spec must define, as applicable:
 
-The game design must define, as applicable:
+```text
+core loop
+session/player count
+one-handed input mapping
+join policy
+spectator behaviour
+reconnect/leave
+win/loss/end
+rating/progression
+moments
+presence summary
+server authority/bots/offline policy
+reused platform/ECS capabilities
+visual theme semantics
+```
 
-- entry points;
-- join policy;
-- presence summary;
-- leave/reconnect behaviour;
-- party behaviour;
-- spectator behaviour;
-- meaningful moments;
-- loss/result routing;
-- bot/offline policy;
-- rating policy;
-- relevant progression/cosmetics;
-- one-handed/mobile interaction model.
+A game is not fully integrated merely because its core mechanic runs.
 
-A new game task should explicitly state which of these are intentionally out of scope for the current milestone.
+## 17. Product review question
+
+For every feature ask:
+
+> Does this give the player something interesting to do, or something interesting to do with another person?
+
+The strongest features often do both.
