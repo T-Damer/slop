@@ -1,171 +1,159 @@
 # Agent workflow
 
-## Purpose
+## Hard rules
 
-This document defines how AI agents should execute engineering work in `slop`. The goal is to make parallel/swam development predictable and to stop local task completion from degrading global architecture.
+1. No implementation before root + local instructions, scoped docs, repository search, ownership analysis, and acceptance criteria are known.
+2. Implementation agents work inside declared paths/contracts and do not silently expand shared architecture.
+3. Search/reuse comes before creating helpers/hooks/systems/services/schemas.
+4. Context is refreshed at least every 6 tool calls during implementation.
+5. `grill-me` is required when available before non-trivial features/refactors/architecture changes and after material plan expansion.
+6. Shared runtime/API/schema changes are escalated explicitly.
+7. Tests are part of implementation, not deferred cleanup.
+8. The final diff is independently reviewed against task + rules before acceptance.
 
 ## 1. Roles
 
-A swarm may use more roles, but the minimum conceptual separation is:
-
 ### Orchestrator
 
-Owns:
+Owns task decomposition, scope, dependency ordering, agent/file ownership, handoffs, and architecture escalation.
 
-- task decomposition;
-- scope boundaries;
-- ordering/dependencies;
-- assigning file/subsystem ownership;
-- collecting handoffs;
-- deciding when architecture review is required.
-
-The orchestrator should avoid becoming the primary implementation agent for every task.
+It should not implement every task itself.
 
 ### Implementation agent
 
-Owns a narrow task and its tests within declared paths/contracts.
+Owns a narrow task and tests inside declared paths/contracts.
 
-It must not silently expand shared APIs or rewrite unrelated architecture.
+It must not redesign shared APIs/runtime to make local work convenient.
 
 ### Reviewer agent
 
 Independently reviews the final diff against:
 
-- task requirements;
-- `AGENTS.md`;
-- relevant architecture documents;
-- test evidence;
-- duplication/reuse policy.
+- requirements;
+- applicable `AGENTS.md` chain;
+- canonical docs;
+- refactor/reuse rules;
+- test/check evidence.
 
-The reviewer should not assume working code is acceptable code.
+Working code may still be rejected for architecture violations.
 
-### Specialist agents
-
-Optional examples:
-
-- gameplay/runtime;
-- networking;
-- UI;
-- assets;
-- product/game design;
-- test/verification;
-- performance/security.
-
-Specialists still follow the same preflight and acceptance rules.
-
-## 2. Mandatory task lifecycle
-
-Every coding task follows:
+## 2. Mandatory lifecycle
 
 ```text
-inspect
-→ search/reuse analysis
-→ scope/contract
-→ plan
+read instructions
+→ inspect/search
+→ identify owners/boundaries
+→ define acceptance/scope
+→ adversarial plan review
 → implement
-→ local checks
-→ self-review
+→ context checkpoints
+→ tests/checks
+→ self-review diff
 → independent review
-→ acceptance
+→ accept
 ```
-
-Skipping directly from prompt to implementation is discouraged for non-trivial changes.
 
 ## 3. Preflight
 
 Before editing:
 
 1. read root `AGENTS.md`;
-2. read the relevant routed docs from `docs/README.md`;
-3. inspect branch/worktree/status/diff;
-4. identify unrelated in-progress changes and preserve them;
-5. search for existing capabilities, helpers, hooks, systems, constants, tests, and related call sites;
-6. identify the canonical owner of the state/behaviour being changed;
-7. identify dependency layers touched;
-8. state expected behaviour/acceptance criteria;
-9. decide which files/directories are in scope;
-10. identify whether shared/public contracts change.
-
-For trivial documentation-only changes, some implementation-specific steps may be not applicable, but unrelated work must still be preserved.
+2. discover/read all local `AGENTS.md` files applying to target paths;
+3. read the smallest relevant canonical docs from `docs/README.md`;
+4. inspect branch/worktree/current diff and preserve unrelated work;
+5. search intended names + semantic synonyms + neighbouring tests/callers;
+6. identify canonical state/behaviour owner;
+7. identify dependency layers and public/shared contracts touched;
+8. define observable acceptance conditions;
+9. declare allowed paths and explicit non-goals;
+10. decide whether this contains/refers to a refactor;
+11. for non-trivial feature/refactor/shared changes, run `grill-me` when available or an explicit adversarial plan review when unavailable.
 
 ## 4. Task packet
 
-Whenever the orchestrator can provide structured work to another agent, use a packet similar to:
+Prefer a compact task packet:
 
 ```text
 GOAL
-What behaviour/outcome must exist.
+Observable outcome.
 
-CONTEXT
-Why it is needed and relevant product/architecture docs.
+RULES / DOCS
+Applicable local AGENTS + canonical docs.
 
 ALLOWED PATHS
-Files/directories this agent may modify.
+Write scope.
 
-EXISTING CAPABILITIES
-Systems/hooks/helpers/contracts that should be reused.
+OWNERSHIP
+Canonical state/behaviour owner.
 
-INPUTS / OUTPUTS
-Important types, commands, events, schemas, or APIs.
+REUSE
+Existing capabilities to use/search first.
+
+CONTRACTS
+Inputs/outputs/events/schemas/APIs.
 
 ACCEPTANCE
-Observable tests/behaviour required.
+Tests/behaviour/checks required.
 
-FORBIDDEN CHANGES
-Shared contracts/dependencies/refactors that are out of scope.
-
-DEPENDENCIES
-Other tasks/agents that must finish first.
+FORBIDDEN / NON-GOALS
+Changes explicitly outside scope.
 ```
 
-This reduces architectural invention by implementation agents.
+## 5. Context checkpoint
 
-## 5. File/subsystem ownership during parallel work
+Perform one **no later than every 6 tool calls** during active implementation and immediately when:
 
-Parallel agents should have disjoint write ownership whenever practical.
+- creating a reusable concept;
+- crossing a subsystem/package boundary;
+- touching shared code;
+- beginning a refactor;
+- failed tests force design changes;
+- scope/ownership changes;
+- preparing final handoff.
 
-Example:
+Checkpoint:
 
 ```text
-Agent A → games/fishing/**
-Agent B → platform/activity/**
-Agent C → tests/integration/activity/**
+1. Re-read closest local AGENTS.md.
+2. Re-read relevant ## Hard rules section.
+3. Inspect current diff.
+4. Search again for any new helper/hook/system/service concept.
+5. Confirm state owner and dependency direction.
+6. Confirm diff still matches task packet/non-goals.
+7. Update plan before continuing if anything drifted.
 ```
 
-If two agents need the same shared file, coordinate sequencing rather than racing edits.
+Do not satisfy the checkpoint from memory.
 
-Do not resolve conflicts by blindly choosing one entire version.
+## 6. `grill-me` gate
 
-## 6. Shared code escalation
+When supported by the active harness, use `grill-me` before implementation for:
 
-Changes under shared architecture/runtime packages should be treated as higher risk than local game changes.
+- non-trivial features;
+- new shared capabilities;
+- architecture decisions;
+- API/schema changes;
+- non-trivial refactors.
 
-When an implementation agent discovers that it needs to change shared code, it should report:
+Run it again only when the plan materially changes or a broader refactor appears.
 
-- missing capability;
-- why composition/reuse is insufficient;
-- proposed contract change;
-- current consumers affected;
-- migration/compatibility impact;
-- tests required.
+The fixed 6-call checkpoint is intentionally **not** another interactive `grill-me`: routine work should not repeatedly stop for user questioning.
 
-A swarm may assign that shared change to a dedicated architecture/runtime agent before the original game task continues.
+If the skill is unavailable, adversarially answer:
+
+- could an existing capability already solve this?
+- is this the correct owner/layer?
+- is there a smaller change?
+- what assumption is most likely wrong?
+- does this create a second source of truth?
+- what could make the proposed abstraction/refactor unnecessary?
+- what failure/edge case disproves the plan?
 
 ## 7. Search protocol
 
-Repository search is mandatory before creating concepts.
+Search by both names and semantics.
 
-Search:
-
-- intended name;
-- synonyms/domain concepts;
-- related event names;
-- related tests;
-- imports/exports of neighbouring capabilities.
-
-Example:
-
-A task asks for “player holds fish”. Search not only `heldFish`, but also:
+For “player holds fish”, search concepts such as:
 
 ```text
 carry
@@ -177,174 +165,143 @@ attach
 inventory
 ```
 
-The search result should inform the plan.
+Also inspect neighbouring imports/exports/tests.
 
-## 8. Plan quality
+A plan that says “create X” without evidence that X does not already exist is incomplete.
 
-A useful implementation plan names:
+## 8. Local instructions and new boundaries
 
-- state owner;
-- existing capability to reuse;
-- files/layers to change;
-- events/commands/API contract;
-- test strategy;
-- expected side effects.
+When work creates a new architectural boundary, create its local `AGENTS.md` **before implementation files** according to `agent-context.md`.
 
-Bad plan:
+If ownership/dependencies/tests of an existing subsystem change, update its local instructions in the same task.
 
-```text
-1. Add feature
-2. Test it
-```
-
-Good plan:
-
-```text
-1. Reuse Carrier/Carryable and extend fishing eligibility as a game-local system.
-2. Add typed fishing catch configuration without modifying CarrySystem.
-3. Emit canonical pickup/catch events through runtime event registry.
-4. Add deterministic system tests for eligible/ineligible pickups.
-```
+Do not create instruction files for arbitrary leaf folders.
 
 ## 9. Implementation discipline
 
 During implementation:
 
-- work only inside declared scope;
+- remain inside declared scope;
+- use canonical registries/config rather than raw domain literals/local constants;
 - reuse existing capabilities;
-- preserve API/architecture boundaries;
-- write/update tests with the behaviour;
-- keep constants/configuration named;
+- preserve dependency/state ownership;
+- update tests with behaviour;
 - do not leave temporary duplicate paths;
-- do not “fix” unrelated issues unless they block the task;
-- if assumptions become false, update the plan before expanding implementation.
+- do not fix unrelated defects unless blocking;
+- if an assumption becomes false, revise the plan before expanding the patch.
 
-## 10. Stop conditions
+## 10. Shared code escalation
 
-An implementation agent should stop and escalate rather than improvise when:
+If local work unexpectedly requires changing shared runtime/SDK/contracts/schema, stop and report:
 
-- required behaviour conflicts with documented architecture;
-- an existing shared capability is broken in a way outside task scope;
-- a public/shared schema must change unexpectedly;
-- the task requires a new dependency not previously approved by the plan;
-- two sources of truth appear unavoidable;
-- data migration/backward compatibility is required but unspecified;
-- another agent owns the files that need modification;
-- security/privacy implications appear that were not part of the task.
+```text
+MISSING/WRONG CAPABILITY
+Why current abstraction is insufficient.
 
-Stopping for architecture clarification is preferable to creating a hidden workaround.
+PROPOSED OWNER/CONTRACT
+What should change and where.
 
-## 11. Tests are part of implementation
+CONSUMERS
+What existing code is affected.
 
-Do not hand off “implementation complete, tests remaining” as a finished task unless the task packet explicitly separates those responsibilities.
+COMPATIBILITY / MIGRATION
+What can break and how it moves.
 
-Bug fixes should normally include a regression test demonstrating the previous failure.
+TESTS
+How contract behaviour is proven.
+```
 
-New shared capabilities need contract tests.
+A dedicated architecture/runtime task/agent may be required before local work continues.
 
-## 12. Self-review before handoff
+## 11. Refactor gate
 
-Implementation agents review their own diff, not only their memory of the change.
+Any non-trivial refactor must follow `refactoring.md`.
 
-Check:
+Do not hide a refactor inside “while I am here” cleanup.
 
-- every changed file belongs to the task;
-- no debug code/logs remain;
-- no magic domain literals were introduced;
-- no duplicate helper/hook/system exists;
-- state ownership is still singular;
-- types were not weakened;
-- shared code contains no game-specific branches;
-- tests cover failure/edge cases where relevant;
-- docs/contracts changed when semantics changed;
-- obsolete code was removed when replaced.
+When behavioural work exposes architecture debt, either:
 
-## 13. Handoff format
+- perform a scoped, reviewed refactor required for the task; or
+- record it separately and keep the current task narrow.
 
-A completed implementation handoff should be concise and evidence-based:
+## 12. Parallel work
+
+Prefer disjoint write ownership.
+
+Example:
+
+```text
+Agent A → games/fishing/**
+Agent B → platform/activity/**
+Agent C → integration tests
+```
+
+If multiple agents require one shared file, sequence/coordinate the edits. Do not resolve conflicts by blindly choosing one agent's whole file.
+
+## 13. Stop conditions
+
+Stop/escalate instead of improvising when:
+
+- requirement conflicts with documented architecture;
+- shared/public contract must change unexpectedly;
+- a new dependency becomes necessary outside plan;
+- two state owners appear unavoidable;
+- migration/backward compatibility is required but unspecified;
+- another agent owns required paths;
+- security/privacy implications appear unexpectedly.
+
+## 14. Self-review and handoff
+
+Inspect the **actual final diff**.
+
+Confirm:
+
+- all changed files belong to task;
+- no floating domain literals/local orphan constants;
+- no duplicate capability;
+- state ownership remains singular;
+- no game-specific branch entered shared code;
+- types/boundaries were not weakened;
+- tests cover meaningful behaviour/edges;
+- obsolete migration code is removed;
+- local instructions/docs still match ownership.
+
+Handoff:
 
 ```text
 SUMMARY
 What changed.
 
-ARCHITECTURE
-What existing capabilities were reused; any new shared concepts.
+ARCHITECTURE / REUSE
+Owners/capabilities used or changed.
 
 TESTS / CHECKS
-Exact checks run and result.
+Exact commands/checks and results.
 
-FILES / SCOPE
+SCOPE
 Important paths touched.
 
 RISKS / FOLLOW-UPS
-Known limitations or intentionally deferred work.
+Known limitations only.
 ```
 
-Do not claim a check passed if it was not run.
+Never claim a check ran when it did not.
 
-## 14. Reviewer workflow
+## 15. Reviewer workflow
 
-Reviewer agent:
+Reviewer:
 
-1. reads task packet/requirements;
-2. reads applicable hard rules/docs;
-3. inspects the final diff;
-4. searches for duplicate/existing capabilities when new concepts were introduced;
-5. evaluates state ownership/layer boundaries;
-6. checks test evidence and important missing cases;
+1. reads task + applicable instruction chain;
+2. reads relevant hard rules;
+3. inspects final diff;
+4. searches for duplicates when new concepts appeared;
+5. verifies ownership/dependency/refactor rules;
+6. checks test evidence and missing cases;
 7. checks unrelated changes;
-8. returns PASS or REQUEST CHANGES with concrete reasons.
+8. returns `PASS` or `REQUEST CHANGES` with concrete contract violations.
 
-Review comments should refer to violated contract/behaviour, not subjective preference.
+## 16. Swarm invariant
 
-## 15. Reviewer severity
+Every task should leave the repository easier for the next agent to reason about.
 
-Suggested classes:
-
-### Blocker
-
-- incorrect behaviour;
-- architecture violation;
-- duplicated authoritative state;
-- unsafe data/security issue;
-- breaking contract without migration;
-- duplicate shared capability;
-- failing required checks.
-
-### Required
-
-- missing test for meaningful behaviour;
-- magic domain literals;
-- component/hook ownership issue;
-- unjustified dependency/API expansion;
-- incomplete cleanup after replacement.
-
-### Suggestion
-
-- readability/naming improvement that does not affect correctness or architecture.
-
-Suggestions should not create endless review churn.
-
-## 16. Acceptance
-
-The orchestrator/maintainer may accept only after applicable gates in `change-acceptance.md` pass.
-
-Implementation agent approval of its own work is not sufficient.
-
-## 17. Documentation-first architecture work
-
-When building a new subsystem:
-
-1. define contract/invariants in docs/types first;
-2. identify ownership/dependencies;
-3. implement the minimal vertical slice;
-4. validate architecture with real usage;
-5. generalize only when evidence exists.
-
-Do not generate a large speculative framework before a prototype exercises it.
-
-## 18. Swarm principle
-
-Agents should leave the repository easier for the next agent to reason about.
-
-A task that reduces local complexity by increasing hidden global complexity is a failed task.
+Local simplicity that creates hidden global complexity is failure.
