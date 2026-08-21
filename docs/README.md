@@ -1,13 +1,34 @@
 # Documentation index
 
-This documentation is written for an AI-swarm codebase. Agents should not load every document for every task; they should always read the root [`AGENTS.md`](../AGENTS.md), then follow the route below for the smallest relevant context.
+This repository is documented for AI-swarm work. **Do not load the whole documentation tree.** Start with root/local `AGENTS.md` files and open only the canonical documents required for the current task.
 
-## Mandatory for every code change
+## Mandatory context for a code change
 
-1. [`../AGENTS.md`](../AGENTS.md)
-2. [`engineering/agent-workflow.md`](./engineering/agent-workflow.md)
-3. the architecture/product/game document relevant to the task
-4. [`engineering/change-acceptance.md`](./engineering/change-acceptance.md) before declaring completion
+1. root [`../AGENTS.md`](../AGENTS.md);
+2. every applicable local `AGENTS.md` on the target path;
+3. the smallest task-specific documents below;
+4. [`engineering/change-acceptance.md`](./engineering/change-acceptance.md) before final handoff.
+
+For multi-agent, non-trivial, or long-running implementation work also read [`engineering/agent-workflow.md`](./engineering/agent-workflow.md).
+
+At recurring context checkpoints, re-read the relevant **`## Hard rules`** sections and closest local `AGENTS.md`; do not reread every reference document from the top.
+
+## Context / agent behaviour
+
+### [`engineering/agent-context.md`](./engineering/agent-context.md)
+
+Read when:
+
+- creating a new package/game/service/tool/subsystem boundary;
+- creating/updating local `AGENTS.md`;
+- orchestrating a long agent task;
+- deciding what documentation must be refreshed during implementation.
+
+Defines the 6-tool-call context checkpoint and `grill-me` policy.
+
+### [`engineering/agent-workflow.md`](./engineering/agent-workflow.md)
+
+Read for swarm task lifecycle, task packets, parallel ownership, shared-code escalation, handoff, and independent review.
 
 ## Product
 
@@ -31,74 +52,57 @@ Read when changing:
 
 Read before implementing a new game or changing a game's contract. Every substantial game should have a canonical specification based on [`games/_template.md`](./games/_template.md).
 
-The game spec defines product/session/network behaviour so implementation agents do not invent it while coding.
-
 ## Architecture
 
 ### [`architecture/runtime-and-ecs.md`](./architecture/runtime-and-ecs.md)
 
-Read when changing:
-
-- gameplay state;
-- components;
-- systems;
-- entities;
-- deterministic simulation;
-- presentation/simulation ownership;
-- networking boundaries.
+Read when changing gameplay state, ECS components/systems, deterministic simulation, presentation ownership, or networking boundaries.
 
 ### [`architecture/capabilities-and-reuse.md`](./architecture/capabilities-and-reuse.md)
 
-Read before:
-
-- creating a new helper/hook/system/service;
-- moving code into shared packages;
-- implementing similar behaviour in a second game;
-- changing a shared primitive.
+Read before creating/replacing a helper, hook, system, service, shared capability, or cross-game primitive.
 
 ## Engineering
 
 ### [`engineering/code-standards.md`](./engineering/code-standards.md)
 
-Read when writing or reviewing TypeScript/UI code. Defines constants, state ownership, hooks, helpers, component complexity, typing, naming, and failure-handling rules.
+Read when writing/reviewing TypeScript/UI code. Especially authoritative for typed domain registries/config, state ownership, hooks/components, helpers, and boundary side effects.
 
-### [`engineering/agent-workflow.md`](./engineering/agent-workflow.md)
+### [`engineering/refactoring.md`](./engineering/refactoring.md)
 
-Defines the task lifecycle, mandatory preflight, swarm roles, scope ownership, handoff format, and review sequence.
+**Mandatory before non-trivial refactoring.** Defines refactor evidence, scope, migration, reuse, shared-code escalation, and completion checks.
 
 ### [`engineering/change-acceptance.md`](./engineering/change-acceptance.md)
 
-Defines when a change is allowed to be accepted and what evidence the implementation/reviewer must produce.
+Read before declaring completion. Defines acceptance evidence and reviewer gates.
 
 ### [`engineering/architecture-guard.md`](./engineering/architecture-guard.md)
 
-Defines the machine-enforced checks we intend to build: generic/custom lint, dependency boundaries, dead-code detection, domain-specific AST rules, duplication/capability checks, and CI gates.
+Read when implementing/changing CI, lint, dependency rules, `slop-guard`, typed registry enforcement, or local `AGENTS.md` enforcement.
 
 ## Architecture decisions
 
 ### [`decisions/README.md`](./decisions/README.md)
 
-Read before making an architecture-significant change. Existing accepted decisions must not be silently contradicted. Use [`decisions/_template.md`](./decisions/_template.md) when a new ADR is required.
+Read before an architecture-significant change. Existing accepted decisions must not be silently contradicted. Use [`decisions/_template.md`](./decisions/_template.md) when a new ADR is required.
 
-## How to change documentation
-
-Documentation is part of the architecture contract.
+## Documentation contract
 
 When code and documentation disagree:
 
 - do not silently choose the code;
-- determine whether code is violating the contract or the contract is intentionally changing;
-- update both in the same change when the contract changes;
-- shared architecture changes should be explicitly called out for reviewer attention.
+- determine whether code violates the contract or the contract is intentionally changing;
+- update code + canonical docs/local instructions together when ownership/behaviour changes;
+- architecture changes require explicit reviewer attention/ADR where applicable.
 
-## Documentation design rules
+## Documentation size rules
 
-To keep agent context efficient:
+Agent-facing documentation must optimize for repeated reading:
 
-- root documents contain invariants, not tutorials;
-- subsystem details stay in subsystem documents;
-- avoid repeating the same rule in multiple places unless the root file needs a short hard-rule summary;
-- link to the canonical rule instead of copying it;
-- use examples for ambiguous constraints;
-- prefer machine-checkable statements over subjective style advice;
-- mark aspirational future tooling clearly so agents do not assume it already exists.
+- mandatory rules go first under `## Hard rules`;
+- local `AGENTS.md` target <= 120 lines;
+- root/local files contain invariants, not tutorials;
+- long rationale/history belongs below hard rules or in reference docs;
+- link to canonical rules instead of duplicating them;
+- prefer machine-checkable statements;
+- mark planned tooling as planned until it exists.
