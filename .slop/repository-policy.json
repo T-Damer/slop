@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "maxBranches": 5,
+  "maxFeatureBranches": 3,
+  "maxOpenPullRequests": 3,
+  "permanentBranches": ["main", "stable"],
+  "featureZones": [
+    {
+      "branch": "docs/agent-foundation",
+      "responsibility": "foundation-runtime",
+      "paths": [
+        "AGENTS.md",
+        ".github/**",
+        ".slop/**",
+        "addons/**",
+        "docs/**",
+        "games/traffic-jam/**",
+        "packages/**",
+        "server/**",
+        "tools/**",
+        "web/**",
+        "project.godot",
+        "export_presets.cfg",
+        "package.json",
+        "tsconfig*.json",
+        "docker-compose.yml"
+      ]
+    }
+  ]
+}
