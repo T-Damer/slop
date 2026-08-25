@@ -51,6 +51,38 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  nakama-integration:
+    needs: code-quality
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Build Nakama module
+        run: npm run build:nakama
+
+      - name: Start Nakama and PostgreSQL
+        run: docker compose up --detach
+
+      - name: Run authoritative multiplayer integration test
+        run: npm run test:nakama:integration
+
+      - name: Print Nakama logs on failure
+        if: failure()
+        run: docker compose logs nakama
+
+      - name: Stop integration services
+        if: always()
+        run: docker compose down --volumes
+
   godot-conformance:
     needs: code-quality
     runs-on: ubuntu-24.04

@@ -4,6 +4,7 @@ import {
   type ValueOf,
 } from "./registry.js";
 
+export * from "./protocol.generated.js";
 export * from "./registry.js";
 
 export type SessionStatus = ValueOf<typeof slopSessionStatuses>;
@@ -104,6 +105,26 @@ export interface HistoryRequest {
   readonly afterSequence: number;
   readonly limit: number;
 }
+
+export interface HistoryResponse {
+  readonly events: ReadonlyArray<DomainEvent>;
+  readonly nextAfterSequence: number;
+}
+
+export interface RpcErrorPayload {
+  readonly code: string;
+  readonly message: string;
+}
+
+export type RpcEnvelope<TValue = unknown> =
+  | {
+      readonly ok: true;
+      readonly value: TValue;
+    }
+  | {
+      readonly ok: false;
+      readonly error: RpcErrorPayload;
+    };
 
 export class SlopDomainError extends Error {
   public readonly code: string;

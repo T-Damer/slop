@@ -7,6 +7,7 @@ import {
   type DomainCommand,
   type DomainEvent,
   type HistoryRequest,
+  type HistoryResponse,
   type JoinSessionRequest,
   type SessionCommandRequest,
   type SessionSnapshot,
@@ -27,11 +28,10 @@ import {
   nakamaStoragePermissions,
   nakamaStorageVersions,
 } from "./registry.js";
-
-interface HistoryResponse {
-  readonly events: ReadonlyArray<DomainEvent>;
-  readonly nextAfterSequence: number;
-}
+import {
+  withRpcEnvelope,
+  type SlopRpcHandler,
+} from "./rpc-envelope.js";
 
 export function InitModule(
   _context: nkruntime.Context,
@@ -39,15 +39,30 @@ export function InitModule(
   _nakama: nkruntime.Nakama,
   initializer: nkruntime.Initializer,
 ): void {
-  initializer.registerRpc(nakamaRpcIds.createSession, createSessionRpc);
-  initializer.registerRpc(nakamaRpcIds.joinSession, joinSessionRpc);
-  initializer.registerRpc(nakamaRpcIds.getSession, getSessionRpc);
-  initializer.registerRpc(nakamaRpcIds.submitCommand, submitCommandRpc);
-  initializer.registerRpc(nakamaRpcIds.getHistory, getHistoryRpc);
+  initializer.registerRpc(
+    nakamaRpcIds.createSession,
+    withRpcEnvelope(createSessionRpc),
+  );
+  initializer.registerRpc(
+    nakamaRpcIds.joinSession,
+    withRpcEnvelope(joinSessionRpc),
+  );
+  initializer.registerRpc(
+    nakamaRpcIds.getSession,
+    withRpcEnvelope(getSessionRpc),
+  );
+  initializer.registerRpc(
+    nakamaRpcIds.submitCommand,
+    withRpcEnvelope(submitCommandRpc),
+  );
+  initializer.registerRpc(
+    nakamaRpcIds.getHistory,
+    withRpcEnvelope(getHistoryRpc),
+  );
   logger.info(nakamaLogs.initialized);
 }
 
-const createSessionRpc: nkruntime.RpcFunction = (context, _logger, nakama, payload) => {
+const createSessionRpc: SlopRpcHandler = (context, _logger, nakama, payload) => {
   const userId = requireUser(context);
   const request = parsePayload<CreateSessionRequest>(payload);
   assertString(request.sessionId);
@@ -65,10 +80,10 @@ const createSessionRpc: nkruntime.RpcFunction = (context, _logger, nakama, paylo
     snapshotWrite(creation.snapshot, nakamaStorageVersions.createOnly),
     ...creation.events.map(eventWrite),
   ]);
-  return JSON.stringify(creation.snapshot);
+  return creation.snapshot;
 };
 
-const joinSessionRpc: nkruntime.RpcFunction = (context, _logger, nakama, payload) => {
+const joinSessionRpc: SlopRpcHandler = (context, _logger, nakama, payload) => {
   const userId = requireUser(context);
   const request = parsePayload<JoinSessionRequest>(payload);
   assertString(request.sessionId);
@@ -81,20 +96,20 @@ const joinSessionRpc: nkruntime.RpcFunction = (context, _logger, nakama, payload
     snapshotWrite(joined.snapshot, stored.version),
     eventWrite(joined.event),
   ]);
-  return JSON.stringify(joined.snapshot);
+  return joined.snapshot;
 };
 
-const getSessionRpc: nkruntime.RpcFunction = (context, _logger, nakama, payload) => {
+const getSessionRpc: SlopRpcHandler = (context, _logger, nakama, payload) => {
   const userId = requireUser(context);
   const request = parsePayload<{ readonly sessionId: string }>(payload);
   assertString(request.sessionId);
   const stored = readSnapshotObject(nakama, request.sessionId);
   const snapshot = stored.value as SessionSnapshot<unknown>;
   assertParticipant(snapshot, userId);
-  return JSON.stringify(snapshot);
+  return snapshot;
 };
 
-const submitCommandRpc: nkruntime.RpcFunction = (
+const submitCommandRpc: SlopRpcHandler = (
   context,
   _logger,
   nakama,
@@ -133,10 +148,10 @@ const submitCommandRpc: nkruntime.RpcFunction = (
       receiptWrite(execution.receipt),
     ]);
   }
-  return JSON.stringify(execution.receipt);
+  return execution.receipt;
 };
 
-const getHistoryRpc: nkruntime.RpcFunction = (context, _logger, nakama, payload) => {
+const getHistoryRpc: SlopRpcHandler = (context, _logger, nakama, payload) => {
   const userId = requireUser(context);
   const request = parsePayload<HistoryRequest>(payload);
   assertString(request.sessionId);
@@ -173,7 +188,7 @@ const getHistoryRpc: nkruntime.RpcFunction = (context, _logger, nakama, payload)
         ? afterSequence
         : events[events.length - 1]!.sequence,
   };
-  return JSON.stringify(response);
+  return response;
 };
 
 function requireUser(context: nkruntime.Context): string {

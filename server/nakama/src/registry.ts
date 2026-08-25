@@ -1,9 +1,11 @@
+import { slopProtocol } from "../../../packages/contracts/src/index.js";
+
 export const nakamaRpcIds = {
-  createSession: "slop_create_session",
-  joinSession: "slop_join_session",
-  getSession: "slop_get_session",
-  submitCommand: "slop_submit_command",
-  getHistory: "slop_get_history",
+  createSession: slopProtocol.rpc_ids.create_session,
+  joinSession: slopProtocol.rpc_ids.join_session,
+  getSession: slopProtocol.rpc_ids.get_session,
+  submitCommand: slopProtocol.rpc_ids.submit_command,
+  getHistory: slopProtocol.rpc_ids.get_history,
 } as const;
 
 export const nakamaStorageCollections = {

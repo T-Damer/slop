@@ -13,6 +13,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:compile": "rm -rf .build-tests && tsc -p tsconfig.tests.json",
     "test": "npm run test:compile && node --test .build-tests/packages/turn-engine/src/index.test.js .build-tests/games/traffic-jam/domain/src/index.test.js",
+    "test:nakama:compile": "rm -rf .build-integration && tsc -p tsconfig.integration.json",
+    "test:nakama:integration": "npm run test:nakama:compile && node --test .build-integration/server/nakama/tests/integration.test.js",
     "build:nakama": "node server/nakama/build.mjs",
     "runtime:sync": "node tools/runtime/sync.mjs",
     "runtime:check": "node tools/runtime/sync.mjs --check",
@@ -26,6 +28,7 @@
     "godot:run": "npm run runtime:sync && godot --editor --path ."
   },
   "devDependencies": {
+    "@heroiclabs/nakama-js": "2.9.0",
     "@types/node": "24.3.0",
     "esbuild": "0.25.9",
     "typescript": "5.9.2"
