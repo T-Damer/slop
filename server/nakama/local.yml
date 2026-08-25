@@ -1,0 +1,12 @@
+name: slop-local
+logger:
+  level: DEBUG
+runtime:
+  js_entrypoint: index.js
+session:
+  token_expiry_sec: 7200
+socket:
+  server_key: slop-local-server-key
+console:
+  username: admin
+  password: slop-local-admin
