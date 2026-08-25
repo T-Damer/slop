@@ -28,8 +28,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat tools/bootstrap/foundation.tar.gz.b64.part* > /tmp/slop-foundation.tar.gz.b64
+
+          {
+            head -c 16000 tools/bootstrap/foundation.tar.gz.b64.part00
+            head -c 16000 tools/bootstrap/foundation.tar.gz.b64.part01
+            cat tools/bootstrap/foundation.tar.gz.b64.part02
+            cat tools/bootstrap/foundation.tar.gz.b64.part03
+            cat tools/bootstrap/foundation.tar.gz.b64.part04
+          } > /tmp/slop-foundation.tar.gz.b64
+
+          test "$(wc -c < /tmp/slop-foundation.tar.gz.b64)" -eq 68452
           base64 --decode /tmp/slop-foundation.tar.gz.b64 > /tmp/slop-foundation.tar.gz
+          echo "79fd22d019dc94548017d7730d8cd6845534f3d3f56a11d6038eaba29ff0423d  /tmp/slop-foundation.tar.gz" | sha256sum --check --strict
+
           tar -tzf /tmp/slop-foundation.tar.gz > /tmp/slop-foundation-files.txt
           tar -xzf /tmp/slop-foundation.tar.gz
 
