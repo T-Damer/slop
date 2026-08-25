@@ -1,0 +1,44 @@
+name: Bootstrap foundation
+
+on:
+  push:
+    branches:
+      - docs/agent-foundation
+    paths:
+      - .github/workflows/bootstrap-foundation.yml
+      - tools/bootstrap/foundation.tar.gz.b64.part*
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-foundation
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      - name: Expand foundation sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat tools/bootstrap/foundation.tar.gz.b64.part* > /tmp/slop-foundation.tar.gz.b64
+          base64 --decode /tmp/slop-foundation.tar.gz.b64 > /tmp/slop-foundation.tar.gz
+          tar -tzf /tmp/slop-foundation.tar.gz > /tmp/slop-foundation-files.txt
+          tar -xzf /tmp/slop-foundation.tar.gz
+
+          while IFS= read -r path; do
+            git add -- "$path"
+          done < /tmp/slop-foundation-files.txt
+
+          git rm -- .github/workflows/bootstrap-foundation.yml tools/bootstrap/foundation.tar.gz.b64.part*
+          git config user.name "slop-foundation-bot"
+          git config user.email "slop-foundation-bot@users.noreply.github.com"
+          git commit -m "Build Godot/Nakama foundation and Traffic Jam vertical slice"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
