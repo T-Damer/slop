@@ -1,20 +1,49 @@
 # slop
 
-`slop` is an agent-built, social-first game platform for small reusable games that share players, presence, parties, chat, spectators, progression, cosmetics, and a common runtime.
+A web-first, friend-first game platform built around a compact Godot runtime,
+deterministic turn sessions, immutable history, reusable UI, and agent-oriented
+generation/validation tooling.
 
-The project is intentionally **agent-first**. Implementation agents must follow machine-checkable architecture and change rules instead of solving tasks with local patches.
+## Current vertical slice
 
-## Start here
+The repository currently contains:
 
-- [`AGENTS.md`](./AGENTS.md) — mandatory instructions for every coding agent.
-- [`docs/README.md`](./docs/README.md) — documentation index and task-specific reading routes.
+- the versioned `addons/slop_engine` Godot runtime package;
+- the shared `addons/slop_ui` library;
+- deterministic TypeScript session/replay primitives;
+- reusable grid-slide rules;
+- a Nakama runtime/storage adapter;
+- Traffic Jam as the first real conformance game;
+- Godot and Blender MCP pins;
+- architecture/repository guards;
+- CI on feature/main and automatic GitHub Pages publishing from `stable`.
 
-## Product direction
+## Run checks
 
-Gameplay and social interaction are equally important loops. A game is not an isolated application: it is an activity users can join from chat, presence, notifications, parties, profiles, guilds, or a shared world.
+```bash
+npm install
+npm run check
+```
 
-The runtime is intended to support simple mobile-first 2D/3D games, with one-handed controls where possible and reusable gameplay primitives across games.
+With Godot available:
 
-## Current phase
+```bash
+npm run godot:conformance
+npm run godot:run
+```
 
-Documentation and architecture first. Runtime implementation must not begin until the preflight, architecture, quality, and acceptance rules are committed and understood.
+Build the Nakama module and run the local server:
+
+```bash
+npm run build:nakama
+docker compose up
+```
+
+## Branches
+
+- `main`: reviewed code;
+- `stable`: publish/deploy source;
+- up to three non-overlapping feature branches.
+
+See `AGENTS.md`, `docs/README.md`, and `.slop/repository-policy.json` before
+changing the repository.
