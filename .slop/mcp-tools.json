@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "godot": {
+    "toolkitRepository": "NPGameDev/godot-mcp-toolkit",
+    "toolkitCommit": "10a4508e880244c66a3f04861b2e22872c307247",
+    "archiveUrl": "https://github.com/NPGameDev/godot-mcp-toolkit/archive/10a4508e880244c66a3f04861b2e22872c307247.tar.gz",
+    "addonPath": "addons/godot_mcp_toolkit",
+    "destinationPath": "addons/godot_mcp_toolkit",
+    "bridgePackage": "@npgamedev/godot-mcp-server",
+    "bridgeVersion": "1.0.0"
+  },
+  "blender": {
+    "repository": "ahujasid/blender-mcp",
+    "commit": "089c9f62f7c40aee60117046214635e561d5352f",
+    "package": "blender-mcp",
+    "version": "1.8.7"
+  }
+}

@@ -1,0 +1,99 @@
+name: Publish stable
+
+on:
+  push:
+    branches:
+      - stable
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-stable
+  cancel-in-progress: false
+
+env:
+  TOOLCHAIN_FILE: .slop/toolchain.json
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out stable
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Validate stable source
+        run: npm run check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package slop-engine
+        run: npm run package:engine
+
+      - name: Install pinned Godot editor and web templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          editor_url="$(jq -r '.godot.linuxArchive.url' "$TOOLCHAIN_FILE")"
+          editor_sha="$(jq -r '.godot.linuxArchive.sha256' "$TOOLCHAIN_FILE")"
+          binary_name="$(jq -r '.godot.linuxArchive.binaryName' "$TOOLCHAIN_FILE")"
+          templates_url="$(jq -r '.godot.exportTemplates.url' "$TOOLCHAIN_FILE")"
+          templates_sha="$(jq -r '.godot.exportTemplates.sha256' "$TOOLCHAIN_FILE")"
+          template_directory="$(jq -r '.godot.templateDirectory' "$TOOLCHAIN_FILE")"
+
+          curl --fail --location --retry 3 --output /tmp/godot.zip "$editor_url"
+          echo "$editor_sha  /tmp/godot.zip" | sha256sum --check --strict
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 0755 "/tmp/godot/$binary_name" /usr/local/bin/godot
+
+          curl --fail --location --retry 3 --output /tmp/godot-templates.tpz "$templates_url"
+          echo "$templates_sha  /tmp/godot-templates.tpz" | sha256sum --check --strict
+          unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
+          destination="$HOME/.local/share/godot/export_templates/$template_directory"
+          mkdir -p "$destination"
+          cp -R /tmp/godot-templates/templates/. "$destination/"
+
+      - name: Export Traffic Jam for web
+        run: godot --headless --path . --export-release Web dist/traffic-jam/index.html
+
+      - name: Enforce web runtime budget
+        run: npm run web:budget
+
+      - name: Upload engine package
+        uses: actions/upload-artifact@v4
+        with:
+          name: slop-engine-${{ github.sha }}
+          path: dist/slop-engine
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload web build
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/traffic-jam
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy stable build
+        id: deployment
+        uses: actions/deploy-pages@v4

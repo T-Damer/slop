@@ -13,6 +13,7 @@ const guardConfig = {
     "node_modules",
     "dist",
     "build",
+    "godot_mcp_toolkit",
   ]),
   ownerNamePattern: /(registry|config|constants|generated|fixture|test)/i,
   documentationPattern: /(^|\/)docs\//,

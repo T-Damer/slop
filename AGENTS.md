@@ -51,6 +51,13 @@ Full rules:
 `docs/architecture/runtime-and-ecs.md`,
 `docs/architecture/capabilities-and-reuse.md`.
 
+## Authoring tools
+
+- Scene/editor/playtest work uses the pinned Godot MCP.
+- Mesh/material/rig/export work uses the pinned Blender MCP.
+- Run `npm run mcp:install`; see `tools/mcp/README.md`.
+- MCP tooling is never required by a runtime build.
+
 ## Repository flow
 
 - Maximum branches: **5 total**.

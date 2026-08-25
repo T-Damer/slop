@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - docs/agent-foundation
+      - main
+      - stable
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TOOLCHAIN_FILE: .slop/toolchain.json
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Run contracts, guard, typecheck, tests, and server build
+        run: npm run check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package slop-engine
+        run: npm run package:engine
+
+      - name: Upload engine package
+        uses: actions/upload-artifact@v4
+        with:
+          name: slop-engine-${{ github.sha }}
+          path: dist/slop-engine
+          if-no-files-found: error
+          retention-days: 14
+
+  godot-conformance:
+    needs: code-quality
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install pinned Godot editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive_url="$(jq -r '.godot.linuxArchive.url' "$TOOLCHAIN_FILE")"
+          archive_sha="$(jq -r '.godot.linuxArchive.sha256' "$TOOLCHAIN_FILE")"
+          binary_name="$(jq -r '.godot.linuxArchive.binaryName' "$TOOLCHAIN_FILE")"
+          curl --fail --location --retry 3 --output /tmp/godot.zip "$archive_url"
+          echo "$archive_sha  /tmp/godot.zip" | sha256sum --check --strict
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 0755 "/tmp/godot/$binary_name" /usr/local/bin/godot
+          godot --version
+
+      - name: Import and parse Godot project
+        run: godot --headless --editor --path . --quit-after 2
+
+      - name: Run cross-runtime conformance
+        run: godot --headless --path . --script res://games/traffic-jam/client/tests/conformance_runner.gd

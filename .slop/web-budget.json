@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "builds": {
+    "trafficJam": {
+      "path": "dist/traffic-jam",
+      "maxUncompressedBytes": 100663296,
+      "maxGzipBytes": 33554432,
+      "maxPackBytes": 8388608
+    }
+  }
+}
