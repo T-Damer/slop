@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "godot": {
+    "nakama": {
+      "repository": "heroiclabs/nakama-godot",
+      "repositoryUrl": "https://github.com/heroiclabs/nakama-godot.git",
+      "commit": "7549fea8cb4d62a319028946de01a2993440c2d6",
+      "sourcePath": "addons/com.heroiclabs.nakama",
+      "destinationPath": "addons/com.heroiclabs.nakama",
+      "licensePath": "LICENSE",
+      "metadataFile": "SLOP_DEPENDENCY.json",
+      "requiredFiles": [
+        "Nakama.gd",
+        "client/NakamaClient.gd",
+        "LICENSE",
+        "SLOP_DEPENDENCY.json"
+      ]
+    }
+  }
+}

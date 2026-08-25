@@ -13,6 +13,7 @@ const guardConfig = {
     "node_modules",
     "dist",
     "build",
+    "com.heroiclabs.nakama",
     "godot_mcp_toolkit",
   ]),
   ownerNamePattern: /(registry|config|constants|generated|fixture|test)/i,

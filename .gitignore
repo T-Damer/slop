@@ -4,6 +4,7 @@ dist/
 server/nakama/build/
 server/nakama/.compiled/
 .godot/
+addons/com.heroiclabs.nakama/
 addons/godot_mcp_toolkit/
 *.tmp
 .DS_Store

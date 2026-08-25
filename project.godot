@@ -7,6 +7,10 @@ config_version=5
 config/name="Slop — Traffic Jam"
 run/main_scene="res://games/traffic-jam/client/main.tscn"
 
+[autoload]
+
+Nakama="*res://addons/com.heroiclabs.nakama/Nakama.gd"
+
 [display]
 
 window/size/viewport_width=540

@@ -8,6 +8,7 @@
     "webRequired": true
   },
   "contents": [
+    "addons/com.heroiclabs.nakama",
     "addons/slop_engine",
     "addons/slop_ui"
   ],

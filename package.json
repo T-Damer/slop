@@ -14,14 +14,16 @@
     "test:compile": "rm -rf .build-tests && tsc -p tsconfig.tests.json",
     "test": "npm run test:compile && node --test .build-tests/packages/turn-engine/src/index.test.js .build-tests/games/traffic-jam/domain/src/index.test.js",
     "build:nakama": "node server/nakama/build.mjs",
-    "package:engine": "node tools/package-engine.mjs",
+    "runtime:sync": "node tools/runtime/sync.mjs",
+    "runtime:check": "node tools/runtime/sync.mjs --check",
+    "package:engine": "npm run runtime:sync && node tools/package-engine.mjs",
     "web:budget": "node tools/check-web-budget.mjs",
     "mcp:install": "node tools/mcp/install.mjs",
     "mcp:install:godot": "node tools/mcp/install.mjs godot",
     "mcp:install:blender": "node tools/mcp/install.mjs blender",
     "check": "npm run generate:check && npm run guard && npm run typecheck && npm test && npm run build:nakama",
-    "godot:conformance": "godot --headless --path . --script res://games/traffic-jam/client/tests/conformance_runner.gd",
-    "godot:run": "godot --editor --path ."
+    "godot:conformance": "npm run runtime:sync && godot --headless --path . --script res://games/traffic-jam/client/tests/conformance_runner.gd",
+    "godot:run": "npm run runtime:sync && godot --editor --path ."
   },
   "devDependencies": {
     "@types/node": "24.3.0",
