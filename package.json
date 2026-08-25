@@ -1,0 +1,27 @@
+{
+  "name": "slop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "generate": "node tools/contracts/generate.mjs",
+    "generate:check": "node tools/contracts/generate.mjs --check",
+    "guard": "node tools/slop-guard/src/index.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:compile": "rm -rf .build-tests && tsc -p tsconfig.tests.json",
+    "test": "npm run test:compile && node --test .build-tests/packages/turn-engine/src/index.test.js .build-tests/games/traffic-jam/domain/src/index.test.js",
+    "build:nakama": "node server/nakama/build.mjs",
+    "package:engine": "node tools/package-engine.mjs",
+    "check": "npm run generate:check && npm run guard && npm run typecheck && npm test && npm run build:nakama",
+    "godot:conformance": "godot --headless --path . --script res://games/traffic-jam/client/tests/conformance_runner.gd",
+    "godot:run": "godot --editor --path ."
+  },
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "esbuild": "0.25.9",
+    "typescript": "5.9.2"
+  }
+}
