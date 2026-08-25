@@ -26,8 +26,13 @@ func _run() -> void:
         })
 
         if step.has(TrafficRegistry.fields.expect_error):
-            if result.get(TrafficRegistry.fields.error) != step[TrafficRegistry.fields.expect_error]:
-                _fail("Expected rejection did not match fixture.")
+            var actual_error := String(result.get(TrafficRegistry.fields.error))
+            var expected_error := String(step[TrafficRegistry.fields.expect_error])
+            if actual_error != expected_error:
+                _fail(
+                    "Expected rejection %s, received %s."
+                    % [expected_error, actual_error]
+                )
                 return
             continue
 
