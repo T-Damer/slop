@@ -6,20 +6,20 @@ import { build } from "esbuild";
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const compiledDirectory = resolve(import.meta.dirname, ".compiled");
 const outputDirectory = resolve(import.meta.dirname, "build");
-const TypeScriptExecutable = process.platform === "win32" ? "npx.cmd" : "npx";
+const typeScriptExecutable = process.platform === "win32" ? "npx.cmd" : "npx";
 const buildSettings = {
   entryPoint: resolve(compiledDirectory, "server/nakama/src/main.js"),
   outputFile: resolve(outputDirectory, "index.js"),
   globalName: "SlopNakamaModule",
   footer: "var InitModule = SlopNakamaModule.InitModule;",
-} as const;
+};
 
 await rm(compiledDirectory, { recursive: true, force: true });
 await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(outputDirectory, { recursive: true });
 
 const typeScriptResult = spawnSync(
-  TypeScriptExecutable,
+  typeScriptExecutable,
   ["tsc", "-p", "server/nakama/tsconfig.json"],
   {
     cwd: repositoryRoot,

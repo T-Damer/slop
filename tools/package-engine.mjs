@@ -18,7 +18,7 @@ const packagingPaths = {
   payloadDirectory: "package",
   definitionOutput: "engine-package.json",
   manifestOutput: "manifest.json",
-} as const;
+};
 
 const repositoryRoot = packagingPaths.repositoryRoot;
 const definition = JSON.parse(

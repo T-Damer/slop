@@ -5,7 +5,7 @@ import { extname, join, relative, resolve } from "node:path";
 const budgetPaths = {
   repositoryRoot: resolve(import.meta.dirname, ".."),
   configuration: ".slop/web-budget.json",
-} as const;
+};
 
 const repositoryRoot = budgetPaths.repositoryRoot;
 const configuration = JSON.parse(

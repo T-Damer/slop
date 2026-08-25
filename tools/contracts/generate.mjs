@@ -7,7 +7,7 @@ const generatorConfig = {
   target: "games/traffic-jam/domain/src/traffic-fixture.generated.ts",
   header:
     "// Generated from games/traffic-jam/fixtures/conformance.json. Do not edit.\n",
-} as const;
+};
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const sourcePath = resolve(repositoryRoot, generatorConfig.source);

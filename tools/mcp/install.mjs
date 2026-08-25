@@ -7,11 +7,11 @@ const installerPaths = {
   repositoryRoot: resolve(import.meta.dirname, "../.."),
   configuration: ".slop/mcp-tools.json",
   temporaryPrefix: "slop-mcp-",
-} as const;
+};
 const installerTargets = {
   godot: "godot",
   blender: "blender",
-} as const;
+};
 
 const repositoryRoot = installerPaths.repositoryRoot;
 const configuration = JSON.parse(
