@@ -44,7 +44,7 @@ func execute(snapshot: Dictionary, command: Dictionary) -> Dictionary:
     var next_position: Vector2i = validation[TrafficRegistry.fields.position]
 
     for vehicle: Dictionary in vehicles:
-        if vehicle[TrafficRegistry.fields.vehicle_id] == vehicle_id:
+        if _vehicle_id(vehicle) == vehicle_id:
             vehicle[TrafficRegistry.fields.position] = {
                 TrafficRegistry.fields.x: next_position.x,
                 TrafficRegistry.fields.y: next_position.y,
@@ -97,7 +97,7 @@ func _validate_move(
 
     var occupied: Dictionary = {}
     for vehicle: Dictionary in vehicles:
-        if vehicle[TrafficRegistry.fields.vehicle_id] == vehicle_id:
+        if _vehicle_id(vehicle) == vehicle_id:
             continue
         for cell in _cells(vehicle, _position(vehicle)):
             occupied[cell] = true
@@ -123,9 +123,12 @@ func _validate_move(
 
 func _find_vehicle(vehicles: Array, vehicle_id: Variant) -> Dictionary:
     for vehicle: Dictionary in vehicles:
-        if vehicle[TrafficRegistry.fields.vehicle_id] == vehicle_id:
+        if _vehicle_id(vehicle) == vehicle_id:
             return vehicle
     return {}
+
+func _vehicle_id(vehicle: Dictionary) -> String:
+    return vehicle[TrafficFixtureRegistry.fields.vehicle_definition_id]
 
 func _position(vehicle: Dictionary) -> Vector2i:
     var value: Dictionary = vehicle[TrafficRegistry.fields.position]
