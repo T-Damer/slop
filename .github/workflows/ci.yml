@@ -72,7 +72,7 @@ jobs:
           godot --version
 
       - name: Import and parse Godot project
-        run: godot --headless --editor --path . --quit-after 2
+        run: timeout 60s godot --headless --editor --path . --quit-after 2
 
       - name: Run cross-runtime conformance
-        run: godot --headless --path . --script res://games/traffic-jam/client/tests/conformance_runner.gd
+        run: timeout 60s godot --headless --path . --script res://games/traffic-jam/client/tests/conformance_runner.gd

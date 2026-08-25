@@ -3,7 +3,7 @@ extends SceneTree
 var _rules := TrafficRules.new()
 
 func _initialize() -> void:
-    call_deferred(&"_run")
+    _run()
 
 func _run() -> void:
     var fixture := _rules.load_fixture()
