@@ -15,5 +15,9 @@
     "types/**/*.d.ts",
     "../../packages/**/*.ts",
     "../../games/traffic-jam/domain/**/*.ts"
+  ],
+  "exclude": [
+    "../../packages/**/*.test.ts",
+    "../../games/**/domain/**/*.test.ts"
   ]
 }

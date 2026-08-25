@@ -34,27 +34,33 @@ export function findGridPiece(
   pieces: ReadonlyArray<GridPiece>,
   pieceId: string,
 ): GridPiece {
-  const piece = pieces.find((candidate) => candidate.id === pieceId);
-  if (piece === undefined) {
-    throw new SlopDomainError(
-      gridErrorCodes.pieceMissing,
-      gridMessages.pieceMissing,
-    );
+  for (const candidate of pieces) {
+    if (candidate.id === pieceId) {
+      return candidate;
+    }
   }
-  return piece;
+
+  throw new SlopDomainError(
+    gridErrorCodes.pieceMissing,
+    gridMessages.pieceMissing,
+  );
 }
 
 export function getOccupiedCells(piece: GridPiece): ReadonlyArray<GridPosition> {
-  return Array.from({ length: piece.length }, (_value, offset) => ({
-    x:
-      piece.axis === gridAxes.horizontal
-        ? piece.position.x + offset
-        : piece.position.x,
-    y:
-      piece.axis === gridAxes.vertical
-        ? piece.position.y + offset
-        : piece.position.y,
-  }));
+  const cells: Array<GridPosition> = [];
+  for (let offset = 0; offset < piece.length; offset += 1) {
+    cells.push({
+      x:
+        piece.axis === gridAxes.horizontal
+          ? piece.position.x + offset
+          : piece.position.x,
+      y:
+        piece.axis === gridAxes.vertical
+          ? piece.position.y + offset
+          : piece.position.y,
+    });
+  }
+  return cells;
 }
 
 export function validateGridMove(
@@ -62,7 +68,7 @@ export function validateGridMove(
   pieces: ReadonlyArray<GridPiece>,
   move: GridMove,
 ): GridPosition {
-  if (!Number.isInteger(move.delta)) {
+  if (!isFinite(move.delta) || Math.floor(move.delta) !== move.delta) {
     throw new SlopDomainError(
       gridErrorCodes.invalidDelta,
       gridMessages.invalidDelta,
@@ -73,13 +79,16 @@ export function validateGridMove(
   }
 
   const movingPiece = findGridPiece(pieces, move.pieceId);
-  const occupiedByOthers = new Set(
-    pieces
-      .filter((piece) => piece.id !== movingPiece.id)
-      .flatMap((piece) => getOccupiedCells(piece))
-      .map(toCellKey),
-  );
-  const direction = Math.sign(move.delta);
+  const occupiedByOthers: Record<string, boolean> = {};
+  for (const piece of pieces) {
+    if (piece.id === movingPiece.id) {
+      continue;
+    }
+    for (const cell of getOccupiedCells(piece)) {
+      occupiedByOthers[toCellKey(cell)] = true;
+    }
+  }
+  const direction = move.delta > 0 ? 1 : -1;
 
   for (
     let distance = direction;
@@ -100,7 +109,7 @@ export function validateGridMove(
           gridMessages.outOfBounds,
         );
       }
-      if (occupiedByOthers.has(toCellKey(cell))) {
+      if (occupiedByOthers[toCellKey(cell)] === true) {
         throw new SlopDomainError(
           gridErrorCodes.pathBlocked,
           gridMessages.pathBlocked,

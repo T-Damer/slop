@@ -12,6 +12,7 @@ import {
   type DomainCommand,
   type DomainEvent,
   type EventSourcedGameDefinition,
+  type Participant,
   type ParticipantRole,
   type PendingDomainEvent,
   type SessionCreation,
@@ -90,7 +91,7 @@ export function joinTurnSession<TState>(
   readonly snapshot: SessionSnapshot<TState>;
   readonly event: DomainEvent<ParticipantJoinedPayload>;
 } {
-  if (snapshot.participants.some((participant) => participant.userId === userId)) {
+  if (hasParticipant(snapshot.participants, userId)) {
     throw new SlopDomainError(
       slopErrorCodes.duplicateParticipant,
       "Participant already belongs to the session.",
@@ -265,9 +266,7 @@ function assertCommandAllowed<TState, TPayload>(
     );
   }
 
-  const participant = snapshot.participants.find(
-    (candidate) => candidate.userId === command.actorId,
-  );
+  const participant = findParticipant(snapshot.participants, command.actorId);
   if (participant === undefined) {
     throw new SlopDomainError(
       slopErrorCodes.participantMissing,
@@ -281,6 +280,25 @@ function assertCommandAllowed<TState, TPayload>(
       "Spectators cannot alter authoritative state.",
     );
   }
+}
+
+function hasParticipant(
+  participants: ReadonlyArray<Participant>,
+  userId: string,
+): boolean {
+  return findParticipant(participants, userId) !== undefined;
+}
+
+function findParticipant(
+  participants: ReadonlyArray<Participant>,
+  userId: string,
+): Participant | undefined {
+  for (const participant of participants) {
+    if (participant.userId === userId) {
+      return participant;
+    }
+  }
+  return undefined;
 }
 
 function createEvent<TPayload>(

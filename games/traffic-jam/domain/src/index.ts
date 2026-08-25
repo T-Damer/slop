@@ -167,9 +167,13 @@ function reduceTrafficEvent(
 }
 
 function isTargetAtExit(state: TrafficState): boolean {
-  const target = state.vehicles.find((vehicle) => vehicle.isTarget);
-  return (
-    target !== undefined &&
-    target.position.x + target.length === state.board.width
-  );
+  for (const vehicle of state.vehicles) {
+    if (
+      vehicle.isTarget &&
+      vehicle.position.x + vehicle.length === state.board.width
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
