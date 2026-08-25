@@ -51,7 +51,7 @@ func _run() -> void:
     if state[TrafficRegistry.fields.move_count] != expected[TrafficRegistry.fields.move_count]:
         _fail("Move count did not match fixture.")
         return
-    if snapshot[TrafficRegistry.fields.revision] != expected["revisionWithoutJoin"]:
+    if snapshot[TrafficRegistry.fields.revision] != expected[TrafficRegistry.fields.revision_without_join]:
         _fail("Revision did not match fixture.")
         return
 

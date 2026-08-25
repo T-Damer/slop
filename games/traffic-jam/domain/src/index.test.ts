@@ -34,8 +34,9 @@ test("Traffic Jam fixture conforms across history and replay", () => {
     "friend",
     slopParticipantRoles.spectator,
   );
-  const blockedStep = trafficConformanceFixture.scenario[0]!;
+  const blockedStep = trafficConformanceFixture.scenario[0];
 
+  assert.ok(blockedStep !== undefined && "expectError" in blockedStep);
   assert.throws(
     () =>
       executeTurnCommand(
@@ -84,7 +85,10 @@ test("Traffic Jam fixture conforms across history and replay", () => {
   const acceptedEvents: Array<DomainEvent> = [];
   let finalReceipt = null;
 
-  for (const step of trafficConformanceFixture.scenario.slice(1)) {
+  for (const step of trafficConformanceFixture.scenario) {
+    if (!("expectEvents" in step)) {
+      continue;
+    }
     const execution = executeTurnCommand(
       trafficDefinition,
       snapshot,
@@ -126,7 +130,11 @@ test("Traffic Jam fixture conforms across history and replay", () => {
   );
 
   assert.notEqual(finalReceipt, null);
-  const lastStep = trafficConformanceFixture.scenario.at(-1)!;
+  const lastStep =
+    trafficConformanceFixture.scenario[
+      trafficConformanceFixture.scenario.length - 1
+    ];
+  assert.ok(lastStep !== undefined && "expectEvents" in lastStep);
   const duplicate = executeTurnCommand(
     trafficDefinition,
     snapshot,

@@ -41,6 +41,7 @@ const fields := {
     "vehicle_id": "vehicleId",
     "delta": "delta",
     "revision": "revision",
+    "revision_without_join": "revisionWithoutJoin",
     "state": "state",
     "board": "board",
     "vehicles": "vehicles",

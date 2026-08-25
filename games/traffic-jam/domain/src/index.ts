@@ -103,14 +103,13 @@ export const trafficDefinition: EventSourcedGameDefinition<
       to: nextPosition,
       delta: command.payload.delta,
     };
-    const events: Array<PendingDomainEvent> = [
-      {
-        type: trafficEvents.vehicleMoved,
-        actorId: command.actorId,
-        payload: movedPayload,
-      },
-    ];
-    const projectedState = reduceTrafficEvent(state, events[0]);
+    const movedEvent: PendingDomainEvent = {
+      type: trafficEvents.vehicleMoved,
+      actorId: command.actorId,
+      payload: movedPayload,
+    };
+    const events: Array<PendingDomainEvent> = [movedEvent];
+    const projectedState = reduceTrafficEvent(state, movedEvent);
 
     if (isTargetAtExit(projectedState)) {
       events.push({
