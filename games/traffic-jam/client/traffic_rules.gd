@@ -5,7 +5,7 @@ func load_fixture() -> Dictionary:
     var source := FileAccess.get_file_as_string(TrafficRegistry.paths.fixture)
     var parsed: Variant = JSON.parse_string(source)
     assert(parsed is Dictionary)
-    return (parsed as Dictionary).duplicate(true)
+    return _normalize_fixture(parsed as Dictionary)
 
 func create_snapshot() -> Dictionary:
     var fixture := load_fixture()
@@ -78,6 +78,33 @@ func execute(snapshot: Dictionary, command: Dictionary) -> Dictionary:
         TrafficRegistry.fields.snapshot: next_snapshot,
         TrafficRegistry.fields.events: events,
     }
+
+func _normalize_fixture(fixture: Dictionary) -> Dictionary:
+    var normalized: Dictionary = fixture.duplicate(true)
+    var level: Dictionary = normalized[TrafficRegistry.fields.level]
+    var board: Dictionary = level[TrafficRegistry.fields.board]
+    _normalize_integer_field(board, TrafficRegistry.fields.width)
+    _normalize_integer_field(board, TrafficRegistry.fields.height)
+
+    var vehicles: Array = level[TrafficRegistry.fields.vehicles]
+    for vehicle: Dictionary in vehicles:
+        var position: Dictionary = vehicle[TrafficRegistry.fields.position]
+        _normalize_integer_field(position, TrafficRegistry.fields.x)
+        _normalize_integer_field(position, TrafficRegistry.fields.y)
+        _normalize_integer_field(vehicle, TrafficRegistry.fields.length)
+        _normalize_integer_field(vehicle, TrafficRegistry.fields.preferred_delta)
+
+    var scenario: Array = normalized[TrafficRegistry.fields.scenario]
+    for step: Dictionary in scenario:
+        _normalize_integer_field(step, TrafficRegistry.fields.delta)
+
+    var expected: Dictionary = normalized[TrafficRegistry.fields.expected]
+    _normalize_integer_field(expected, TrafficRegistry.fields.move_count)
+    _normalize_integer_field(expected, TrafficRegistry.fields.revision_without_join)
+    return normalized
+
+func _normalize_integer_field(record: Dictionary, field: String) -> void:
+    record[field] = int(record[field])
 
 func _validate_move(
     board: Dictionary,
