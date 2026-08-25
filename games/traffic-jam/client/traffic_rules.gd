@@ -3,7 +3,7 @@ extends RefCounted
 
 func load_fixture() -> Dictionary:
     var source := FileAccess.get_file_as_string(TrafficRegistry.paths.fixture)
-    var parsed := JSON.parse_string(source)
+    var parsed: Variant = JSON.parse_string(source)
     assert(parsed is Dictionary)
     return (parsed as Dictionary).duplicate(true)
 
