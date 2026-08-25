@@ -29,15 +29,37 @@ jobs:
         run: |
           set -euo pipefail
 
-          {
-            head -c 16000 tools/bootstrap/foundation.tar.gz.b64.part00
-            head -c 16000 tools/bootstrap/foundation.tar.gz.b64.part01
-            cat tools/bootstrap/foundation.tar.gz.b64.part02
-            cat tools/bootstrap/foundation.tar.gz.b64.part03
-            cat tools/bootstrap/foundation.tar.gz.b64.part04
-          } > /tmp/slop-foundation.tar.gz.b64
+          python3 - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
 
-          test "$(wc -c < /tmp/slop-foundation.tar.gz.b64)" -eq 68452
+          chunks = [
+              ("foundation.tar.gz.b64.part00", 16000, "cf63a041f9bf61c95e4a40ef5f7fea595619486507c5ab0c01c4649d27a622d6"),
+              ("foundation.tar.gz.b64.part01", 16000, "f9bd718c77525fbba8fd300feb2e64b63aa39ef3b1cb5194dfb2c49a831fee06"),
+              ("foundation.tar.gz.b64.part02", 16000, "3e74518d5d15f0da656f0c0a2c917dd7bf5580ab68dd7db4fe15a564d232b2f4"),
+              ("foundation.tar.gz.b64.part03", 16000, "18174ea87d4b10485020a91828f685d651c58f346a58006c698482ede2866590"),
+              ("foundation.tar.gz.b64.part04", 4452, "d9d87788a88119260b9ae7915110aa9f6dc6661bf719ffd5b99785e28f319162"),
+          ]
+
+          def normalize(path: Path, expected_size: int, expected_digest: str) -> bytes:
+              data = path.read_bytes()
+              if len(data) == expected_size and sha256(data).hexdigest() == expected_digest:
+                  return data
+              if len(data) == expected_size + 1:
+                  for index in range(len(data)):
+                      candidate = data[:index] + data[index + 1:]
+                      if sha256(candidate).hexdigest() == expected_digest:
+                          print(f"repaired {path.name}: removed byte at {index}")
+                          return candidate
+              raise SystemExit(f"cannot normalize {path}: size={len(data)} sha256={sha256(data).hexdigest()}")
+
+          root = Path("tools/bootstrap")
+          combined = b"".join(normalize(root / name, size, digest) for name, size, digest in chunks)
+          if len(combined) != 68452:
+              raise SystemExit(f"unexpected combined size: {len(combined)}")
+          Path("/tmp/slop-foundation.tar.gz.b64").write_bytes(combined)
+          PY
+
           base64 --decode /tmp/slop-foundation.tar.gz.b64 > /tmp/slop-foundation.tar.gz
           echo "79fd22d019dc94548017d7730d8cd6845534f3d3f56a11d6038eaba29ff0423d  /tmp/slop-foundation.tar.gz" | sha256sum --check --strict
 
