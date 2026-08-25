@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": ".build-tests",
+    "declaration": false,
+    "sourceMap": false
+  },
+  "exclude": [
+    "node_modules",
+    "server/nakama",
+    "server/nakama/build"
+  ]
+}
