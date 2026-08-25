@@ -1,0 +1,30 @@
+; Engine configuration file.
+; Edit through the Godot editor where practical.
+config_version=5
+
+[application]
+
+config/name="Slop — Traffic Jam"
+run/main_scene="res://games/traffic-jam/client/main.tscn"
+
+[display]
+
+window/size/viewport_width=540
+window/size/viewport_height=960
+window/size/window_width_override=540
+window/size/window_height_override=960
+window/stretch/mode="canvas_items"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/slop_engine/plugin.cfg")
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+
+[application_run]
+
+disable_stdout=false
