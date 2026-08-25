@@ -1,0 +1,11 @@
+node_modules/
+.build-tests/
+dist/
+server/nakama/build/
+server/nakama/.compiled/
+.godot/
+*.tmp
+.DS_Store
+.env
+.env.*
+!.env.example
