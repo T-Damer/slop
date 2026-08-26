@@ -12,7 +12,7 @@ declare namespace nkruntime {
   interface StorageReadRequest {
     readonly collection: string;
     readonly key: string;
-    readonly userId: string;
+    readonly userId?: string;
   }
 
   interface StorageObject {
@@ -26,7 +26,7 @@ declare namespace nkruntime {
   interface StorageWriteRequest {
     readonly collection: string;
     readonly key: string;
-    readonly userId: string;
+    readonly userId?: string;
     readonly value: unknown;
     readonly version?: string;
     readonly permissionRead: number;
