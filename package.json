@@ -28,7 +28,7 @@
     "godot:run": "npm run runtime:sync && godot --editor --path ."
   },
   "devDependencies": {
-    "@heroiclabs/nakama-js": "2.9.0",
+    "@heroiclabs/nakama-js": "2.8.0",
     "@types/node": "24.3.0",
     "esbuild": "0.25.9",
     "typescript": "5.9.2"
