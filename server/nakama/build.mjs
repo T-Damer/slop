@@ -1,4 +1,4 @@
-import { rm, mkdir } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { build } from "esbuild";
@@ -10,6 +10,10 @@ const typeScriptExecutable = process.platform === "win32" ? "npx.cmd" : "npx";
 const buildSettings = {
   entryPoint: resolve(compiledDirectory, "server/nakama/src/main.js"),
   outputFile: resolve(outputDirectory, "index.js"),
+  compiledPackageFile: resolve(compiledDirectory, "package.json"),
+  compiledPackage: {
+    type: "commonjs",
+  },
   globalName: "SlopNakamaModule",
   footer: "var InitModule = SlopNakamaModule.InitModule;",
 };
@@ -30,6 +34,12 @@ const typeScriptResult = spawnSync(
 if (typeScriptResult.status !== 0) {
   process.exit(typeScriptResult.status ?? 1);
 }
+
+await writeFile(
+  buildSettings.compiledPackageFile,
+  JSON.stringify(buildSettings.compiledPackage),
+  "utf8",
+);
 
 await build({
   entryPoints: [buildSettings.entryPoint],
