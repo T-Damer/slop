@@ -1,5 +1,4 @@
 import {
-  SlopDomainError,
   type RpcEnvelope,
 } from "../../../packages/contracts/src/index.js";
 
@@ -9,6 +8,11 @@ export type SlopRpcHandler = (
   nakama: nkruntime.Nakama,
   payload: string,
 ) => unknown;
+
+interface SlopErrorLike {
+  readonly code: string;
+  readonly message: string;
+}
 
 export function executeRpcEnvelope(
   handler: SlopRpcHandler,
@@ -24,7 +28,7 @@ export function executeRpcEnvelope(
     };
     return JSON.stringify(envelope);
   } catch (error) {
-    if (!(error instanceof SlopDomainError)) {
+    if (!isSlopError(error)) {
       throw error;
     }
     const envelope: RpcEnvelope = {
@@ -36,4 +40,15 @@ export function executeRpcEnvelope(
     };
     return JSON.stringify(envelope);
   }
+}
+
+function isSlopError(error: unknown): error is SlopErrorLike {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const candidate = error as Partial<SlopErrorLike>;
+  return (
+    typeof candidate.code === "string" &&
+    typeof candidate.message === "string"
+  );
 }
