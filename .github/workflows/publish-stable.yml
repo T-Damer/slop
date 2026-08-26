@@ -132,7 +132,7 @@ jobs:
                 throw new Error('Entry module is empty.');
               }
 
-              console.log(`Pages smoke passed: ${pageUrl}`);
+              console.log(`Pages HTTP smoke passed: ${pageUrl}`);
               console.log(`Entry module: ${entryUrl}`);
               process.exit(0);
             } catch (error) {
@@ -144,3 +144,53 @@ jobs:
             }
           }
           NODE
+
+      - name: Verify rendered mobile browser UI
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [[ -z "$browser" ]]; then
+            echo "No supported Chromium browser is installed on the runner." >&2
+            exit 1
+          fi
+
+          timeout 60s "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --window-size=390,844 \
+            --virtual-time-budget=10000 \
+            --dump-dom \
+            "$PAGE_URL" > "${RUNNER_TEMP}/traffic-jam-dom.html"
+
+          grep -q 'id="slop-traffic-jam"' "${RUNNER_TEMP}/traffic-jam-dom.html"
+          grep -q 'Traffic Jam' "${RUNNER_TEMP}/traffic-jam-dom.html"
+          grep -q 'traffic-board' "${RUNNER_TEMP}/traffic-jam-dom.html"
+
+          timeout 60s "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --hide-scrollbars \
+            --window-size=390,844 \
+            --virtual-time-budget=10000 \
+            --screenshot="${RUNNER_TEMP}/traffic-jam.png" \
+            "$PAGE_URL"
+
+          test -s "${RUNNER_TEMP}/traffic-jam.png"
+          echo "Rendered browser smoke passed: ${PAGE_URL}"
+
+      - name: Upload rendered smoke evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: traffic-jam-pages-smoke-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/traffic-jam.png
+            ${{ runner.temp }}/traffic-jam-dom.html
+          if-no-files-found: error
+          retention-days: 14
