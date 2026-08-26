@@ -29,11 +29,11 @@ import {
   nakamaStorageVersions,
 } from "./registry.js";
 import {
-  withRpcEnvelope,
+  executeRpcEnvelope,
   type SlopRpcHandler,
 } from "./rpc-envelope.js";
 
-export function InitModule(
+function InitModule(
   _context: nkruntime.Context,
   logger: nkruntime.Logger,
   _nakama: nkruntime.Nakama,
@@ -41,25 +41,100 @@ export function InitModule(
 ): void {
   initializer.registerRpc(
     nakamaRpcIds.createSession,
-    withRpcEnvelope(createSessionRpc),
+    createSessionRpcEntry,
   );
   initializer.registerRpc(
     nakamaRpcIds.joinSession,
-    withRpcEnvelope(joinSessionRpc),
+    joinSessionRpcEntry,
   );
   initializer.registerRpc(
     nakamaRpcIds.getSession,
-    withRpcEnvelope(getSessionRpc),
+    getSessionRpcEntry,
   );
   initializer.registerRpc(
     nakamaRpcIds.submitCommand,
-    withRpcEnvelope(submitCommandRpc),
+    submitCommandRpcEntry,
   );
   initializer.registerRpc(
     nakamaRpcIds.getHistory,
-    withRpcEnvelope(getHistoryRpc),
+    getHistoryRpcEntry,
   );
   logger.info(nakamaLogs.initialized);
+}
+
+function createSessionRpcEntry(
+  context: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nakama: nkruntime.Nakama,
+  payload: string,
+): string {
+  return executeRpcEnvelope(
+    createSessionRpc,
+    context,
+    logger,
+    nakama,
+    payload,
+  );
+}
+
+function joinSessionRpcEntry(
+  context: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nakama: nkruntime.Nakama,
+  payload: string,
+): string {
+  return executeRpcEnvelope(
+    joinSessionRpc,
+    context,
+    logger,
+    nakama,
+    payload,
+  );
+}
+
+function getSessionRpcEntry(
+  context: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nakama: nkruntime.Nakama,
+  payload: string,
+): string {
+  return executeRpcEnvelope(
+    getSessionRpc,
+    context,
+    logger,
+    nakama,
+    payload,
+  );
+}
+
+function submitCommandRpcEntry(
+  context: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nakama: nkruntime.Nakama,
+  payload: string,
+): string {
+  return executeRpcEnvelope(
+    submitCommandRpc,
+    context,
+    logger,
+    nakama,
+    payload,
+  );
+}
+
+function getHistoryRpcEntry(
+  context: nkruntime.Context,
+  logger: nkruntime.Logger,
+  nakama: nkruntime.Nakama,
+  payload: string,
+): string {
+  return executeRpcEnvelope(
+    getHistoryRpc,
+    context,
+    logger,
+    nakama,
+    payload,
+  );
 }
 
 const createSessionRpc: SlopRpcHandler = (context, _logger, nakama, payload) => {
@@ -361,3 +436,5 @@ function writeStorage(
     );
   }
 }
+
+!InitModule && InitModule.bind(null);
