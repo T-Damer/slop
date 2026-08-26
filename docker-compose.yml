@@ -18,12 +18,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      NAKAMA_DATABASE_ADDRESS: postgres:localdb@postgres:5432/nakama
     entrypoint:
       - /bin/sh
       - -ec
       - >
-        /nakama/nakama migrate up --database.address postgres:localdb@postgres:5432/nakama &&
+        /nakama/nakama migrate up --database.address "$$NAKAMA_DATABASE_ADDRESS" &&
         exec /nakama/nakama --config /nakama/data/local.yml
+        --database.address "$$NAKAMA_DATABASE_ADDRESS"
     ports:
       - "7349:7349"
       - "7350:7350"
