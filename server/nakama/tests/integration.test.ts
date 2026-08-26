@@ -264,19 +264,19 @@ function parseEnvelope(payload: unknown): RpcEnvelope {
     };
   }
   const error = decoded[slopProtocol.envelope.error];
-  if (
-    decoded[slopProtocol.envelope.ok] !== false ||
-    !isRecord(error) ||
-    typeof error[slopProtocol.envelope.code] !== "string" ||
-    typeof error[slopProtocol.envelope.message] !== "string"
-  ) {
+  if (decoded[slopProtocol.envelope.ok] !== false || !isRecord(error)) {
+    throw new Error(nakamaIntegrationMessages.malformedEnvelope);
+  }
+  const errorCode = error[slopProtocol.envelope.code];
+  const errorMessage = error[slopProtocol.envelope.message];
+  if (typeof errorCode !== "string" || typeof errorMessage !== "string") {
     throw new Error(nakamaIntegrationMessages.malformedEnvelope);
   }
   return {
     ok: false,
     error: {
-      code: error[slopProtocol.envelope.code],
-      message: error[slopProtocol.envelope.message],
+      code: errorCode,
+      message: errorMessage,
     },
   };
 }
