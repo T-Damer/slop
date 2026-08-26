@@ -23,7 +23,7 @@ services:
       - -ec
       - >
         /nakama/nakama migrate up --database.address postgres:localdb@postgres:5432/nakama &&
-        exec /nakama/nakama --config /nakama/data/local.yml
+        exec /nakama/nakama --config /nakama/data/local.yml --database.address postgres:localdb@postgres:5432/nakama
     ports:
       - "7349:7349"
       - "7350:7350"
