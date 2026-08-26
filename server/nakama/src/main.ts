@@ -249,7 +249,6 @@ const getHistoryRpc: SlopRpcHandler = (context, _logger, nakama, payload) => {
     reads.push({
       collection: eventCollection(snapshot.sessionId),
       key: eventKey(sequence),
-      userId: String(),
     });
   }
 
@@ -336,7 +335,6 @@ function readSnapshotObject(
     {
       collection: nakamaStorageCollections.snapshots,
       key: sessionId,
-      userId: String(),
     },
   ]);
   const stored = objects[0];
@@ -358,7 +356,6 @@ function readReceipt(
     {
       collection: receiptCollection(sessionId),
       key: commandId,
-      userId: String(),
     },
   ]);
   return objects[0] === undefined
@@ -373,7 +370,6 @@ function snapshotWrite(
   return {
     collection: nakamaStorageCollections.snapshots,
     key: snapshot.sessionId,
-    userId: String(),
     value: snapshot,
     version,
     permissionRead: nakamaStoragePermissions.serverRead,
@@ -385,7 +381,6 @@ function eventWrite(event: DomainEvent): nkruntime.StorageWriteRequest {
   return {
     collection: eventCollection(event.sessionId),
     key: eventKey(event.sequence),
-    userId: String(),
     value: event,
     version: nakamaStorageVersions.createOnly,
     permissionRead: nakamaStoragePermissions.serverRead,
@@ -399,7 +394,6 @@ function receiptWrite(
   return {
     collection: receiptCollection(receipt.sessionId),
     key: receipt.commandId,
-    userId: String(),
     value: receipt,
     version: nakamaStorageVersions.createOnly,
     permissionRead: nakamaStoragePermissions.serverRead,
@@ -427,14 +421,5 @@ function writeStorage(
   nakama: nkruntime.Nakama,
   writes: ReadonlyArray<nkruntime.StorageWriteRequest>,
 ): void {
-  try {
-    nakama.storageWrite(writes);
-  } catch (_error) {
-    throw new SlopDomainError(
-      slopErrorCodes.storageConflict,
-      nakamaMessages.storageConflict,
-    );
-  }
+  nakama.storageWrite(writes);
 }
-
-!InitModule && InitModule.bind(null);
