@@ -71,7 +71,76 @@ jobs:
     environment:
       name: stable-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Verify published HTML and entry module
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const pageUrl = process.env.PAGE_URL;
+          const smokeLimits = {
+            attempts: 12,
+            retryDelayMs: 5_000,
+          };
+
+          if (!pageUrl) {
+            throw new Error('Pages deployment did not return a URL.');
+          }
+
+          for (let attempt = 1; attempt <= smokeLimits.attempts; attempt += 1) {
+            try {
+              const pageResponse = await fetch(pageUrl, { redirect: 'follow' });
+              if (!pageResponse.ok) {
+                throw new Error(`HTML returned HTTP ${pageResponse.status}.`);
+              }
+
+              const html = await pageResponse.text();
+              if (!html.toLowerCase().includes('<!doctype html')) {
+                throw new Error('Published response is not an HTML document.');
+              }
+
+              const entryMatch = html.match(/<script[^>]+src="([^"]+\.js)"/i);
+              if (!entryMatch?.[1]) {
+                throw new Error('Published HTML has no JavaScript entry module.');
+              }
+
+              const entryUrl = new URL(entryMatch[1], pageUrl);
+              const entryResponse = await fetch(entryUrl, { redirect: 'follow' });
+              if (!entryResponse.ok) {
+                throw new Error(`Entry module returned HTTP ${entryResponse.status}.`);
+              }
+
+              const entrySource = await entryResponse.text();
+              if (entrySource.length === 0) {
+                throw new Error('Entry module is empty.');
+              }
+
+              console.log(`Pages smoke passed: ${pageUrl}`);
+              console.log(`Entry module: ${entryUrl}`);
+              process.exit(0);
+            } catch (error) {
+              console.error(`Smoke attempt ${attempt} failed:`, error);
+              if (attempt === smokeLimits.attempts) {
+                throw error;
+              }
+              await new Promise((resolve) => setTimeout(resolve, smokeLimits.retryDelayMs));
+            }
+          }
+          NODE
