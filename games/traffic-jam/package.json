@@ -1,0 +1,7 @@
+{
+  "name": "@slop-game/traffic-jam",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A touch-first Traffic Jam game built as a Modoki external project."
+}

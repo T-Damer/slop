@@ -1,14 +1,15 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - docs/agent-foundation
-      - main
-      - stable
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+      - stable
+      - "feature/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -18,101 +19,65 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TOOLCHAIN_FILE: .slop/toolchain.json
+  MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
+  MODOKI_PROJECT_PATH: games/traffic-jam
 
 jobs:
-  code-quality:
+  domain-and-architecture:
     runs-on: ubuntu-24.04
     steps:
-      - name: Check out repository
+      - name: Check out Slop
         uses: actions/checkout@v5
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version: 24
 
-      - name: Install dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
-
-      - name: Run contracts, guard, typecheck, tests, and server build
+      - name: Verify domain and architecture
         run: npm run check
+
+  modoki-web-build:
+    needs: domain-and-architecture
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Slop
+        uses: actions/checkout@v5
+
+      - name: Check out pinned Modoki
+        uses: actions/checkout@v5
+        with:
+          repository: lsgmasa33/modoki-engine
+          ref: ${{ env.MODOKI_COMMIT }}
+          path: .modoki-engine
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: .modoki-engine/package-lock.json
+
+      - name: Install Modoki dependencies
+        working-directory: .modoki-engine
+        run: npm ci --no-audit --no-fund
+
+      - name: Build Traffic Jam for web
+        working-directory: .modoki-engine
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.MODOKI_PROJECT_PATH }}
+        run: npm run build -- --target web
 
-      - name: Package slop-engine
-        run: npm run package:engine
+      - name: Verify web artifact
+        run: |
+          test -f "${MODOKI_PROJECT_PATH}/dist/index.html"
+          du -ah "${MODOKI_PROJECT_PATH}/dist" | sort -h | tail -20
 
-      - name: Upload engine package
+      - name: Upload browser build
         uses: actions/upload-artifact@v4
         with:
-          name: slop-engine-${{ github.sha }}
-          path: dist/slop-engine
+          name: traffic-jam-web-${{ github.sha }}
+          path: ${{ env.MODOKI_PROJECT_PATH }}/dist
           if-no-files-found: error
           retention-days: 14
-
-  nakama-integration:
-    needs: code-quality
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
-      - name: Install dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
-
-      - name: Build Nakama module
-        run: npm run build:nakama
-
-      - name: Start Nakama and PostgreSQL
-        run: docker compose up --detach
-
-      - name: Run authoritative multiplayer integration test
-        run: npm run test:nakama:integration
-
-      - name: Print Nakama logs on failure
-        if: failure()
-        run: docker compose logs nakama
-
-      - name: Stop integration services
-        if: always()
-        run: docker compose down --volumes
-
-  godot-conformance:
-    needs: code-quality
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-
-      - name: Synchronize runtime dependencies
-        run: npm run runtime:sync
-
-      - name: Install pinned Godot editor
-        shell: bash
-        run: |
-          set -euo pipefail
-          archive_url="$(jq -r '.godot.linuxArchive.url' "$TOOLCHAIN_FILE")"
-          archive_sha="$(jq -r '.godot.linuxArchive.sha256' "$TOOLCHAIN_FILE")"
-          binary_name="$(jq -r '.godot.linuxArchive.binaryName' "$TOOLCHAIN_FILE")"
-          curl --fail --location --retry 3 --output /tmp/godot.zip "$archive_url"
-          echo "$archive_sha  /tmp/godot.zip" | sha256sum --check --strict
-          unzip -q /tmp/godot.zip -d /tmp/godot
-          sudo install -m 0755 "/tmp/godot/$binary_name" /usr/local/bin/godot
-          godot --version
-
-      - name: Import and parse Godot project
-        run: timeout 60s godot --headless --editor --path . --quit-after 2
-
-      - name: Run cross-runtime conformance
-        run: timeout 60s godot --headless --path . --script res://games/traffic-jam/client/tests/conformance_runner.gd

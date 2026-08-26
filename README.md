@@ -1,49 +1,52 @@
-# slop
+# Slop
 
-A web-first, friend-first game platform built around a compact Godot runtime,
-deterministic turn sessions, immutable history, reusable UI, and agent-oriented
-generation/validation tooling.
+Slop is an AI-oriented game factory built around small, testable game domains and interchangeable authoring/runtime adapters.
 
-## Current vertical slice
+The first vertical slice is **Traffic Jam**, built as an external Modoki project:
 
-The repository currently contains:
+- one pure TypeScript source of truth for rules;
+- touch-first browser UI;
+- deterministic level solver and tests;
+- Modoki `GameDefinition`, project lifecycle, scene, and web build;
+- GitHub Pages publication from `stable`;
+- human-readable current/target architecture diagrams with a CI drift check.
 
-- the versioned `addons/slop_engine` Godot runtime package;
-- the shared `addons/slop_ui` library;
-- deterministic TypeScript session/replay primitives;
-- reusable grid-slide rules;
-- a Nakama runtime/storage adapter;
-- Traffic Jam as the first real conformance game;
-- Godot and Blender MCP pins;
-- architecture/repository guards;
-- CI on feature/main and automatic GitHub Pages publishing from `stable`.
+## Play
 
-## Run checks
+GitHub Pages: **https://t-damer.github.io/slop/**
 
-```bash
-npm install
-npm run check
-```
+## Verify the domain
 
-With Godot available:
+Requires Node.js 24 or newer:
 
 ```bash
-npm run godot:conformance
-npm run godot:run
+npm test
+npm run architecture:check
 ```
 
-Build the Nakama module and run the local server:
+## Build with Modoki
+
+The workflow pins Modoki `v0.5.2` by commit. For a local build:
 
 ```bash
-npm run build:nakama
-docker compose up
+git clone https://github.com/lsgmasa33/modoki-engine.git
+cd modoki-engine
+git checkout 145bae5b2dc38ac0561a2b627d726cba69a99c1f
+npm ci
+MODOKI_PROJECT=/absolute/path/to/slop/games/traffic-jam \
+  npm run build -- --target web
 ```
 
-## Branches
+The artifact is written to `games/traffic-jam/dist`.
 
-- `main`: reviewed code;
-- `stable`: publish/deploy source;
-- up to three non-overlapping feature branches.
+## Module map
 
-See `AGENTS.md`, `docs/README.md`, and `.slop/repository-policy.json` before
-changing the repository.
+```text
+Traffic domain (pure TypeScript)
+        ↓
+Traffic UI (DOM projection + input)
+        ↓
+Modoki adapter (GameDefinition + lifecycle + web build)
+```
+
+See `architecture/target.mmd`, `architecture/current.mmd`, and `architecture/model.json`.

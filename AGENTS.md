@@ -1,100 +1,66 @@
 # AGENTS.md
 
-Mandatory contract for every agent that plans, edits, reviews, or accepts work in `slop`.
+This repository builds compact games with AI agents. Human review focuses on architecture, game feel, and visual output; agents own routine implementation and verification.
 
 ## Before editing
 
-1. Read this file and every nearer `AGENTS.md` for the target paths.
-2. Read only the relevant canonical document routed from `docs/README.md`.
-3. Inspect branch, diff, and unrelated work.
-4. Search the repository by concept, synonyms, events, schemas, tests, and callers.
-5. Search the web/package registries for maintained reusable solutions before writing a new subsystem.
-6. Identify the canonical state owner, dependency direction, scope, non-goals, and acceptance checks.
-7. For non-trivial features/refactors, run `grill-me` when available; otherwise perform an adversarial plan review.
+1. Read this file and the nearest local `AGENTS.md`.
+2. Read `architecture/target.mmd` and compare it with `architecture/current.mmd`.
+3. Search the repository by concept and synonyms before creating anything.
+4. Search maintained packages and permissive open-source implementations before writing a new subsystem.
+5. Identify the canonical owner, allowed dependencies, non-goals, and acceptance checks.
 
 Default order:
 
-> **search → reuse → extend → create**
+> **search → reuse → extend → compose → create**
 
-## While working
+## Hard rules
 
-At least every 6 tool calls, and whenever scope/ownership/refactoring changes:
-
-- re-read the nearest `AGENTS.md` and relevant `## Hard rules`;
-- inspect the actual diff;
-- search again for newly introduced concepts;
-- verify ownership, dependencies, and scope;
-- rerun `grill-me` after a material plan or architecture change.
-
-## Hard code rules
-
+- One behavior or state value has one canonical owner.
+- Gameplay rules are pure TypeScript and never depend on Modoki, DOM, rendering, storage, network, or wall-clock APIs.
+- Modoki is an authoring/rendering/build adapter. It must not become a second implementation of game rules.
+- Domain strings and tuning numbers belong to cohesive typed registries/config objects. Do not replace a floating literal with an orphan local constant.
 - `const` by default; `let` only for intentional reassignment; never `var`.
-- Domain strings/numbers never float inline or as one-off local constants.
-- Put domain values in cohesive typed owners such as `trafficEvents.moved`,
-  `trafficDistances.exitCells`, or `trafficTimers.moveAnimationMs`.
-- Registry/config files own definitions; implementation files only reference them.
-- One state value has one canonical owner; derive rather than mirror.
-- ECS components are small data-only records; systems own behavior.
-- UI renders/composes. Move workflows, subscriptions, async orchestration, and
-  related state into focused hooks/controllers/services/systems.
-- Before adding a helper, component, system, service, schema, event, or dependency,
-  prove that an equivalent capability does not already exist.
-- Do not copy-paste variants. Extend or compose the semantic owner.
-- Shared code never branches on a concrete game ID.
-- Deterministic rules never access uncontrolled time, randomness, network,
-  storage, analytics, or DOM APIs.
-- A working patch may be rejected for wrong ownership or architecture.
+- Do not copy-paste variants. Extend or compose the existing semantic owner.
+- Shared code never branches on a concrete game identifier.
+- Generated code and assets pass the same tests, budgets, provenance, and visual review as human output.
+- Runtime code stays compact. Development-only AI, MCP, validation, and asset tooling never ships in the game bundle.
+- A working patch can be rejected for incorrect ownership, duplication, or architectural drift.
 
-Full rules:
-`docs/engineering/code-standards.md`,
-`docs/engineering/refactoring.md`,
-`docs/architecture/runtime-and-ecs.md`,
-`docs/architecture/capabilities-and-reuse.md`.
+## Current architecture
 
-## Authoring tools
+- `games/traffic-jam/runtime/domain/**` owns the Traffic Jam state and rules.
+- `games/traffic-jam/runtime/ui/**` renders the domain and translates input into domain commands.
+- `games/traffic-jam/runtime/setup.ts` is the thin Modoki lifecycle adapter.
+- `architecture/model.json` is the machine-readable module contract.
+- `architecture/current.mmd` shows the implemented module graph.
+- `architecture/target.mmd` shows the intended graph. CI rejects forbidden drift.
 
-- Scene/editor/playtest work uses the pinned Godot MCP.
-- Mesh/material/rig/export work uses the pinned Blender MCP.
-- Run `npm run mcp:install`; see `tools/mcp/README.md`.
-- MCP tooling is never required by a runtime build.
+## Modoki
+
+- Pin the engine revision in CI; never build against an unpinned `main` branch.
+- Keep each game independently buildable as a Modoki external project.
+- Scene data is presentation data, not an authoritative rule store.
+- Prefer structured live-state checks and deterministic domain tests over screenshot-only claims.
+- Game-specific MCP tools may be added later, but they must be namespaced and disabled in release builds.
 
 ## Repository flow
 
-- Maximum branches: **5 total**.
-- Permanent branches: `main` and `stable`.
-- Maximum feature branches: **3**.
-- Maximum open PRs: **3**.
-- Feature branches must own disjoint path/responsibility zones. Overlap means one
-  larger feature branch, not parallel branches.
-- `main` is reviewed code. `stable` is the only automatic publish/deploy source.
-- Do not create a branch or PR without checking `.slop/repository-policy.json`.
-
-## Boundaries
-
-A local `AGENTS.md` is required before implementation in every new
-`addons/*`, `packages/*`, `games/*`, `server/*`, `services/*`, or `tools/*`
-architectural root. Keep it short and subsystem-specific.
-
-Dependency direction:
-
-```text
-games/adapters → reusable packages/addons → contracts
-server adapters → turn engine/game rules → contracts
-```
-
-Games never import other games. Presentation never owns authoritative rules.
+- Maximum five branches total: `main`, `stable`, and up to three disjoint `feature/*` branches.
+- Maximum three open pull requests.
+- `main` contains reviewed code. `stable` is the only automatic Pages publication source.
+- Feature branches must own disjoint responsibility zones. Overlap means one larger branch.
 
 ## Acceptance
 
-A change is complete only when applicable gates pass:
+A change is complete only when all applicable checks pass:
 
-1. requested behavior and edge cases;
-2. generated contracts are current;
-3. tests, typecheck, guard, and Godot conformance;
-4. no duplicate capability or floating domain literal;
-5. history/replay contracts remain lossless;
-6. docs/local instructions remain truthful;
-7. final diff is scoped;
-8. an independent reviewer inspects the actual diff and returns `PASS`.
+1. domain tests and edge cases;
+2. architecture drift check;
+3. Modoki production web build;
+4. no duplicate rules or floating domain values;
+5. mobile-sized interaction and layout review;
+6. final diff remains scoped;
+7. an independent reviewer reads the actual diff.
 
 Never claim a check was run when it was not.

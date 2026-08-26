@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "modules": [
+    {
+      "id": "traffic-domain",
+      "path": "games/traffic-jam/runtime/domain",
+      "owns": [
+        "traffic state",
+        "level definitions",
+        "move validation",
+        "solver"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "traffic-ui",
+      "path": "games/traffic-jam/runtime/ui",
+      "owns": [
+        "browser presentation",
+        "touch and keyboard input",
+        "local progress preference",
+        "animation"
+      ],
+      "dependsOn": ["traffic-domain"]
+    },
+    {
+      "id": "modoki-adapter",
+      "path": "games/traffic-jam/runtime",
+      "owns": [
+        "Modoki registration lifecycle",
+        "scene selection",
+        "web build integration"
+      ],
+      "dependsOn": ["traffic-ui"]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "traffic-domain",
+      "to": "traffic-ui"
+    },
+    {
+      "from": "traffic-domain",
+      "to": "modoki-adapter"
+    },
+    {
+      "from": "traffic-ui",
+      "to": "modoki-adapter"
+    }
+  ]
+}

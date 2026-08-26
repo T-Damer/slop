@@ -1,0 +1,16 @@
+{
+  "build": {
+    "webDeployMode": "none",
+    "webBucket": "",
+    "webBasePath": "/slop/",
+    "webCdnUrlMap": "",
+    "appleTeamId": "",
+    "debugBuild": false
+  },
+  "app": {
+    "appId": "io.tdamer.slop.trafficjam",
+    "appName": "Traffic Jam",
+    "version": "0.1.0",
+    "buildNumber": 1
+  }
+}

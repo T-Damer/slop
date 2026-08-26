@@ -1,0 +1,10 @@
+flowchart LR
+    Prompt[AI or human task] --> Domain[Traffic domain\npure TypeScript]
+    Domain --> Tests[Deterministic tests + solver]
+    Domain --> UI[Traffic UI\nprojection + input]
+    UI --> Adapter[Modoki adapter\nGameDefinition + lifecycle]
+    Adapter --> Build[Modoki web build]
+    Build --> Pages[GitHub Pages]
+
+    Domain -. no dependency .-> Modoki[Modoki engine]
+    Adapter --> Modoki

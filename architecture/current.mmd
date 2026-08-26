@@ -1,0 +1,7 @@
+flowchart LR
+    Domain[games/traffic-jam/runtime/domain] --> UI[games/traffic-jam/runtime/ui]
+    UI --> Setup[games/traffic-jam/runtime/setup.ts]
+    Setup --> Modoki[@modoki/engine runtime]
+    Config[games/traffic-jam/runtime/config.ts] --> Modoki
+    Game[games/traffic-jam/game.ts] --> Setup
+    Game --> Config

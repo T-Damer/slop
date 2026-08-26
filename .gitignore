@@ -1,14 +1,5 @@
 node_modules/
-.build-tests/
-.build-integration/
 dist/
-server/nakama/build/
-server/nakama/.compiled/
-.godot/
-addons/com.heroiclabs.nakama/
-addons/godot_mcp_toolkit/
-*.tmp
+.modoki-engine/
 .DS_Store
-.env
-.env.*
-!.env.example
+*.log
