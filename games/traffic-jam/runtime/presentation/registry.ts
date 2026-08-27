@@ -53,9 +53,13 @@ export const parkingUiCopy = {
   score: 'Score',
   coins: 'coins',
   combo: 'combo',
-  queue: 'Next',
+  queue: 'Queue',
+  targetLabel: 'Bring next',
+  targetSuffix: 'car',
   instruction: 'Tap a car with a clear route. Match the passenger queue.',
-  blocked: 'That car is blocked.',
+  instructionPrefix: 'Bring the',
+  instructionSuffix: 'car to the pickup bays.',
+  blocked: 'That car is blocked. Follow its roof arrow.',
   noBay: 'Pickup bays are full.',
   hint: 'Try the highlighted car.',
   completedTitle: 'Parking cleared!',
@@ -75,6 +79,7 @@ export const parkingUiSymbols = {
   undo: '↶',
   reset: '↻',
   hint: '?',
+  targetArrow: '›',
 } as const;
 
 export const parkingLayout = {
@@ -87,6 +92,10 @@ export const parkingLayout = {
   lotDepth: trafficRules.boardRows * 0.86 + 0.48,
   lotHeight: 0.15,
   lotY: 0.015,
+  roadApronMargin: 1.18,
+  roadApronHeight: 0.08,
+  exitChevronOffset: 0.7,
+  exitChevronScale: 0.58,
   bayCountMaximum: 4,
   bayX: [-2.38, -0.8, 0.8, 2.38],
   bayZ: -3.6,
@@ -106,6 +115,10 @@ export const parkingLayout = {
   cameraMinimumWidth: 8.7,
   cameraLookZ: 0.15,
   shadowMapSize: 1024,
+  targetPulseMinimum: 0.12,
+  targetPulseMaximum: 0.3,
+  recommendedPulseScale: 0.055,
+  passengerPriorityScale: 1.2,
 } as const;
 
 export const parkingCamera = {
@@ -126,6 +139,13 @@ export const parkingDirectionYaw: Readonly<Record<TrafficDirection, number>> = {
   [trafficDirections.left]: -Math.PI / 2,
 };
 
+export const parkingDirectionVectors: Readonly<Record<TrafficDirection, Readonly<{ x: number; z: number }>>> = {
+  [trafficDirections.up]: { x: 0, z: 1 },
+  [trafficDirections.right]: { x: 1, z: 0 },
+  [trafficDirections.down]: { x: 0, z: -1 },
+  [trafficDirections.left]: { x: -1, z: 0 },
+};
+
 export const parkingColorPalette: Readonly<Record<TrafficColor, number>> = {
   [trafficColors.coral]: 0xf17f72,
   [trafficColors.blue]: 0x52bde9,
@@ -141,6 +161,21 @@ export const parkingColorPalette: Readonly<Record<TrafficColor, number>> = {
   [trafficColors.indigo]: 0x7885de,
 };
 
+export const parkingColorNames: Readonly<Record<TrafficColor, string>> = {
+  [trafficColors.coral]: 'coral',
+  [trafficColors.blue]: 'blue',
+  [trafficColors.mint]: 'mint',
+  [trafficColors.yellow]: 'yellow',
+  [trafficColors.violet]: 'violet',
+  [trafficColors.orange]: 'orange',
+  [trafficColors.teal]: 'teal',
+  [trafficColors.pink]: 'pink',
+  [trafficColors.lime]: 'lime',
+  [trafficColors.sky]: 'sky blue',
+  [trafficColors.red]: 'red',
+  [trafficColors.indigo]: 'indigo',
+};
+
 export const parkingSceneColors = {
   sky: 0xc8e6dc,
   fog: 0xc8e6dc,
@@ -149,12 +184,14 @@ export const parkingSceneColors = {
   asphalt: 0x686e6b,
   asphaltEdge: 0x919590,
   marking: 0xe7e3c8,
+  exitMarking: 0xf7f2cf,
   concrete: 0xc7c3ac,
   concreteDark: 0x7c8078,
   pickup: 0xf0d34d,
   pickupInactive: 0x8d8b78,
   danger: 0xe35a54,
   gold: 0xf5c744,
+  target: 0xffffff,
   white: 0xffffff,
   window: 0x274d5a,
   tire: 0x222728,
