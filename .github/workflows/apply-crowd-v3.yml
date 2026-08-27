@@ -35,15 +35,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .slop-patch/crowd-v3/part-* | tr -d '\n' | base64 --decode > "${RUNNER_TEMP}/crowd-v3.tar.gz"
-          tar -xzf "${RUNNER_TEMP}/crowd-v3.tar.gz"
+          wc -c .slop-patch/crowd-v3/part-*
+          sha256sum .slop-patch/crowd-v3/part-*
+          python3 - <<'PY'
+          import base64
+          import glob
+          import hashlib
+          import pathlib
+
+          parts = [pathlib.Path(path) for path in sorted(glob.glob('.slop-patch/crowd-v3/part-*'))]
+          encoded = ''.join(part.read_text(encoding='utf-8').split())
+          invalid = sorted(set(encoded) - set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='))
+          print(f'encoded length: {len(encoded)}')
+          print(f'invalid characters: {invalid!r}')
+          decoded = base64.b64decode(encoded, validate=False)
+          digest = hashlib.sha256(decoded).hexdigest()
+          print(f'decoded sha256: {digest}')
+          expected = '1d1477aa8c82de52ec3932475d57562ea0d36c822b8e2376940f4a440841db11'
+          if digest != expected:
+              raise SystemExit(f'archive hash mismatch: expected {expected}')
+          pathlib.Path('/tmp/crowd-v3.tar.gz').write_bytes(decoded)
+          PY
+          tar -xzf /tmp/crowd-v3.tar.gz
 
           test -f games/traffic-jam/runtime/presentation/app.ts
           test -f games/traffic-jam/runtime/presentation/scene.ts
           test -f games/traffic-jam/runtime/assets/models/compact-car.glb
           test -f games/traffic-jam/runtime/assets/models/passenger.glb
-          test "$(xxd -p -l 4 games/traffic-jam/runtime/assets/models/compact-car.glb)" = "676c5446"
-          test "$(xxd -p -l 4 games/traffic-jam/runtime/assets/models/passenger.glb)" = "676c5446"
+          test "$(od -An -tx1 -N4 games/traffic-jam/runtime/assets/models/compact-car.glb | tr -d ' \n')" = "676c5446"
+          test "$(od -An -tx1 -N4 games/traffic-jam/runtime/assets/models/passenger.glb | tr -d ' \n')" = "676c5446"
 
       - name: Verify domain and architecture
         run: npm run check
