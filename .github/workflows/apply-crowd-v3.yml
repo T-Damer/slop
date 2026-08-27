@@ -36,7 +36,6 @@ jobs:
         run: |
           set -euo pipefail
           wc -c .slop-patch/crowd-v3/part-*
-          sha256sum .slop-patch/crowd-v3/part-*
           python3 - <<'PY'
           import base64
           import glob
@@ -44,11 +43,14 @@ jobs:
           import pathlib
 
           parts = [pathlib.Path(path) for path in sorted(glob.glob('.slop-patch/crowd-v3/part-*'))]
-          encoded = ''.join(part.read_text(encoding='utf-8').split())
+          encoded = ''.join(
+              ''.join(part.read_text(encoding='utf-8').split())
+              for part in parts
+          )
           invalid = sorted(set(encoded) - set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='))
           print(f'encoded length: {len(encoded)}')
           print(f'invalid characters: {invalid!r}')
-          decoded = base64.b64decode(encoded, validate=False)
+          decoded = base64.b64decode(encoded, validate=True)
           digest = hashlib.sha256(decoded).hexdigest()
           print(f'decoded sha256: {digest}')
           expected = '1d1477aa8c82de52ec3932475d57562ea0d36c822b8e2376940f4a440841db11'
