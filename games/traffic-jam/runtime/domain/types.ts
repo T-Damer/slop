@@ -4,6 +4,7 @@ import type {
   TrafficDirection,
   TrafficErrorCode,
   TrafficEventType,
+  TrafficLocation,
 } from './registry.ts';
 
 export interface TrafficCell {
@@ -25,6 +26,8 @@ export interface TrafficLevelDefinition {
   readonly id: string;
   readonly name: string;
   readonly objective: string;
+  readonly location: TrafficLocation;
+  readonly variantSeed: number;
   readonly bayCount: number;
   readonly cars: ReadonlyArray<TrafficCarDefinition>;
   readonly passengers: ReadonlyArray<TrafficColor>;
@@ -56,6 +59,7 @@ export interface TrafficDomainEvent {
   readonly bayIndex: number | null;
   readonly passengerColor: TrafficColor | null;
   readonly seatIndex: number | null;
+  readonly passengerCount: number;
   readonly points: number;
   readonly coins: number;
   readonly scoreAfter: number;
