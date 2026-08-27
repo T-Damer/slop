@@ -1,12 +1,14 @@
 # Parking Jam
 
-A touch-first 3D parking puzzle.
+A touch-first 3D parking and passenger puzzle.
 
-- Dense isometric lot with up to 40 cars.
+- Dense isometric lots with seeded layout variants on every shuffle.
+- City and beach locations with distinct procedural surroundings.
 - Cars physically drive out, turn onto the road, and enter pickup bays.
-- Low-poly passengers walk to matching cars.
-- Score, coins, combo, popups, camera feedback, and completion effects.
+- Passenger groups of four to seven people board together instead of walking one by one.
+- Group boarding adds crowd motion, particles, car punch, score, coins, combo, and camera feedback.
+- One canonical color catalog drives cars, passengers, guidance, and the target overlay.
 - Limited pickup bays create a color-order jam if the player releases the wrong cars.
-- Undo, reset, hint, deterministic solver, and validated generated levels.
+- Undo, shuffle, hint, deterministic solver, and validation across multiple random seeds.
 
-The domain does not depend on Modoki, Three.js, DOM, storage, or time APIs. The presentation consumes domain events and does not reimplement path, queue, scoring, or completion rules.
+The domain does not depend on Modoki, Three.js, DOM, storage, or time APIs. The presentation consumes semantic domain events and does not reimplement path, queue, scoring, random layout validation, or completion rules.
