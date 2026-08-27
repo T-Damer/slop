@@ -1,0 +1,39 @@
+name: Apply Parking Jam replacement
+
+on:
+  push:
+    branches:
+      - feature/core-traffic
+    paths:
+      - tools/apply-parking-jam-v2.sh
+      - .github/workflows/apply-parking-jam-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: apply-parking-jam-v2
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feature/core-traffic
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Apply, validate, and publish the replacement
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tools/apply-parking-jam-v2.sh
