@@ -3,7 +3,11 @@ import * as THREE from 'three';
 import type {
   TrafficCarDefinition,
 } from '../domain/types.ts';
+import type {
+  TrafficDirection,
+} from '../domain/registry.ts';
 import {
+  parkingDirectionYaw,
   parkingLayout,
   parkingSceneColors,
 } from './registry.ts';
@@ -11,19 +15,29 @@ import {
 export interface CarModel extends THREE.Group {
   userData: {
     carId: string;
+    bodyColor: number;
     wheels: ReadonlyArray<THREE.Mesh>;
     bodyMaterials: ReadonlyArray<THREE.MeshStandardMaterial>;
     originalScale: THREE.Vector3;
+    guidanceHalo: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
+    directionBadge: THREE.Group;
+    guidanceStrength: number;
+    recommended: boolean;
   };
 }
 
 export interface PersonModel extends THREE.Group {
   userData: {
     passengerIndex: number;
+    shirtColor: number;
     queueTarget: THREE.Vector3;
     bodyMaterial: THREE.MeshStandardMaterial;
+    priorityRing: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+    priorityMarker: THREE.Group;
+    baseScale: number;
     phase: number;
     leaving: boolean;
+    priority: boolean;
   };
 }
 
@@ -57,6 +71,21 @@ export function createCarModel(
     emissiveIntensity: 0.55,
     roughness: 0.42,
   });
+
+  const guidanceHalo = new THREE.Mesh(
+    new THREE.PlaneGeometry(carWidth + 0.25, carLength + 0.24),
+    new THREE.MeshBasicMaterial({
+      color: parkingSceneColors.target,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  guidanceHalo.rotation.x = -Math.PI / 2;
+  guidanceHalo.position.y = -parkingLayout.carY + 0.018;
+  guidanceHalo.renderOrder = 1;
+  group.add(guidanceHalo);
 
   const lowerBody = new THREE.Mesh(
     new THREE.BoxGeometry(carWidth, 0.31, carLength),
@@ -145,9 +174,9 @@ export function createCarModel(
     group.add(rearLight);
   }
 
-  const arrow = createRoofArrow();
-  arrow.position.set(0, 0.885, 0.02);
-  group.add(arrow);
+  const directionBadge = createDirectionBadge();
+  directionBadge.position.set(0, 0.9, 0.04);
+  group.add(directionBadge);
 
   group.traverse((object) => {
     if (object instanceof THREE.Mesh) {
@@ -157,9 +186,14 @@ export function createCarModel(
 
   group.userData = {
     carId: car.id,
+    bodyColor,
     wheels,
     bodyMaterials: [bodyMaterial, trimMaterial],
     originalScale: new THREE.Vector3(1, 1, 1),
+    guidanceHalo,
+    directionBadge,
+    guidanceStrength: 0,
+    recommended: false,
   };
   return group;
 }
@@ -175,6 +209,34 @@ export function createPersonModel(
   const hairSeed = (passengerIndex * 37) % 5;
   const hairColor = darken(parkingSceneColors.hair, 0.78 + hairSeed * 0.035);
   const hairMaterial = standardMaterial(hairColor, 0.9, 0);
+
+  const priorityRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.27, 0.4, 24),
+    new THREE.MeshBasicMaterial({
+      color: shirtColor,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  priorityRing.rotation.x = -Math.PI / 2;
+  priorityRing.position.y = 0.018;
+  priorityRing.visible = false;
+  group.add(priorityRing);
+
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.24, 16),
+    new THREE.MeshBasicMaterial({
+      color: 0x17231c,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+    }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.012;
+  group.add(shadow);
 
   const torso = new THREE.Mesh(
     new THREE.CylinderGeometry(0.17, 0.21, 0.42, 9),
@@ -214,27 +276,54 @@ export function createPersonModel(
   rightLeg.name = 'right-leg';
   group.add(rightLeg);
 
-  const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.24, 16),
-    new THREE.MeshBasicMaterial({
-      color: 0x17231c,
-      transparent: true,
-      opacity: 0.18,
-      depthWrite: false,
-    }),
-  );
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = 0.012;
-  group.add(shadow);
+  const priorityMarker = createPassengerPriorityMarker(shirtColor);
+  priorityMarker.position.y = 1.35;
+  priorityMarker.visible = false;
+  group.add(priorityMarker);
 
-  group.scale.setScalar(0.68);
+  const baseScale = 0.68;
+  group.scale.setScalar(baseScale);
   group.userData = {
     passengerIndex,
+    shirtColor,
     queueTarget: new THREE.Vector3(),
     bodyMaterial,
+    priorityRing,
+    priorityMarker,
+    baseScale,
     phase: passengerIndex * 0.61,
     leaving: false,
+    priority: false,
   };
+  return group;
+}
+
+export function setPersonPriority(person: PersonModel, priority: boolean): void {
+  person.userData.priority = priority;
+  person.userData.priorityRing.visible = priority;
+  person.userData.priorityMarker.visible = priority;
+  if (!priority) {
+    person.userData.priorityRing.material.opacity = 0;
+    person.scale.setScalar(person.userData.baseScale);
+  }
+}
+
+export function createExitChevron(direction: TrafficDirection): THREE.Group {
+  const group = new THREE.Group();
+  const material = new THREE.MeshBasicMaterial({
+    color: parkingSceneColors.exitMarking,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  for (const offset of [-0.18, 0.18]) {
+    const arrow = createArrowMesh(material);
+    arrow.position.set(0, 0.01, offset);
+    arrow.scale.setScalar(parkingLayout.exitChevronScale);
+    group.add(arrow);
+  }
+  group.rotation.y = parkingDirectionYaw[direction];
   return group;
 }
 
@@ -375,7 +464,53 @@ export function disposeObject(object: THREE.Object3D): void {
   });
 }
 
-function createRoofArrow(): THREE.Mesh {
+function createDirectionBadge(): THREE.Group {
+  const group = new THREE.Group();
+  const plate = new THREE.Mesh(
+    new THREE.CircleGeometry(0.25, 24),
+    new THREE.MeshBasicMaterial({
+      color: parkingSceneColors.white,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  plate.rotation.x = Math.PI / 2;
+  group.add(plate);
+
+  const arrow = createArrowMesh(new THREE.MeshBasicMaterial({
+    color: 0x344341,
+    transparent: true,
+    opacity: 0.94,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  }));
+  arrow.position.y = 0.008;
+  arrow.scale.setScalar(0.72);
+  group.add(arrow);
+  return group;
+}
+
+function createPassengerPriorityMarker(color: number): THREE.Group {
+  const group = new THREE.Group();
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.15, 0.28, 5),
+    new THREE.MeshBasicMaterial({ color: parkingSceneColors.white }),
+  );
+  cone.rotation.z = Math.PI;
+  group.add(cone);
+
+  const center = new THREE.Mesh(
+    new THREE.SphereGeometry(0.075, 10, 7),
+    new THREE.MeshBasicMaterial({ color }),
+  );
+  center.position.y = -0.03;
+  group.add(center);
+  return group;
+}
+
+function createArrowMesh(material: THREE.Material): THREE.Mesh {
   const shape = new THREE.Shape();
   shape.moveTo(-0.12, -0.26);
   shape.lineTo(0.12, -0.26);
@@ -386,43 +521,19 @@ function createRoofArrow(): THREE.Mesh {
   shape.lineTo(-0.12, 0.02);
   shape.closePath();
 
-  const mesh = new THREE.Mesh(
-    new THREE.ShapeGeometry(shape),
-    new THREE.MeshBasicMaterial({
-      color: parkingSceneColors.white,
-      transparent: true,
-      opacity: 0.88,
-      side: THREE.DoubleSide,
-    }),
-  );
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.rotation.z = Math.PI;
-  mesh.scale.setScalar(0.72);
+  const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material);
+  mesh.rotation.x = Math.PI / 2;
   return mesh;
 }
 
 function createPickupSign(active: boolean): THREE.Mesh {
-  const shape = new THREE.Shape();
-  shape.moveTo(-0.26, -0.12);
-  shape.lineTo(0.26, -0.12);
-  shape.lineTo(0.26, 0.04);
-  shape.lineTo(0.38, 0.04);
-  shape.lineTo(0, 0.33);
-  shape.lineTo(-0.38, 0.04);
-  shape.lineTo(-0.26, 0.04);
-  shape.closePath();
-
-  const mesh = new THREE.Mesh(
-    new THREE.ShapeGeometry(shape),
-    new THREE.MeshBasicMaterial({
-      color: active ? parkingSceneColors.pickup : parkingSceneColors.pickupInactive,
-      transparent: true,
-      opacity: active ? 0.96 : 0.55,
-      side: THREE.DoubleSide,
-    }),
-  );
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.rotation.z = Math.PI;
+  const mesh = createArrowMesh(new THREE.MeshBasicMaterial({
+    color: active ? parkingSceneColors.pickup : parkingSceneColors.pickupInactive,
+    transparent: true,
+    opacity: active ? 0.96 : 0.55,
+    side: THREE.DoubleSide,
+  }));
+  mesh.rotation.y = Math.PI;
   return mesh;
 }
 
