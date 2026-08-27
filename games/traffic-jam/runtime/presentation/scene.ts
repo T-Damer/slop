@@ -17,6 +17,7 @@ import type {
   TrafficLevelDefinition,
   TrafficState,
 } from '../domain/types.ts';
+import { createParkingLocationDecorations } from './locations.ts';
 import {
   createBayMarker,
   createCarModel,
@@ -31,7 +32,6 @@ import {
   type CarModel,
   type PersonModel,
 } from './models.ts';
-import { createParkingLocationDecorations } from './locations.ts';
 import {
   parkingCamera,
   parkingColorPalette,
@@ -52,8 +52,8 @@ interface TweenJob {
   readonly startedAt: number;
   readonly durationMs: number;
   readonly update: (progress: number) => void;
-  readonly resolve: () => void;
   readonly easing: (progress: number) => number;
+  readonly resolve: () => void;
 }
 
 export class ParkingJamScene {
@@ -66,8 +66,8 @@ export class ParkingJamScene {
   private readonly levelRoot = new THREE.Group();
   private readonly effectsRoot = new THREE.Group();
   private readonly carModels = new Map<string, CarModel>();
-  private readonly clickableMeshes: Array<THREE.Mesh> = [];
   private readonly passengerModels: Array<PersonModel> = [];
+  private readonly clickableMeshes: Array<THREE.Mesh> = [];
   private readonly bayMarkers: Array<THREE.Group> = [];
   private readonly tweens: Array<TweenJob> = [];
   private readonly baseCameraPosition = new THREE.Vector3(
@@ -75,12 +75,12 @@ export class ParkingJamScene {
     parkingCamera.positionY,
     parkingCamera.positionZ,
   );
-  private animationFrame = trafficRules.firstIndex;
-  private passengerModelSerial = trafficRules.firstIndex;
   private currentLevel: TrafficLevelDefinition | null = null;
   private currentState: TrafficState | null = null;
   private targetColor: TrafficColor | null = null;
   private targetGroupSize = trafficRules.emptyCollectionSize;
+  private passengerSerial = trafficRules.firstIndex;
+  private animationFrame = trafficRules.firstIndex;
   private lastFrameAt = trafficRules.firstCoordinate;
   private shakeStrength = trafficRules.firstCoordinate;
   private interactive = true;
@@ -135,22 +135,22 @@ export class ParkingJamScene {
       if (progress.status === trafficCarStatuses.departed) {
         continue;
       }
-      const car = getTrafficCar(level, progress.id);
-      if (car === null) {
+      const definition = getTrafficCar(level, progress.id);
+      if (definition === null) {
         continue;
       }
-      const bodyColor = parkingColorPalette[car.color];
-      const model = createCarModel(car, bodyColor);
-      this.attachIdentityRing(model, bodyColor);
+      const color = parkingColorPalette[definition.color];
+      const model = createCarModel(definition, color);
+      this.attachIdentityRing(model, color);
       if (progress.status === trafficCarStatuses.parked) {
-        model.position.copy(this.gridPosition(car));
-        model.rotation.y = parkingDirectionYaw[car.direction];
+        model.position.copy(this.gridPosition(definition));
+        model.rotation.y = parkingDirectionYaw[definition.direction];
         this.addClickableCar(model);
       } else if (progress.bayIndex !== null) {
         model.position.copy(this.bayPosition(progress.bayIndex));
         model.rotation.y = Math.PI;
       }
-      this.carModels.set(car.id, model);
+      this.carModels.set(definition.id, model);
       this.levelRoot.add(model);
     }
 
@@ -166,22 +166,17 @@ export class ParkingJamScene {
       ? trafficRules.emptyCollectionSize
       : countLeadingColor(state.passengers, this.targetColor);
     this.replenishPassengerQueue(state.passengers);
-    const availableCarIds = new Set(getAvailableCarIds(level, state));
+    const available = new Set(getAvailableCarIds(level, state));
 
     for (const [carId, model] of this.carModels) {
       const definition = getTrafficCar(level, carId);
-      const matchesTarget = this.targetColor !== null && definition?.color === this.targetColor;
-      const recommended = matchesTarget && availableCarIds.has(carId);
-      model.userData.guidanceStrength = matchesTarget ? (recommended ? 1 : 0.45) : 0;
+      const matches = this.targetColor !== null && definition?.color === this.targetColor;
+      const recommended = matches && available.has(carId);
+      model.userData.guidanceStrength = matches ? (recommended ? 1 : 0.42) : 0;
       model.userData.recommended = recommended;
       model.userData.guidanceHalo.material.color.setHex(model.userData.bodyColor);
-      this.setCarEmissive(
-        model,
-        model.userData.bodyColor,
-        matchesTarget ? (recommended ? 0.17 : 0.055) : 0.025,
-      );
+      this.setCarEmissive(model, model.userData.bodyColor, matches ? (recommended ? 0.18 : 0.06) : 0.02);
     }
-
     this.syncPassengerPriority();
   }
 
@@ -192,32 +187,30 @@ export class ParkingJamScene {
     if (event.carId === null || event.bayIndex === null) {
       return;
     }
-    const car = getTrafficCar(level, event.carId);
+    const definition = getTrafficCar(level, event.carId);
     const model = this.carModels.get(event.carId);
-    if (car === null || model === undefined) {
+    if (definition === null || model === undefined) {
       return;
     }
 
     this.removeClickableCar(event.carId);
     model.userData.guidanceStrength = trafficRules.emptyCollectionSize;
-    model.userData.recommended = false;
     model.userData.guidanceHalo.material.opacity = trafficRules.emptyCollectionSize;
-    const start = model.position.clone();
-    const route = this.createReleaseRoute(car, start, event.bayIndex);
-    const curve = new THREE.CatmullRomCurve3(route, false, 'centripetal', 0.45);
-    const tangent = new THREE.Vector3();
+    const curve = new THREE.CatmullRomCurve3(
+      this.createReleaseRoute(definition, model.position.clone(), event.bayIndex),
+      false,
+      'centripetal',
+      0.45,
+    );
     const point = new THREE.Vector3();
+    const tangent = new THREE.Vector3();
 
     await this.tween(parkingUiTimings.carReleaseMs, (progress) => {
       curve.getPoint(progress, point);
       curve.getTangent(Math.min(0.999, progress + 0.001), tangent);
       model.position.copy(point);
       model.position.y += Math.sin(progress * Math.PI) * 0.075;
-      model.rotation.y = dampAngle(
-        model.rotation.y,
-        Math.atan2(tangent.x, tangent.z),
-        0.28,
-      );
+      model.rotation.y = dampAngle(model.rotation.y, Math.atan2(tangent.x, tangent.z), 0.28);
       this.spinWheels(model, 0.34);
     }, easeInOutCubic);
 
@@ -235,8 +228,8 @@ export class ParkingJamScene {
       return;
     }
 
-    const groupSize = Math.min(event.passengerCount, this.passengerModels.length);
-    const people = this.passengerModels.splice(trafficRules.firstIndex, groupSize);
+    const count = Math.min(event.passengerCount, this.passengerModels.length);
+    const people = this.passengerModels.splice(trafficRules.firstIndex, count);
     for (const person of people) {
       person.userData.leaving = true;
       setPersonPriority(person, false);
@@ -244,11 +237,11 @@ export class ParkingJamScene {
     this.layoutPassengerQueue(true);
 
     await Promise.all(
-      people.map((person, groupIndex) => this.animatePersonToCar(
+      people.map((person, index) => this.animatePersonToCar(
         person,
         car,
-        (event.seatIndex ?? trafficRules.firstIndex) + groupIndex,
-        groupIndex,
+        (event.seatIndex ?? trafficRules.firstIndex) + index,
+        index,
         people.length,
       )),
     );
@@ -270,20 +263,21 @@ export class ParkingJamScene {
     const start = car.position.clone();
     const end = start.clone();
     end.z = parkingLayout.departureZ;
-    const curve = new THREE.CatmullRomCurve3([
-      start,
-      start.clone().add(new THREE.Vector3(0, 0, -1.0)),
-      end,
-    ], false, 'centripetal', 0.35);
+    const curve = new THREE.CatmullRomCurve3(
+      [start, start.clone().add(new THREE.Vector3(0, 0, -1)), end],
+      false,
+      'centripetal',
+      0.35,
+    );
     const point = new THREE.Vector3();
-
     this.spawnCoins(event.carId, event.coins);
+
     await this.tween(parkingUiTimings.carDepartureMs, (progress) => {
       curve.getPoint(progress, point);
       car.position.copy(point);
       car.rotation.y = Math.PI;
-      this.spinWheels(car, 0.48);
       car.scale.setScalar(1 + Math.sin(progress * Math.PI) * 0.035);
+      this.spinWheels(car, 0.5);
       if (progress > 0.74) {
         setObjectOpacity(car, 1 - ((progress - 0.74) / 0.26));
       }
@@ -295,41 +289,31 @@ export class ParkingJamScene {
     this.shakeStrength = Math.max(this.shakeStrength, 0.085);
   }
 
-  public async showBlocked(
-    carId: string,
-    blockingCarIds: ReadonlyArray<string>,
-  ): Promise<void> {
+  public async showBlocked(carId: string, blockingCarIds: ReadonlyArray<string>): Promise<void> {
     const selected = this.carModels.get(carId);
     if (selected === undefined) {
       return;
     }
-    const selectedBase = selected.position.clone();
     const definition = this.currentLevel === null ? null : getTrafficCar(this.currentLevel, carId);
-    const movement = definition === null
-      ? { x: 1, z: 0 }
-      : parkingDirectionVectors[definition.direction];
+    const movement = definition === null ? { x: 1, z: 0 } : parkingDirectionVectors[definition.direction];
+    const start = selected.position.clone();
     const blockers = blockingCarIds
       .map((id) => this.carModels.get(id))
       .filter((model): model is CarModel => model !== undefined);
-
     for (const blocker of blockers) {
-      this.setCarEmissive(blocker, parkingSceneColors.danger, 0.58);
+      this.setCarEmissive(blocker, parkingSceneColors.danger, 0.62);
     }
 
     await this.tween(parkingUiTimings.blockedPulseMs, (progress) => {
-      const shake = Math.sin(progress * Math.PI * 7) * (1 - progress) * 0.13;
-      selected.position.set(
-        selectedBase.x + movement.x * shake,
-        selectedBase.y,
-        selectedBase.z + movement.z * shake,
-      );
+      const offset = Math.sin(progress * Math.PI * 7) * (1 - progress) * 0.13;
+      selected.position.set(start.x + movement.x * offset, start.y, start.z + movement.z * offset);
       const pulse = 1 + Math.sin(progress * Math.PI * 3) * 0.055;
       for (const blocker of blockers) {
         blocker.scale.setScalar(pulse);
       }
     }, linear);
 
-    selected.position.copy(selectedBase);
+    selected.position.copy(start);
     for (const blocker of blockers) {
       blocker.scale.copy(blocker.userData.originalScale);
     }
@@ -341,12 +325,10 @@ export class ParkingJamScene {
       const pulse = 1 + Math.sin(progress * Math.PI * 4) * 0.085;
       for (const marker of this.bayMarkers) {
         marker.scale.setScalar(pulse);
-        marker.rotation.y = Math.sin(progress * Math.PI * 6) * 0.025;
       }
     }, linear);
     for (const marker of this.bayMarkers) {
       marker.scale.setScalar(1);
-      marker.rotation.y = 0;
     }
   }
 
@@ -355,10 +337,9 @@ export class ParkingJamScene {
     if (car === undefined) {
       return;
     }
-    this.setCarEmissive(car, parkingSceneColors.gold, 0.5);
+    this.setCarEmissive(car, parkingSceneColors.gold, 0.52);
     await this.tween(parkingUiTimings.hintPulseMs, (progress) => {
-      const pulse = 1 + Math.sin(progress * Math.PI * 4) * 0.07;
-      car.scale.setScalar(pulse);
+      car.scale.setScalar(1 + Math.sin(progress * Math.PI * 4) * 0.07);
       car.position.y = parkingLayout.carY + Math.abs(Math.sin(progress * Math.PI * 2)) * 0.09;
     }, easeInOutCubic);
     car.scale.copy(car.userData.originalScale);
@@ -368,51 +349,51 @@ export class ParkingJamScene {
 
   public celebrate(): void {
     const colors = Object.values(parkingColorPalette);
-    const pieces: Array<THREE.Mesh> = [];
-    const pieceCount = parkingLayout.celebrationPieceCount;
-    for (let index = 0; index < pieceCount; index += trafficRules.cellStep) {
-      const geometry = new THREE.BoxGeometry(0.08, 0.03, 0.18);
-      const material = new THREE.MeshStandardMaterial({
-        color: colors[index % colors.length],
-        roughness: 0.58,
-        metalness: 0.03,
-        transparent: true,
-      });
-      const piece = new THREE.Mesh(geometry, material);
+    const particles: Array<THREE.Mesh> = [];
+    for (
+      let index = trafficRules.firstIndex;
+      index < parkingLayout.celebrationPieceCount;
+      index += trafficRules.cellStep
+    ) {
+      const particle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.03, 0.18),
+        new THREE.MeshStandardMaterial({
+          color: colors[index % colors.length],
+          transparent: true,
+          roughness: 0.55,
+        }),
+      );
       const angle = index * 2.399963;
       const radius = 0.8 + (index % 8) * 0.32;
-      piece.position.set(
+      particle.position.set(
         Math.cos(angle) * radius,
-        2.6 + (index % 5) * 0.14,
+        2.5 + (index % 5) * 0.15,
         parkingLayout.boardOffsetZ + Math.sin(angle) * radius,
       );
-      piece.rotation.set(angle, angle * 0.7, angle * 1.3);
-      piece.userData.velocity = new THREE.Vector3(
-        Math.cos(angle) * (0.9 + (index % 3) * 0.18),
-        2.4 + (index % 4) * 0.22,
-        Math.sin(angle) * (0.9 + (index % 2) * 0.2),
+      particle.userData.velocity = new THREE.Vector3(
+        Math.cos(angle) * 1.1,
+        2.4 + (index % 4) * 0.2,
+        Math.sin(angle) * 1.1,
       );
-      pieces.push(piece);
-      this.effectsRoot.add(piece);
+      particles.push(particle);
+      this.effectsRoot.add(particle);
     }
 
     this.tween(1700, (progress) => {
       const elapsed = progress * 1.7;
-      for (const piece of pieces) {
-        const velocity = piece.userData.velocity as THREE.Vector3;
-        piece.position.x += velocity.x * 0.018;
-        piece.position.z += velocity.z * 0.018;
-        piece.position.y += (velocity.y - 5.4 * elapsed) * 0.018;
-        piece.rotation.x += 0.11;
-        piece.rotation.y += 0.08;
-        if (progress > 0.72) {
-          setObjectOpacity(piece, 1 - ((progress - 0.72) / 0.28));
-        }
+      for (const particle of particles) {
+        const velocity = particle.userData.velocity as THREE.Vector3;
+        particle.position.x += velocity.x * 0.018;
+        particle.position.z += velocity.z * 0.018;
+        particle.position.y += (velocity.y - 5.4 * elapsed) * 0.018;
+        particle.rotation.x += 0.11;
+        particle.rotation.y += 0.08;
+        setObjectOpacity(particle, 1 - progress);
       }
     }, linear).then(() => {
-      for (const piece of pieces) {
-        this.effectsRoot.remove(piece);
-        disposeObject(piece);
+      for (const particle of particles) {
+        this.effectsRoot.remove(particle);
+        disposeObject(particle);
       }
     });
     this.shakeStrength = 0.12;
@@ -423,8 +404,7 @@ export class ParkingJamScene {
     if (car === undefined) {
       return null;
     }
-    const point = car.position.clone();
-    point.y += 1.05;
+    const point = car.position.clone().add(new THREE.Vector3(0, 1.05, 0));
     point.project(this.camera);
     const rect = this.canvas.getBoundingClientRect();
     return {
@@ -449,18 +429,15 @@ export class ParkingJamScene {
   }
 
   private readonly handlePointerUp = (event: PointerEvent): void => {
-    if (!this.interactive || this.currentLevel === null) {
+    if (!this.interactive) {
       return;
     }
     const rect = this.canvas.getBoundingClientRect();
     this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const intersection = this.raycaster.intersectObjects(
-      this.clickableMeshes,
-      false,
-    )[trafficRules.firstIndex];
-    const carId = intersection?.object.userData.carId;
+    const hit = this.raycaster.intersectObjects(this.clickableMeshes, false)[trafficRules.firstIndex];
+    const carId = hit?.object.userData.carId;
     if (typeof carId === 'string') {
       this.callbacks.onCarSelected(carId);
     }
@@ -490,13 +467,10 @@ export class ParkingJamScene {
     if (this.disposed) {
       return;
     }
-    const deltaSeconds = Math.min(
-      0.05,
-      Math.max(trafficRules.firstCoordinate, (timestamp - this.lastFrameAt) / 1000),
-    );
+    const delta = Math.min(0.05, Math.max(0, (timestamp - this.lastFrameAt) / 1000));
     this.lastFrameAt = timestamp;
     this.updateTweens(timestamp);
-    this.updateIdleMotion(timestamp, deltaSeconds);
+    this.updateIdleMotion(timestamp, delta);
     this.updateCameraShake(timestamp);
     this.renderer.render(this.scene, this.camera);
     this.animationFrame = window.requestAnimationFrame(this.renderFrame);
@@ -511,9 +485,7 @@ export class ParkingJamScene {
   }
 
   private configureLights(): void {
-    const hemisphere = new THREE.HemisphereLight(0xf8fff9, 0x567451, 2.0);
-    this.scene.add(hemisphere);
-
+    this.scene.add(new THREE.HemisphereLight(0xf8fff9, 0x567451, 2));
     const sun = new THREE.DirectionalLight(0xfff3d5, 3.4);
     sun.position.set(-7, 13, -5);
     sun.castShadow = true;
@@ -526,7 +498,6 @@ export class ParkingJamScene {
     sun.shadow.camera.far = 32;
     sun.shadow.bias = -0.00035;
     this.scene.add(sun);
-
     const fill = new THREE.DirectionalLight(0x9ec7ff, 0.72);
     fill.position.set(8, 7, 10);
     this.scene.add(fill);
@@ -535,39 +506,22 @@ export class ParkingJamScene {
   private applyLocationTheme(level: TrafficLevelDefinition): void {
     const theme = parkingLocationThemes[level.location];
     this.scene.background = new THREE.Color(theme.sky);
-    this.scene.fog = new THREE.Fog(
-      theme.fog,
-      parkingCamera.fogNear,
-      parkingCamera.fogFar,
-    );
+    this.scene.fog = new THREE.Fog(theme.fog, parkingCamera.fogNear, parkingCamera.fogFar);
   }
 
   private createEnvironment(level: TrafficLevelDefinition): void {
     const theme = parkingLocationThemes[level.location];
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(70, 70),
-      new THREE.MeshStandardMaterial({
-        color: theme.ground,
-        roughness: 1,
-        metalness: 0,
-      }),
+      new THREE.MeshStandardMaterial({ color: theme.ground, roughness: 1 }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.08;
     ground.receiveShadow = true;
     this.levelRoot.add(ground);
 
-    const roadMaterial = new THREE.MeshStandardMaterial({
-      color: theme.road,
-      roughness: 0.94,
-      metalness: 0.01,
-    });
-    const road = new THREE.Mesh(new THREE.BoxGeometry(5.9, 0.12, 7.1), roadMaterial);
-    road.position.set(0, -0.005, -4.75);
-    road.receiveShadow = true;
-    this.levelRoot.add(road);
-
-    const roadApron = new THREE.Mesh(
+    const roadMaterial = new THREE.MeshStandardMaterial({ color: theme.road, roughness: 0.94 });
+    const apron = new THREE.Mesh(
       new THREE.BoxGeometry(
         parkingLayout.lotWidth + parkingLayout.roadApronMargin * 2,
         parkingLayout.roadApronHeight,
@@ -575,103 +529,71 @@ export class ParkingJamScene {
       ),
       roadMaterial,
     );
-    roadApron.position.set(0, -0.012, parkingLayout.boardOffsetZ);
-    roadApron.receiveShadow = true;
-    this.levelRoot.add(roadApron);
+    apron.position.set(0, -0.012, parkingLayout.boardOffsetZ);
+    apron.receiveShadow = true;
+    this.levelRoot.add(apron);
+
+    const exitRoad = new THREE.Mesh(new THREE.BoxGeometry(5.9, 0.12, 7.1), roadMaterial);
+    exitRoad.position.set(0, -0.005, -4.75);
+    exitRoad.receiveShadow = true;
+    this.levelRoot.add(exitRoad);
 
     const lot = new THREE.Mesh(
       new THREE.BoxGeometry(parkingLayout.lotWidth, parkingLayout.lotHeight, parkingLayout.lotDepth),
-      new THREE.MeshStandardMaterial({
-        color: theme.asphalt,
-        roughness: 0.91,
-        metalness: 0.015,
-      }),
+      new THREE.MeshStandardMaterial({ color: theme.asphalt, roughness: 0.91 }),
     );
     lot.position.set(0, parkingLayout.lotY, parkingLayout.boardOffsetZ);
-    lot.receiveShadow = true;
     lot.castShadow = true;
+    lot.receiveShadow = true;
     this.levelRoot.add(lot);
 
     const halfWidth = parkingLayout.lotWidth / 2;
     const halfDepth = parkingLayout.lotDepth / 2;
-    const exitPlacements: ReadonlyArray<readonly [THREE.Group, number, number]> = [
+    const exits: ReadonlyArray<readonly [THREE.Group, number, number]> = [
       [createExitChevron(trafficDirections.up), 0, parkingLayout.boardOffsetZ + halfDepth + parkingLayout.exitChevronOffset],
       [createExitChevron(trafficDirections.down), 0, parkingLayout.boardOffsetZ - halfDepth - parkingLayout.exitChevronOffset],
       [createExitChevron(trafficDirections.right), halfWidth + parkingLayout.exitChevronOffset, parkingLayout.boardOffsetZ],
       [createExitChevron(trafficDirections.left), -halfWidth - parkingLayout.exitChevronOffset, parkingLayout.boardOffsetZ],
     ];
-    for (const [marker, x, z] of exitPlacements) {
+    for (const [marker, x, z] of exits) {
       marker.position.set(x, 0.045, z);
       this.levelRoot.add(marker);
     }
 
-    const markingMaterial = new THREE.MeshBasicMaterial({
-      color: theme.marking,
-      transparent: true,
-      opacity: 0.9,
-    });
-    for (
-      let lineIndex = trafficRules.cellStep;
-      lineIndex < trafficRules.boardColumns;
-      lineIndex += trafficRules.cellStep
-    ) {
-      const line = new THREE.Mesh(
+    const markingMaterial = new THREE.MeshBasicMaterial({ color: theme.marking, transparent: true, opacity: 0.9 });
+    for (let line = trafficRules.cellStep; line < trafficRules.boardColumns; line += trafficRules.cellStep) {
+      const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(0.025, 0.012, parkingLayout.lotDepth * 0.94),
         markingMaterial,
       );
-      line.position.set(
-        -halfWidth + lineIndex * parkingLayout.cellSize,
-        0.155,
-        parkingLayout.boardOffsetZ,
-      );
-      line.visible = lineIndex % 2 === trafficRules.emptyCollectionSize;
-      this.levelRoot.add(line);
+      stripe.position.set(-halfWidth + line * parkingLayout.cellSize, 0.155, parkingLayout.boardOffsetZ);
+      stripe.visible = line % 2 === trafficRules.emptyCollectionSize;
+      this.levelRoot.add(stripe);
     }
 
-    const dashedLineGeometry = new THREE.BoxGeometry(0.055, 0.014, 0.46);
-    for (let z = -2.05; z > -8; z -= 0.82) {
-      const dash = new THREE.Mesh(dashedLineGeometry, markingMaterial);
-      dash.position.set(0, 0.07, z);
-      this.levelRoot.add(dash);
-    }
-
-    for (
-      let bayIndex = trafficRules.firstIndex;
-      bayIndex < parkingLayout.bayX.length;
-      bayIndex += trafficRules.cellStep
-    ) {
-      const marker = createBayMarker(bayIndex < level.bayCount);
-      marker.position.set(parkingLayout.bayX[bayIndex]!, 0, parkingLayout.bayZ);
+    for (let bay = trafficRules.firstIndex; bay < parkingLayout.bayX.length; bay += trafficRules.cellStep) {
+      const marker = createBayMarker(bay < level.bayCount);
+      marker.position.set(parkingLayout.bayX[bay]!, 0, parkingLayout.bayZ);
       this.bayMarkers.push(marker);
       this.levelRoot.add(marker);
     }
 
     const queuePlatform = new THREE.Mesh(
       new THREE.BoxGeometry(7.1, 0.1, 1.72),
-      new THREE.MeshStandardMaterial({
-        color: theme.concrete,
-        roughness: 0.96,
-      }),
+      new THREE.MeshStandardMaterial({ color: theme.concrete, roughness: 0.96 }),
     );
     queuePlatform.position.set(0, -0.015, -5.66);
     queuePlatform.receiveShadow = true;
     this.levelRoot.add(queuePlatform);
 
-    const railMaterial = new THREE.MeshStandardMaterial({
-      color: theme.concreteDark,
-      roughness: 0.72,
-      metalness: 0.18,
-    });
+    const railMaterial = new THREE.MeshStandardMaterial({ color: theme.concreteDark, roughness: 0.72 });
     for (const z of [-5.15, -6.24]) {
       const rail = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.07, 0.07), railMaterial);
       rail.position.set(0, 0.18, z);
-      rail.castShadow = true;
       this.levelRoot.add(rail);
     }
 
-    const locationDecorations = createParkingLocationDecorations(level.location);
-    this.levelRoot.add(locationDecorations);
-
+    this.levelRoot.add(createParkingLocationDecorations(level.location));
     if (level.location === trafficLocations.city) {
       const decorations: Array<[THREE.Object3D, number, number]> = [
         [createTree(0.78), -4.6, 4.2],
@@ -679,9 +601,9 @@ export class ParkingJamScene {
         [createLamp(), -4.05, 1.35],
         [createLamp(), 4.05, 1.35],
       ];
-      for (const [decoration, x, z] of decorations) {
-        decoration.position.set(x, 0, z);
-        this.levelRoot.add(decoration);
+      for (const [object, x, z] of decorations) {
+        object.position.set(x, 0, z);
+        this.levelRoot.add(object);
       }
     }
   }
@@ -703,195 +625,33 @@ export class ParkingJamScene {
   }
 
   private rebuildPassengerQueue(passengers: TrafficState['passengers']): void {
-    for (const person of this.passengerModels) {
-      this.levelRoot.remove(person);
-      disposeObject(person);
-    }
     this.passengerModels.length = trafficRules.emptyCollectionSize;
-    this.replenishPassengerQueue(passengers);
+    this.replenishPassengerQueue(passengers, false);
   }
 
-  private replenishPassengerQueue(passengers: TrafficState['passengers']): void {
-    const desiredCount = Math.min(passengers.length, parkingLayout.queueVisibleLimit);
-    while (this.passengerModels.length < desiredCount) {
-      const passengerIndex = this.passengerModels.length;
-      const color = passengers[passengerIndex];
+  private replenishPassengerQueue(passengers: TrafficState['passengers'], animate = true): void {
+    const desired = Math.min(passengers.length, parkingLayout.queueVisibleLimit);
+    while (this.passengerModels.length < desired) {
+      const index = this.passengerModels.length;
+      const color = passengers[index];
       if (color === undefined) {
         break;
       }
-      const model = createPersonModel(
-        parkingColorPalette[color],
-        this.passengerModelSerial,
-      );
-      this.passengerModelSerial += trafficRules.cellStep;
-      const spawnRow = Math.floor(passengerIndex / parkingLayout.queueColumns) + 2;
-      model.position.set(
+      const person = createPersonModel(parkingColorPalette[color], this.passengerSerial);
+      this.passengerSerial += trafficRules.cellStep;
+      person.position.set(
         parkingLayout.queueStartX,
         parkingLayout.personY,
-        parkingLayout.queueStartZ - spawnRow * parkingLayout.queueSpacingZ,
+        parkingLayout.queueStartZ - 2 * parkingLayout.queueSpacingZ,
       );
-      this.passengerModels.push(model);
-      this.levelRoot.add(model);
+      this.passengerModels.push(person);
+      this.levelRoot.add(person);
     }
-    this.layoutPassengerQueue(true);
-  }
-
-  private addClickableCar(car: CarModel): void {
-    car.traverse((object) => {
-      if (object instanceof THREE.Mesh) {
-        this.clickableMeshes.push(object);
-      }
-    });
-  }
-
-  private removeClickableCar(carId: string): void {
-    for (
-      let index = this.clickableMeshes.length - trafficRules.cellStep;
-      index >= trafficRules.firstIndex;
-      index -= trafficRules.cellStep
-    ) {
-      if (this.clickableMeshes[index]?.userData.carId === carId) {
-        this.clickableMeshes.splice(index, trafficRules.cellStep);
-      }
-    }
-  }
-
-  private attachIdentityRing(car: CarModel, bodyColor: number): void {
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(
-        parkingLayout.identityRingInnerRadius,
-        parkingLayout.identityRingOuterRadius,
-        28,
-      ),
-      new THREE.MeshBasicMaterial({
-        color: bodyColor,
-        side: THREE.DoubleSide,
-        depthTest: true,
-      }),
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = parkingLayout.identityRingY;
-    ring.renderOrder = 4;
-    ring.userData.carId = car.userData.carId;
-    car.add(ring);
-  }
-
-  private gridPosition(car: TrafficCarDefinition): THREE.Vector3 {
-    const horizontal = car.direction === trafficDirections.left || car.direction === trafficDirections.right;
-    const centerX = horizontal ? car.x + (car.length - trafficRules.cellStep) / 2 : car.x;
-    const centerY = horizontal ? car.y : car.y + (car.length - trafficRules.cellStep) / 2;
-    return new THREE.Vector3(
-      (centerX - (trafficRules.boardColumns - trafficRules.cellStep) / 2) * parkingLayout.cellSize,
-      parkingLayout.carY,
-      ((trafficRules.boardRows - trafficRules.cellStep) / 2 - centerY) * parkingLayout.cellSize + parkingLayout.boardOffsetZ,
-    );
-  }
-
-  private bayPosition(bayIndex: number): THREE.Vector3 {
-    return new THREE.Vector3(
-      parkingLayout.bayX[bayIndex] ?? parkingLayout.bayX[trafficRules.firstIndex],
-      parkingLayout.carY,
-      parkingLayout.bayZ,
-    );
-  }
-
-  private createReleaseRoute(
-    car: TrafficCarDefinition,
-    start: THREE.Vector3,
-    bayIndex: number,
-  ): Array<THREE.Vector3> {
-    const halfWidth = parkingLayout.lotWidth / 2;
-    const halfDepth = parkingLayout.lotDepth / 2;
-    const exit = start.clone();
-    const targetBay = this.bayPosition(bayIndex);
-    const side = start.x >= trafficRules.firstCoordinate ? 1 : -1;
-    const points: Array<THREE.Vector3> = [start.clone()];
-
-    if (car.direction === trafficDirections.down) {
-      exit.z = parkingLayout.boardOffsetZ - halfDepth - parkingLayout.exitMargin;
-      points.push(exit, new THREE.Vector3(start.x, parkingLayout.carY, parkingLayout.roadMergeZ));
-    } else if (car.direction === trafficDirections.up) {
-      exit.z = parkingLayout.boardOffsetZ + halfDepth + parkingLayout.exitMargin;
-      const sideX = side * parkingLayout.outerRoadX;
-      points.push(
-        exit,
-        new THREE.Vector3(sideX, parkingLayout.carY, exit.z + 0.18),
-        new THREE.Vector3(sideX, parkingLayout.carY, parkingLayout.roadMergeZ),
-      );
-    } else if (car.direction === trafficDirections.right) {
-      exit.x = halfWidth + parkingLayout.exitMargin;
-      points.push(
-        exit,
-        new THREE.Vector3(parkingLayout.outerRoadX, parkingLayout.carY, parkingLayout.roadMergeZ),
-      );
-    } else {
-      exit.x = -halfWidth - parkingLayout.exitMargin;
-      points.push(
-        exit,
-        new THREE.Vector3(-parkingLayout.outerRoadX, parkingLayout.carY, parkingLayout.roadMergeZ),
-      );
-    }
-
-    points.push(
-      new THREE.Vector3(targetBay.x, parkingLayout.carY, parkingLayout.roadMergeZ - 0.2),
-      targetBay,
-    );
-    return dedupePoints(points);
-  }
-
-  private async animatePersonToCar(
-    person: PersonModel,
-    car: CarModel,
-    seatIndex: number,
-    groupIndex: number,
-    groupSize: number,
-  ): Promise<void> {
-    if (groupIndex > trafficRules.firstIndex) {
-      await this.pause(groupIndex * parkingUiTimings.passengerStaggerMs);
-    }
-
-    const start = person.position.clone();
-    const seatSide = seatIndex % 2 === trafficRules.emptyCollectionSize ? -1 : 1;
-    const spreadIndex = groupIndex - (groupSize - trafficRules.cellStep) / 2;
-    const door = car.position.clone().add(new THREE.Vector3(
-      seatSide * parkingLayout.passengerDoorOffset,
-      0.12,
-      spreadIndex * parkingLayout.passengerCrowdSpread,
-    ));
-    const approach = new THREE.Vector3(
-      door.x + spreadIndex * parkingLayout.passengerCrowdSpread,
-      parkingLayout.personY,
-      door.z - parkingLayout.passengerApproachZ - Math.abs(spreadIndex) * 0.05,
-    );
-    const curve = new THREE.CatmullRomCurve3([
-      start,
-      start.clone().lerp(approach, 0.4).add(new THREE.Vector3(spreadIndex * 0.08, 0, -0.16)),
-      approach,
-      door,
-    ], false, 'centripetal', 0.45);
-    const point = new THREE.Vector3();
-    const originalScale = person.scale.clone();
-
-    await this.tween(parkingUiTimings.passengerGroupWalkMs, (progress) => {
-      curve.getPoint(progress, point);
-      person.position.copy(point);
-      person.position.y += Math.abs(Math.sin(progress * Math.PI * 6)) * 0.055;
-      person.rotation.y = Math.atan2(door.x - person.position.x, door.z - person.position.z);
-      const shrink = progress > 0.78 ? 1 - ((progress - 0.78) / 0.22) : 1;
-      person.scale.copy(originalScale).multiplyScalar(Math.max(0.03, shrink));
-      this.animatePersonLegs(person, progress * 10 + groupIndex);
-    }, easeInOutCubic);
-
-    this.levelRoot.remove(person);
-    disposeObject(person);
+    this.layoutPassengerQueue(animate);
   }
 
   private layoutPassengerQueue(animate: boolean): void {
-    for (
-      let index = trafficRules.firstIndex;
-      index < this.passengerModels.length;
-      index += trafficRules.cellStep
-    ) {
+    for (let index = trafficRules.firstIndex; index < this.passengerModels.length; index += trafficRules.cellStep) {
       const person = this.passengerModels[index];
       if (person === undefined || person.userData.leaving) {
         continue;
@@ -911,11 +671,7 @@ export class ParkingJamScene {
   }
 
   private syncPassengerPriority(): void {
-    for (
-      let index = trafficRules.firstIndex;
-      index < this.passengerModels.length;
-      index += trafficRules.cellStep
-    ) {
+    for (let index = trafficRules.firstIndex; index < this.passengerModels.length; index += trafficRules.cellStep) {
       const person = this.passengerModels[index];
       if (person === undefined || person.userData.leaving) {
         continue;
@@ -926,71 +682,170 @@ export class ParkingJamScene {
     }
   }
 
-  private restoreGuidance(): void {
-    if (this.currentLevel !== null && this.currentState !== null) {
-      this.syncGuidance(this.currentLevel, this.currentState);
+  private addClickableCar(car: CarModel): void {
+    car.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        this.clickableMeshes.push(object);
+      }
+    });
+  }
+
+  private removeClickableCar(carId: string): void {
+    for (let index = this.clickableMeshes.length - trafficRules.cellStep; index >= trafficRules.firstIndex; index -= trafficRules.cellStep) {
+      if (this.clickableMeshes[index]?.userData.carId === carId) {
+        this.clickableMeshes.splice(index, trafficRules.cellStep);
+      }
     }
   }
 
-  private updateIdleMotion(timestamp: number, deltaSeconds: number): void {
-    const time = timestamp / 1000;
-    const targetPulse = 0.5 + Math.sin(time * 4.2) * 0.5;
+  private attachIdentityRing(car: CarModel, color: number): void {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(
+        parkingLayout.identityRingInnerRadius,
+        parkingLayout.identityRingOuterRadius,
+        28,
+      ),
+      new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = parkingLayout.identityRingY;
+    ring.userData.carId = car.userData.carId;
+    car.add(ring);
+  }
 
+  private gridPosition(car: TrafficCarDefinition): THREE.Vector3 {
+    const horizontal = car.direction === trafficDirections.left || car.direction === trafficDirections.right;
+    const centerX = horizontal ? car.x + (car.length - trafficRules.cellStep) / 2 : car.x;
+    const centerY = horizontal ? car.y : car.y + (car.length - trafficRules.cellStep) / 2;
+    return new THREE.Vector3(
+      (centerX - (trafficRules.boardColumns - trafficRules.cellStep) / 2) * parkingLayout.cellSize,
+      parkingLayout.carY,
+      ((trafficRules.boardRows - trafficRules.cellStep) / 2 - centerY) * parkingLayout.cellSize + parkingLayout.boardOffsetZ,
+    );
+  }
+
+  private bayPosition(index: number): THREE.Vector3 {
+    return new THREE.Vector3(
+      parkingLayout.bayX[index] ?? parkingLayout.bayX[trafficRules.firstIndex],
+      parkingLayout.carY,
+      parkingLayout.bayZ,
+    );
+  }
+
+  private createReleaseRoute(
+    car: TrafficCarDefinition,
+    start: THREE.Vector3,
+    bayIndex: number,
+  ): Array<THREE.Vector3> {
+    const halfWidth = parkingLayout.lotWidth / 2;
+    const halfDepth = parkingLayout.lotDepth / 2;
+    const exit = start.clone();
+    const target = this.bayPosition(bayIndex);
+    const side = start.x >= trafficRules.firstCoordinate ? 1 : -1;
+    const points: Array<THREE.Vector3> = [start.clone()];
+
+    if (car.direction === trafficDirections.down) {
+      exit.z = parkingLayout.boardOffsetZ - halfDepth - parkingLayout.exitMargin;
+      points.push(exit, new THREE.Vector3(start.x, parkingLayout.carY, parkingLayout.roadMergeZ));
+    } else if (car.direction === trafficDirections.up) {
+      exit.z = parkingLayout.boardOffsetZ + halfDepth + parkingLayout.exitMargin;
+      points.push(
+        exit,
+        new THREE.Vector3(side * parkingLayout.outerRoadX, parkingLayout.carY, exit.z + 0.18),
+        new THREE.Vector3(side * parkingLayout.outerRoadX, parkingLayout.carY, parkingLayout.roadMergeZ),
+      );
+    } else if (car.direction === trafficDirections.right) {
+      exit.x = halfWidth + parkingLayout.exitMargin;
+      points.push(exit, new THREE.Vector3(parkingLayout.outerRoadX, parkingLayout.carY, parkingLayout.roadMergeZ));
+    } else {
+      exit.x = -halfWidth - parkingLayout.exitMargin;
+      points.push(exit, new THREE.Vector3(-parkingLayout.outerRoadX, parkingLayout.carY, parkingLayout.roadMergeZ));
+    }
+    points.push(new THREE.Vector3(target.x, parkingLayout.carY, parkingLayout.roadMergeZ - 0.2), target);
+    return dedupePoints(points);
+  }
+
+  private async animatePersonToCar(
+    person: PersonModel,
+    car: CarModel,
+    seatIndex: number,
+    groupIndex: number,
+    groupSize: number,
+  ): Promise<void> {
+    if (groupIndex > trafficRules.firstIndex) {
+      await this.pause(groupIndex * parkingUiTimings.passengerStaggerMs);
+    }
+    const start = person.position.clone();
+    const side = seatIndex % 2 === trafficRules.emptyCollectionSize ? -1 : 1;
+    const spread = groupIndex - (groupSize - trafficRules.cellStep) / 2;
+    const door = car.position.clone().add(new THREE.Vector3(
+      side * parkingLayout.passengerDoorOffset,
+      0.12,
+      spread * parkingLayout.passengerCrowdSpread,
+    ));
+    const approach = new THREE.Vector3(
+      door.x + spread * parkingLayout.passengerCrowdSpread,
+      parkingLayout.personY,
+      door.z - parkingLayout.passengerApproachZ,
+    );
+    const curve = new THREE.CatmullRomCurve3([
+      start,
+      start.clone().lerp(approach, 0.4).add(new THREE.Vector3(spread * 0.08, 0, -0.16)),
+      approach,
+      door,
+    ], false, 'centripetal', 0.45);
+    const point = new THREE.Vector3();
+    const scale = person.scale.clone();
+
+    await this.tween(parkingUiTimings.passengerGroupWalkMs, (progress) => {
+      curve.getPoint(progress, point);
+      person.position.copy(point);
+      person.position.y += Math.abs(Math.sin(progress * Math.PI * 6)) * 0.055;
+      person.rotation.y = Math.atan2(door.x - person.position.x, door.z - person.position.z);
+      const shrink = progress > 0.78 ? 1 - ((progress - 0.78) / 0.22) : 1;
+      person.scale.copy(scale).multiplyScalar(Math.max(0.03, shrink));
+      this.animateLegs(person, progress * 10 + groupIndex);
+    }, easeInOutCubic);
+
+    this.levelRoot.remove(person);
+    disposeObject(person);
+  }
+
+  private updateIdleMotion(timestamp: number, delta: number): void {
+    const time = timestamp / 1000;
+    const pulse = 0.5 + Math.sin(time * 4.2) * 0.5;
     for (const person of this.passengerModels) {
       if (person.userData.leaving) {
         continue;
       }
       const target = person.userData.queueTarget;
-      const blend = 1 - Math.pow(0.002, deltaSeconds);
+      const blend = 1 - Math.pow(0.002, delta);
       person.position.x = THREE.MathUtils.lerp(person.position.x, target.x, blend);
       person.position.z = THREE.MathUtils.lerp(person.position.z, target.z, blend);
       person.position.y = target.y + Math.sin(time * 2.2 + person.userData.phase) * 0.017;
-      person.rotation.y = Math.sin(time * 0.8 + person.userData.phase) * 0.08;
-
       if (person.userData.priority) {
         const lead = person.userData.priorityMarker.visible;
         const scale = person.userData.baseScale * (
           lead
-            ? parkingLayout.passengerPriorityScale + targetPulse * 0.035
-            : parkingLayout.passengerGroupPriorityScale + targetPulse * 0.018
+            ? parkingLayout.passengerPriorityScale + pulse * 0.035
+            : parkingLayout.passengerGroupPriorityScale + pulse * 0.018
         );
         person.scale.setScalar(scale);
-        person.userData.priorityRing.material.opacity = 0.3 + targetPulse * 0.38;
-        person.userData.priorityMarker.position.y = 1.35 + targetPulse * 0.08;
-        person.userData.priorityMarker.rotation.y += deltaSeconds * 1.6;
+        person.userData.priorityRing.material.opacity = 0.3 + pulse * 0.38;
       } else {
         person.scale.setScalar(person.userData.baseScale);
       }
     }
 
-    for (const model of this.carModels.values()) {
-      const strength = model.userData.guidanceStrength;
-      if (strength <= trafficRules.emptyCollectionSize) {
-        model.userData.guidanceHalo.material.opacity = trafficRules.emptyCollectionSize;
-        model.userData.directionBadge.scale.setScalar(1);
-        continue;
-      }
-      const opacity = (
-        parkingLayout.targetPulseMinimum
-        + targetPulse * (parkingLayout.targetPulseMaximum - parkingLayout.targetPulseMinimum)
-      ) * strength;
-      model.userData.guidanceHalo.material.opacity = opacity;
-      model.userData.directionBadge.scale.setScalar(
-        model.userData.recommended
-          ? 1 + targetPulse * parkingLayout.recommendedPulseScale
-          : 1,
+    for (const car of this.carModels.values()) {
+      const strength = car.userData.guidanceStrength;
+      car.userData.guidanceHalo.material.opacity = strength <= 0
+        ? 0
+        : (parkingLayout.targetPulseMinimum
+          + pulse * (parkingLayout.targetPulseMaximum - parkingLayout.targetPulseMinimum)) * strength;
+      car.userData.directionBadge.scale.setScalar(
+        car.userData.recommended ? 1 + pulse * parkingLayout.recommendedPulseScale : 1,
       );
-    }
-
-    for (
-      let index = trafficRules.firstIndex;
-      index < this.bayMarkers.length;
-      index += trafficRules.cellStep
-    ) {
-      const marker = this.bayMarkers[index];
-      if (marker !== undefined) {
-        marker.position.y = Math.sin(time * 1.4 + index) * 0.008;
-      }
     }
   }
 
@@ -1008,21 +863,14 @@ export class ParkingJamScene {
   }
 
   private updateTweens(timestamp: number): void {
-    for (
-      let index = this.tweens.length - trafficRules.cellStep;
-      index >= trafficRules.firstIndex;
-      index -= trafficRules.cellStep
-    ) {
+    for (let index = this.tweens.length - trafficRules.cellStep; index >= trafficRules.firstIndex; index -= trafficRules.cellStep) {
       const tween = this.tweens[index];
       if (tween === undefined) {
         continue;
       }
-      const rawProgress = Math.min(
-        1,
-        Math.max(trafficRules.firstCoordinate, (timestamp - tween.startedAt) / tween.durationMs),
-      );
-      tween.update(tween.easing(rawProgress));
-      if (rawProgress >= 1) {
+      const raw = Math.min(1, Math.max(0, (timestamp - tween.startedAt) / tween.durationMs));
+      tween.update(tween.easing(raw));
+      if (raw >= 1) {
         this.tweens.splice(index, trafficRules.cellStep);
         tween.resolve();
       }
@@ -1039,8 +887,8 @@ export class ParkingJamScene {
         startedAt: performance.now(),
         durationMs,
         update,
-        resolve,
         easing,
+        resolve,
       });
     });
   }
@@ -1055,14 +903,14 @@ export class ParkingJamScene {
     }
   }
 
-  private animatePersonLegs(person: PersonModel, phase: number): void {
-    const leftLeg = person.getObjectByName('left-leg');
-    const rightLeg = person.getObjectByName('right-leg');
-    if (leftLeg !== undefined) {
-      leftLeg.rotation.x = Math.sin(phase) * 0.5;
+  private animateLegs(person: PersonModel, phase: number): void {
+    const left = person.getObjectByName('left-leg');
+    const right = person.getObjectByName('right-leg');
+    if (left !== undefined) {
+      left.rotation.x = Math.sin(phase) * 0.5;
     }
-    if (rightLeg !== undefined) {
-      rightLeg.rotation.x = -Math.sin(phase) * 0.5;
+    if (right !== undefined) {
+      right.rotation.x = -Math.sin(phase) * 0.5;
     }
   }
 
@@ -1073,32 +921,25 @@ export class ParkingJamScene {
     }
   }
 
-  private spawnBoardingImpact(
-    car: CarModel,
-    color: TrafficColor | null,
-    passengerCount: number,
-  ): void {
-    const impactColor = color === null
-      ? car.userData.bodyColor
-      : parkingColorPalette[color];
-    const particles: Array<THREE.Mesh> = [];
-    const particleCount = Math.max(
+  private restoreGuidance(): void {
+    if (this.currentLevel !== null && this.currentState !== null) {
+      this.syncGuidance(this.currentLevel, this.currentState);
+    }
+  }
+
+  private spawnBoardingImpact(car: CarModel, color: TrafficColor | null, people: number): void {
+    const impactColor = color === null ? car.userData.bodyColor : parkingColorPalette[color];
+    const count = Math.max(
       parkingLayout.boardingParticleMinimum,
-      passengerCount * parkingLayout.boardingParticleMultiplier,
+      people * parkingLayout.boardingParticleMultiplier,
     );
     const origin = car.position.clone().add(new THREE.Vector3(0, 0.72, 0));
-
-    for (
-      let index = trafficRules.firstIndex;
-      index < particleCount;
-      index += trafficRules.cellStep
-    ) {
+    const particles: Array<THREE.Mesh> = [];
+    for (let index = trafficRules.firstIndex; index < count; index += trafficRules.cellStep) {
       const particle = new THREE.Mesh(
         new THREE.IcosahedronGeometry(0.055 + (index % 3) * 0.012, 0),
         new THREE.MeshBasicMaterial({
-          color: index % 4 === trafficRules.firstIndex
-            ? parkingSceneColors.gold
-            : impactColor,
+          color: index % 4 === trafficRules.firstIndex ? parkingSceneColors.gold : impactColor,
           transparent: true,
           opacity: 0.95,
         }),
@@ -1113,11 +954,9 @@ export class ParkingJamScene {
       particles.push(particle);
       this.effectsRoot.add(particle);
     }
-
     const originalScale = car.scale.clone();
     this.tween(parkingUiTimings.groupImpactMs, (progress) => {
-      const carPunch = 1 + Math.sin(progress * Math.PI) * 0.08;
-      car.scale.copy(originalScale).multiplyScalar(carPunch);
+      car.scale.copy(originalScale).multiplyScalar(1 + Math.sin(progress * Math.PI) * 0.08);
       for (const particle of particles) {
         const direction = particle.userData.direction as THREE.Vector3;
         particle.position.set(
@@ -1125,8 +964,6 @@ export class ParkingJamScene {
           origin.y + direction.y * Math.sin(progress * Math.PI),
           origin.z + direction.z * progress,
         );
-        particle.rotation.x += 0.18;
-        particle.rotation.y += 0.22;
         setObjectOpacity(particle, 1 - progress);
       }
     }, easeOutCubic).then(() => {
@@ -1145,36 +982,26 @@ export class ParkingJamScene {
     }
     const origin = car.position.clone().add(new THREE.Vector3(0, 0.9, 0));
     const coins: Array<THREE.Mesh> = [];
-    for (
-      let index = trafficRules.firstIndex;
-      index < count;
-      index += trafficRules.cellStep
-    ) {
+    for (let index = trafficRules.firstIndex; index < count; index += trafficRules.cellStep) {
       const coin = createCoinModel();
       coin.position.copy(origin);
-      coin.position.x += (index - (count - trafficRules.cellStep) / 2) * 0.12;
       coins.push(coin);
       this.effectsRoot.add(coin);
     }
-
     this.tween(760, (progress) => {
-      for (
-        let index = trafficRules.firstIndex;
-        index < coins.length;
-        index += trafficRules.cellStep
-      ) {
+      for (let index = trafficRules.firstIndex; index < coins.length; index += trafficRules.cellStep) {
         const coin = coins[index];
         if (coin === undefined) {
           continue;
         }
         const spread = (index - (coins.length - trafficRules.cellStep) / 2) * 0.42;
-        coin.position.x = origin.x + spread * Math.sin(progress * Math.PI);
-        coin.position.y = origin.y + Math.sin(progress * Math.PI) * (1.15 + index * 0.06);
-        coin.position.z = origin.z - progress * 0.8;
+        coin.position.set(
+          origin.x + spread * Math.sin(progress * Math.PI),
+          origin.y + Math.sin(progress * Math.PI) * (1.15 + index * 0.06),
+          origin.z - progress * 0.8,
+        );
         coin.rotation.y += 0.25;
-        if (progress > 0.72) {
-          setObjectOpacity(coin, 1 - ((progress - 0.72) / 0.28));
-        }
+        setObjectOpacity(coin, 1 - progress);
       }
     }, easeOutCubic).then(() => {
       for (const coin of coins) {
@@ -1185,10 +1012,7 @@ export class ParkingJamScene {
   }
 }
 
-function countLeadingColor(
-  passengers: TrafficState['passengers'],
-  color: TrafficColor,
-): number {
+function countLeadingColor(passengers: TrafficState['passengers'], color: TrafficColor): number {
   let count = trafficRules.emptyCollectionSize;
   while (passengers[count] === color) {
     count += trafficRules.cellStep;

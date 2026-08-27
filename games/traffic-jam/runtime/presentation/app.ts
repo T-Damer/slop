@@ -20,6 +20,8 @@ import type {
   TrafficLevelDefinition,
   TrafficState,
 } from '../domain/types.ts';
+import { parkingGuidanceStyles } from './guidance-styles.ts';
+import { parkingImpactStyles } from './impact-styles.ts';
 import {
   parkingColorCss,
   parkingColorNames,
@@ -36,8 +38,6 @@ import {
 } from './registry.ts';
 import { ParkingJamScene } from './scene.ts';
 import { parkingStyles } from './styles.ts';
-import { parkingGuidanceStyles } from './guidance-styles.ts';
-import { parkingImpactStyles } from './impact-styles.ts';
 
 let activeApp: ParkingJamApp | null = null;
 
@@ -87,9 +87,7 @@ class ParkingJamApp {
     }
 
     this.scene = new ParkingJamScene(host, {
-      onCarSelected: (carId) => {
-        void this.selectCar(carId);
-      },
+      onCarSelected: (carId) => void this.selectCar(carId),
     });
     this.root.addEventListener(parkingUiEvents.click, this.handleClick);
     document.addEventListener('keydown', this.handleKeydown);
@@ -114,8 +112,8 @@ class ParkingJamApp {
     if (!(target instanceof Element)) {
       return;
     }
-    const actionElement = target.closest<HTMLElement>(`[${parkingUiAttributes.action}]`);
-    const action = actionElement?.getAttribute(parkingUiAttributes.action);
+    const element = target.closest<HTMLElement>(`[${parkingUiAttributes.action}]`);
+    const action = element?.getAttribute(parkingUiAttributes.action);
     if (action === parkingUiActions.undo || action === parkingUiActions.retry) {
       this.undoMove();
     } else if (action === parkingUiActions.reset) {
@@ -145,6 +143,7 @@ class ParkingJamApp {
     if (this.busy || this.disposed || this.scene === null) {
       return;
     }
+
     const result = releaseTrafficCar(this.level, this.state, carId);
     if (!result.ok) {
       this.setBusy(true);
@@ -287,11 +286,7 @@ class ParkingJamApp {
     );
   }
 
-  private loadLevel(
-    levelIndex: number,
-    persist: boolean,
-    reroll: boolean,
-  ): void {
+  private loadLevel(levelIndex: number, persist: boolean, reroll: boolean): void {
     this.levelIndex = normalizeLevelIndex(levelIndex);
     if (reroll) {
       this.levelSeed = createRuntimeSeed(this.levelSeed);
@@ -300,11 +295,11 @@ class ParkingJamApp {
     if (persist) {
       saveNumber(trafficGame.progressStorageKey, this.levelIndex);
     }
-    this.state = createInitialTrafficState(this.level);
+    this.state = createInitialTrafficState(this.currentLevel);
     this.history = [];
     this.rewardCommitted = false;
     this.clearOverlay();
-    this.scene?.load(this.level, this.state);
+    this.scene?.load(this.currentLevel, this.state);
     this.setBusy(false);
     this.updateHud();
     this.showMessage(this.targetInstruction());
@@ -320,49 +315,31 @@ class ParkingJamApp {
   }
 
   private updateHud(): void {
-    const levelValue = this.root.querySelector<HTMLElement>('[data-hud="level"]');
-    const levelName = this.root.querySelector<HTMLElement>('[data-hud="level-name"]');
-    const score = this.root.querySelector<HTMLElement>('[data-hud="score"]');
-    const coins = this.root.querySelector<HTMLElement>('[data-hud="coins"]');
-    const combo = this.root.querySelector<HTMLElement>('[data-hud="combo"]');
+    setText(this.root, '[data-hud="level"]', `${this.levelIndex + trafficRules.cellStep}/${getTrafficLevelCount()}`);
+    setText(
+      this.root,
+      '[data-hud="level-name"]',
+      `${this.level.name} · ${parkingLocationNames[this.level.location]}`,
+    );
+    setText(this.root, '[data-hud="score"]', formatNumber(this.state.score));
+    const unbanked = this.rewardCommitted ? trafficRules.initialCoins : this.state.coins;
+    setText(this.root, '[data-hud="coins"]', formatNumber(this.bankCoins + unbanked));
 
-    if (levelValue !== null) {
-      levelValue.textContent = `${this.levelIndex + trafficRules.cellStep}/${getTrafficLevelCount()}`;
-    }
-    if (levelName !== null) {
-      levelName.textContent = `${this.level.name} · ${parkingLocationNames[this.level.location]}`;
-    }
-    if (score !== null) {
-      score.textContent = formatNumber(this.state.score);
-    }
-    if (coins !== null) {
-      const unbankedCoins = this.rewardCommitted ? trafficRules.emptyCollectionSize : this.state.coins;
-      coins.textContent = formatNumber(this.bankCoins + unbankedCoins);
-    }
+    const combo = this.root.querySelector<HTMLElement>('[data-hud="combo"]');
     if (combo !== null) {
       combo.textContent = `×${this.state.combo} ${parkingUiCopy.combo}`;
       combo.classList.toggle('is-visible', this.state.combo > trafficRules.initialCombo);
     }
 
-    this.renderNextPassengers(this.state.passengers);
+    this.renderQueue(this.state.passengers);
     this.scene?.syncGuidance(this.level, this.state);
     this.updateControls();
   }
 
   private updateEventHud(event: TrafficDomainEvent): void {
-    const score = this.root.querySelector<HTMLElement>('[data-hud="score"]');
-    const coins = this.root.querySelector<HTMLElement>('[data-hud="coins"]');
+    setText(this.root, '[data-hud="score"]', formatNumber(event.scoreAfter));
+    setText(this.root, '[data-hud="coins"]', formatNumber(this.bankCoins + event.coinsAfter));
     const combo = this.root.querySelector<HTMLElement>('[data-hud="combo"]');
-    if (score !== null) {
-      score.textContent = formatNumber(event.scoreAfter);
-    }
-    if (coins !== null) {
-      const stateCoinDelta = Math.max(trafficRules.emptyCollectionSize, event.coins);
-      const current = Number.parseInt(coins.textContent?.replace(/\D/g, '') ?? '0', 10);
-      if (stateCoinDelta > trafficRules.emptyCollectionSize) {
-        coins.textContent = formatNumber(current + stateCoinDelta);
-      }
-    }
     if (combo !== null) {
       combo.textContent = `×${event.comboAfter} ${parkingUiCopy.combo}`;
       combo.classList.toggle('is-visible', event.comboAfter > trafficRules.initialCombo);
@@ -370,61 +347,55 @@ class ParkingJamApp {
     const remainingPassengers = this.state.passengers.slice(
       this.state.passengers.length - event.queueRemaining,
     );
-    this.renderNextPassengers(remainingPassengers);
+    this.renderQueue(remainingPassengers);
   }
 
-  private renderNextPassengers(passengers: TrafficState['passengers']): void {
+  private renderQueue(passengers: TrafficState['passengers']): void {
     const next = this.root.querySelector<HTMLElement>('[data-hud="next"]');
     if (next === null) {
       return;
     }
-    const targetColor = passengers[trafficRules.firstIndex];
-    if (targetColor === undefined) {
+    const color = passengers[trafficRules.firstIndex];
+    if (color === undefined) {
       next.innerHTML = '';
-      next.setAttribute('aria-label', parkingUiCopy.completedBody);
       return;
     }
 
-    const targetGroupSize = countLeadingGroup(passengers, targetColor);
-    const targetCss = parkingColorCss[targetColor];
-    const targetName = parkingColorNames[targetColor];
-    const queueDots = passengers
+    const groupSize = countLeadingGroup(passengers, color);
+    const css = parkingColorCss[color];
+    const name = parkingColorNames[color];
+    const dots = passengers
       .slice(trafficRules.firstIndex, parkingLayout.queueHudLimit)
-      .map((color, index) => {
-        const currentGroupClass = index < targetGroupSize ? 'is-current-group' : '';
+      .map((passengerColor, index) => {
+        const groupClass = index < groupSize ? 'is-current-group' : '';
         const firstClass = index === trafficRules.firstIndex ? 'is-first' : '';
-        return `<span class="parking-queue-dot ${currentGroupClass} ${firstClass}" style="background:${parkingColorCss[color]}" title="${parkingColorNames[color]}"></span>`;
+        return `<span class="parking-queue-dot ${groupClass} ${firstClass}" style="background:${parkingColorCss[passengerColor]}"></span>`;
       })
       .join('');
 
-    next.setAttribute(
-      'aria-label',
-      `${parkingUiCopy.targetLabel} ${targetName} ${parkingUiCopy.targetSuffix} for ${targetGroupSize} ${parkingUiCopy.groupSuffix}`,
-    );
     next.innerHTML = `
-      <div class="parking-target-card" style="--target-color:${targetCss}">
+      <div class="parking-target-card" style="--target-color:${css}">
         <span class="parking-target-car" aria-hidden="true"></span>
         <span class="parking-target-copy">
           <small class="parking-target-label">${parkingUiCopy.targetLabel}</small>
-          <strong class="parking-target-name">${targetName} ${parkingUiCopy.targetSuffix}</strong>
-          <span class="parking-target-group">${parkingUiSymbols.group}${targetGroupSize} ${parkingUiCopy.groupSuffix}</span>
+          <strong class="parking-target-name">${name} ${parkingUiCopy.targetSuffix}</strong>
+          <span class="parking-target-group">${parkingUiSymbols.group}${groupSize} ${parkingUiCopy.groupSuffix}</span>
         </span>
         <span class="parking-target-arrow" aria-hidden="true">${parkingUiSymbols.targetArrow}</span>
       </div>
       <div class="parking-queue-strip">
-        <span class="parking-queue-label">${parkingUiCopy.queue}</span>
-        ${queueDots}
+        <span class="parking-queue-label">${parkingUiCopy.queue}</span>${dots}
       </div>
     `;
   }
 
-  private targetInstruction(passengers: TrafficState['passengers'] = this.state.passengers): string {
-    const targetColor = passengers[trafficRules.firstIndex];
-    if (targetColor === undefined) {
+  private targetInstruction(): string {
+    const color = this.state.passengers[trafficRules.firstIndex];
+    if (color === undefined) {
       return parkingUiCopy.instruction;
     }
-    const groupSize = countLeadingGroup(passengers, targetColor);
-    return `${parkingUiCopy.instructionPrefix} ${parkingColorNames[targetColor]} ${parkingUiCopy.instructionMiddle} ${groupSize} ${parkingUiCopy.instructionSuffix}`;
+    const groupSize = countLeadingGroup(this.state.passengers, color);
+    return `${parkingUiCopy.instructionPrefix} ${parkingColorNames[color]} ${parkingUiCopy.instructionMiddle} ${groupSize} ${parkingUiCopy.instructionSuffix}`;
   }
 
   private updateControls(): void {
@@ -432,7 +403,8 @@ class ParkingJamApp {
     const hint = this.root.querySelector<HTMLButtonElement>(`[${parkingUiAttributes.action}="${parkingUiActions.hint}"]`);
     const reset = this.root.querySelector<HTMLButtonElement>(`[${parkingUiAttributes.action}="${parkingUiActions.reset}"]`);
     if (undo !== null) {
-      undo.disabled = this.history.length === trafficRules.emptyCollectionSize || (this.busy && !this.state.jammed && !this.state.completed);
+      undo.disabled = this.history.length === trafficRules.emptyCollectionSize
+        || (this.busy && !this.state.jammed && !this.state.completed);
     }
     if (hint !== null) {
       hint.disabled = this.busy || this.state.completed || this.state.jammed;
@@ -451,21 +423,12 @@ class ParkingJamApp {
 
   private showMessage(message: string): void {
     const element = this.root.querySelector<HTMLElement>('[data-hud="message"]');
-    if (element === null) {
-      return;
-    }
-    element.classList.add('is-changing');
-    this.runAfter(90, () => {
+    if (element !== null) {
       element.textContent = message;
-      element.classList.remove('is-changing');
-    });
+    }
   }
 
-  private spawnScorePopup(
-    carId: string | null,
-    text: string,
-    modifier = '',
-  ): void {
+  private spawnScorePopup(carId: string | null, text: string, modifier = ''): void {
     if (carId === null || this.scene === null) {
       return;
     }
@@ -485,35 +448,32 @@ class ParkingJamApp {
 
   private showCompletionOverlay(): void {
     this.setBusy(true);
-    const isLastLevel = this.levelIndex === getTrafficLevelCount() - trafficRules.cellStep;
-    const actionLabel = isLastLevel ? parkingUiCopy.replay : parkingUiCopy.next;
+    const last = this.levelIndex === getTrafficLevelCount() - trafficRules.cellStep;
     const overlay = this.overlayElement();
     overlay.innerHTML = `
-      <section class="parking-result" role="dialog" aria-modal="true" aria-label="${parkingUiCopy.completedTitle}">
-        <div class="parking-result-badge" aria-hidden="true">✓</div>
+      <section class="parking-result" role="dialog" aria-modal="true">
+        <div class="parking-result-badge">✓</div>
         <h2 class="parking-result-title">${parkingUiCopy.completedTitle}</h2>
         <p class="parking-result-body">${parkingUiCopy.completedBody}</p>
         <div class="parking-result-stats">
           <div class="parking-result-stat"><strong>${formatNumber(this.state.score)}</strong><span>${parkingUiCopy.score}</span></div>
           <div class="parking-result-stat"><strong>+${this.state.coins}</strong><span>${parkingUiCopy.coins}</span></div>
         </div>
-        <button class="parking-primary" type="button" ${parkingUiAttributes.action}="${parkingUiActions.next}">${actionLabel}</button>
-      </section>
-    `;
+        <button class="parking-primary" type="button" ${parkingUiAttributes.action}="${parkingUiActions.next}">${last ? parkingUiCopy.replay : parkingUiCopy.next}</button>
+      </section>`;
   }
 
   private showJammedOverlay(): void {
     this.setBusy(true);
     const overlay = this.overlayElement();
     overlay.innerHTML = `
-      <section class="parking-result is-jammed" role="dialog" aria-modal="true" aria-label="${parkingUiCopy.jammedTitle}">
-        <div class="parking-result-badge" aria-hidden="true">!</div>
+      <section class="parking-result is-jammed" role="dialog" aria-modal="true">
+        <div class="parking-result-badge">!</div>
         <h2 class="parking-result-title">${parkingUiCopy.jammedTitle}</h2>
         <p class="parking-result-body">${parkingUiCopy.jammedBody}</p>
         <button class="parking-primary" type="button" ${parkingUiAttributes.action}="${parkingUiActions.retry}">${parkingUiCopy.retry}</button>
         <button class="parking-secondary" type="button" ${parkingUiAttributes.action}="${parkingUiActions.reset}">${parkingUiCopy.reset}</button>
-      </section>
-    `;
+      </section>`;
   }
 
   private overlayElement(): HTMLElement {
@@ -552,10 +512,7 @@ function installStyles(): void {
 function renderShell(): string {
   return `
     <main class="parking-game" aria-label="${parkingUiCopy.title}">
-      <section class="parking-stage" aria-label="Parking lot">
-        <div class="parking-canvas-host"></div>
-      </section>
-
+      <section class="parking-stage" aria-label="Parking lot"><div class="parking-canvas-host"></div></section>
       <header class="parking-hud">
         <div class="parking-level">
           <span class="parking-level-label">${parkingUiCopy.level}</span>
@@ -567,72 +524,45 @@ function renderShell(): string {
           <strong class="parking-score-value" data-hud="score">0</strong>
           <span class="parking-combo" data-hud="combo"></span>
         </div>
-        <div class="parking-coins">
-          <span class="parking-coin-icon" aria-hidden="true">${parkingUiSymbols.coin}</span>
-          <strong data-hud="coins">0</strong>
-        </div>
+        <div class="parking-coins"><span class="parking-coin-icon">${parkingUiSymbols.coin}</span><strong data-hud="coins">0</strong></div>
       </header>
-
-      <div class="parking-next" data-hud="next" aria-label="${parkingUiCopy.queue}"></div>
+      <div class="parking-next" data-hud="next"></div>
       <p class="parking-message" data-hud="message">${parkingUiCopy.instruction}</p>
-
       <nav class="parking-controls" aria-label="Game controls">
         ${renderControl(parkingUiActions.undo, parkingUiSymbols.undo, parkingUiCopy.undo, '')}
         ${renderControl(parkingUiActions.hint, parkingUiSymbols.hint, parkingUiCopy.hintButton, 'parking-control-hint')}
         ${renderControl(parkingUiActions.reset, parkingUiSymbols.reset, parkingUiCopy.reset, '')}
       </nav>
       <div class="parking-fx" aria-hidden="true"></div>
-    </main>
-  `;
+    </main>`;
 }
 
-function renderControl(
-  action: string,
-  symbol: string,
-  label: string,
-  modifier: string,
-): string {
-  return `
-    <button
-      class="parking-control ${modifier}"
-      type="button"
-      aria-label="${label}"
-      title="${label}"
-      ${parkingUiAttributes.action}="${action}"
-    >${symbol}</button>
-  `;
+function renderControl(action: string, symbol: string, label: string, modifier: string): string {
+  return `<button class="parking-control ${modifier}" type="button" aria-label="${label}" title="${label}" ${parkingUiAttributes.action}="${action}">${symbol}</button>`;
+}
+
+function setText(root: HTMLElement, selector: string, value: string): void {
+  const element = root.querySelector<HTMLElement>(selector);
+  if (element !== null) {
+    element.textContent = value;
+  }
 }
 
 function normalizeLevelIndex(levelIndex: number): number {
-  if (!Number.isInteger(levelIndex)) {
-    return trafficRules.firstIndex;
-  }
-  return Math.min(
-    Math.max(levelIndex, trafficRules.firstIndex),
-    getTrafficLevelCount() - trafficRules.cellStep,
-  );
+  return Number.isInteger(levelIndex)
+    ? Math.min(Math.max(levelIndex, trafficRules.firstIndex), getTrafficLevelCount() - trafficRules.cellStep)
+    : trafficRules.firstIndex;
 }
 
 function createRuntimeSeed(previousSeed = trafficRules.emptyCollectionSize): number {
   const values = new Uint32Array(trafficRules.cellStep);
-  if (globalThis.crypto?.getRandomValues !== undefined) {
-    globalThis.crypto.getRandomValues(values);
-  }
+  globalThis.crypto?.getRandomValues?.(values);
   const randomSeed = values[trafficRules.firstIndex] ?? trafficRules.emptyCollectionSize;
-  const mixed = (
-    randomSeed
-    + previousSeed
-    + trafficRandomization.seedIncrement
-  ) >>> trafficRules.firstCoordinate;
-  return mixed === trafficRules.emptyCollectionSize
-    ? trafficRandomization.fallbackSeed
-    : mixed;
+  const mixed = (randomSeed + previousSeed + trafficRandomization.seedIncrement) >>> trafficRules.firstCoordinate;
+  return mixed === trafficRules.emptyCollectionSize ? trafficRandomization.fallbackSeed : mixed;
 }
 
-function countLeadingGroup(
-  passengers: TrafficState['passengers'],
-  color: TrafficState['passengers'][number],
-): number {
+function countLeadingGroup(passengers: TrafficState['passengers'], color: TrafficState['passengers'][number]): number {
   let count = trafficRules.emptyCollectionSize;
   while (passengers[count] === color) {
     count += trafficRules.cellStep;
@@ -642,11 +572,8 @@ function countLeadingGroup(
 
 function loadNumber(key: string, fallback: number): number {
   try {
-    const stored = window.localStorage.getItem(key);
-    if (stored === null) {
-      return fallback;
-    }
-    const parsed = Number.parseInt(stored, 10);
+    const value = window.localStorage.getItem(key);
+    const parsed = value === null ? fallback : Number.parseInt(value, 10);
     return Number.isFinite(parsed) ? parsed : fallback;
   } catch {
     return fallback;
@@ -657,7 +584,7 @@ function saveNumber(key: string, value: number): void {
   try {
     window.localStorage.setItem(key, String(value));
   } catch {
-    // Persistence is optional; the game remains playable without storage access.
+    // Storage is optional.
   }
 }
 
