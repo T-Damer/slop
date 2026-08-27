@@ -261,6 +261,8 @@ export const parkingSceneColors = {
   exitMarking: 0xf7f2cf,
   pickup: 0xf0d34d,
   pickupInactive: 0x8d8b78,
+  concrete: 0xc7c3ac,
+  concreteDark: 0x7c8078,
   danger: 0xe35a54,
   gold: 0xf5c744,
   target: 0xffffff,
