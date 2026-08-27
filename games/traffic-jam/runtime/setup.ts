@@ -1,7 +1,7 @@
 import {
-  mountTrafficJam,
-  unmountTrafficJam,
-} from './ui/app.ts';
+  mountParkingJam,
+  unmountParkingJam,
+} from './presentation/app.ts';
 
 let registered = false;
 
@@ -10,7 +10,7 @@ export function registerGameSystems(): void {
     return;
   }
   registered = true;
-  mountTrafficJam(document.body);
+  mountParkingJam(document.body);
 }
 
 export function unregisterGameSystems(): void {
@@ -18,5 +18,5 @@ export function unregisterGameSystems(): void {
     return;
   }
   registered = false;
-  unmountTrafficJam();
+  unmountParkingJam();
 }

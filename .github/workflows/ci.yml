@@ -63,7 +63,11 @@ jobs:
         working-directory: .modoki-engine
         run: npm ci --no-audit --no-fund
 
-      - name: Build Traffic Jam for web
+      - name: Install game runtime dependencies
+        working-directory: ${{ env.MODOKI_PROJECT_PATH }}
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Build Parking Jam for web
         working-directory: .modoki-engine
         env:
           MODOKI_PROJECT: ${{ github.workspace }}/${{ env.MODOKI_PROJECT_PATH }}
@@ -77,7 +81,7 @@ jobs:
       - name: Upload browser build
         uses: actions/upload-artifact@v4
         with:
-          name: traffic-jam-web-${{ github.sha }}
+          name: parking-jam-web-${{ github.sha }}
           path: ${{ env.MODOKI_PROJECT_PATH }}/dist
           if-no-files-found: error
           retention-days: 14

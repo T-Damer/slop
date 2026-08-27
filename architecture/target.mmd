@@ -1,10 +1,9 @@
 flowchart LR
-    Prompt[AI or human task] --> Domain[Traffic domain\npure TypeScript]
-    Domain --> Tests[Deterministic tests + solver]
-    Domain --> UI[Traffic UI\nprojection + input]
-    UI --> Adapter[Modoki adapter\nGameDefinition + lifecycle]
-    Adapter --> Build[Modoki web build]
-    Build --> Pages[GitHub Pages]
+    Prompt[AI or human task] --> Domain[Pure game domain]
+    Domain --> Tests[Solver · invariants · replay tests]
+    Domain --> Presentation[Runtime-specific presentation]
+    Presentation --> Validation[Rendered mobile smoke + visual review]
+    Presentation --> Modoki[Modoki authoring/build adapter]
+    Modoki --> Pages[Compact browser build]
 
-    Domain -. no dependency .-> Modoki[Modoki engine]
-    Adapter --> Modoki
+    Domain -. forbidden .-> Three[Three.js / DOM / Modoki]

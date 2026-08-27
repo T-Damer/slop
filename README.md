@@ -1,52 +1,38 @@
 # Slop
 
-Slop is an AI-oriented game factory built around small, testable game domains and interchangeable authoring/runtime adapters.
-
-The first vertical slice is **Traffic Jam**, built as an external Modoki project:
-
-- one pure TypeScript source of truth for rules;
-- touch-first browser UI;
-- deterministic level solver and tests;
-- Modoki `GameDefinition`, project lifecycle, scene, and web build;
-- GitHub Pages publication from `stable`;
-- human-readable current/target architecture diagrams with a CI drift check.
+Slop is an AI-oriented game factory experiment. The current vertical slice is a real 3D **Parking Jam** game built as an external Modoki project.
 
 ## Play
 
-GitHub Pages: **https://t-damer.github.io/slop/**
+https://t-damer.github.io/slop/
 
-## Verify the domain
+## Current game loop
 
-Requires Node.js 24 or newer:
+1. Tap a 3D car whose route to the road is clear.
+2. The car drives to one of a limited number of pickup bays.
+3. The next matching passenger walks to the car and boards.
+4. The car departs, awards points and coins, and grows the combo.
+5. Filling every bay with the wrong colors creates a recoverable pickup jam.
+
+The three included levels contain 27, 36, and 40 cars. Rules, queue resolution, scoring, jam detection, and the solver have one pure TypeScript owner under `games/traffic-jam/runtime/domain`.
+
+## Verify
 
 ```bash
 npm test
 npm run architecture:check
 ```
 
-## Build with Modoki
+CI also builds the actual Modoki web artifact and executes the published game in headless Chrome at a mobile viewport.
 
-The workflow pins Modoki `v0.5.2` by commit. For a local build:
-
-```bash
-git clone https://github.com/lsgmasa33/modoki-engine.git
-cd modoki-engine
-git checkout 145bae5b2dc38ac0561a2b627d726cba69a99c1f
-npm ci
-MODOKI_PROJECT=/absolute/path/to/slop/games/traffic-jam \
-  npm run build -- --target web
-```
-
-The artifact is written to `games/traffic-jam/dist`.
-
-## Module map
+## Architecture
 
 ```text
-Traffic domain (pure TypeScript)
+Parking domain (pure TypeScript)
         ↓
-Traffic UI (DOM projection + input)
+3D presentation (Three.js scene + minimal HUD)
         ↓
-Modoki adapter (GameDefinition + lifecycle + web build)
+Modoki lifecycle and production web build
 ```
 
-See `architecture/target.mmd`, `architecture/current.mmd`, and `architecture/model.json`.
+See `architecture/current.mmd`, `architecture/target.mmd`, and `architecture/model.json`.

@@ -8,9 +8,9 @@
     "debugBuild": false
   },
   "app": {
-    "appId": "io.tdamer.slop.trafficjam",
-    "appName": "Traffic Jam",
-    "version": "0.1.0",
-    "buildNumber": 1
+    "appId": "io.tdamer.slop.parkingjam",
+    "appName": "Parking Jam",
+    "version": "0.2.0",
+    "buildNumber": 2
   }
 }

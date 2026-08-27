@@ -7,31 +7,30 @@ const architecturePaths = {
   current: 'architecture/current.mmd',
   target: 'architecture/target.mmd',
   domain: 'games/traffic-jam/runtime/domain',
-  ui: 'games/traffic-jam/runtime/ui',
+  presentation: 'games/traffic-jam/runtime/presentation',
   setup: 'games/traffic-jam/runtime/setup.ts',
 };
 
 const architecturePatterns = {
   domainForbidden: [
     /@modoki\//u,
+    /from\s+['"]three['"]/u,
     /(?:^|\W)document(?:\W|$)/u,
     /(?:^|\W)window(?:\W|$)/u,
     /(?:^|\W)localStorage(?:\W|$)/u,
     /(?:^|\W)HTMLElement(?:\W|$)/u,
-    /\.\.\/ui\//u,
+    /\.\.\/presentation\//u,
   ],
   uncontrolledRuntime: [
     /Math\.random\s*\(/u,
     /Date\.now\s*\(/u,
     /performance\.now\s*\(/u,
   ],
-  modokiBoundary: /@modoki\/engine/u,
 };
 
 const failures = [];
 const model = JSON.parse(await readFile(architecturePaths.model, 'utf8'));
-
-if (model.schemaVersion !== 1) {
+if (model.schemaVersion !== 2) {
   failures.push('architecture/model.json has an unsupported schemaVersion.');
 }
 
@@ -57,8 +56,13 @@ for (const file of await listTypeScriptFiles(architecturePaths.domain)) {
 }
 
 const setup = await readFile(architecturePaths.setup, 'utf8');
-if (architecturePatterns.modokiBoundary.test(setup)) {
-  failures.push('runtime/setup.ts should only adapt lifecycle; import Modoki types from game.ts/config.ts instead.');
+if (setup.includes("from 'three'") || setup.includes('@modoki/engine')) {
+  failures.push('runtime/setup.ts must remain a thin presentation lifecycle adapter.');
+}
+
+const presentationFiles = await listTypeScriptFiles(architecturePaths.presentation);
+if (!presentationFiles.some((file) => file.endsWith('scene.ts'))) {
+  failures.push('The 3D presentation must provide a scene.ts owner.');
 }
 
 if (failures.length > 0) {

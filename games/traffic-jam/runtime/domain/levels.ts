@@ -1,120 +1,121 @@
 import {
   trafficColors,
   trafficDirections,
+  trafficIdPrefixes,
+  trafficLevelPatterns,
+  trafficRules,
+  type TrafficColor,
 } from './registry.ts';
-import type { TrafficLevelDefinition } from './types.ts';
+import type {
+  TrafficCarDefinition,
+  TrafficLevelDefinition,
+} from './types.ts';
 
-export const trafficLevels: ReadonlyArray<TrafficLevelDefinition> = [
-  {
-    id: 'traffic-level-01',
-    name: 'First opening',
-    hint: 'Start with the car that already faces an open road.',
-    vehicles: [
-      { id: 'l1-a', x: 2, y: 1, length: 3, direction: trafficDirections.left, color: trafficColors.coral },
-      { id: 'l1-b', x: 0, y: 3, length: 3, direction: trafficDirections.right, color: trafficColors.blue },
-      { id: 'l1-c', x: 3, y: 4, length: 2, direction: trafficDirections.up, color: trafficColors.mint },
-      { id: 'l1-d', x: 1, y: 5, length: 2, direction: trafficDirections.right, color: trafficColors.yellow },
-      { id: 'l1-e', x: 2, y: 0, length: 2, direction: trafficDirections.left, color: trafficColors.violet },
-      { id: 'l1-f', x: 0, y: 0, length: 3, direction: trafficDirections.down, color: trafficColors.orange },
-    ],
-  },
-  {
-    id: 'traffic-level-02',
-    name: 'Crossroads',
-    hint: 'Two cars are free at first. Only one opens the middle quickly.',
-    vehicles: [
-      { id: 'l2-a', x: 1, y: 3, length: 2, direction: trafficDirections.right, color: trafficColors.coral },
-      { id: 'l2-b', x: 3, y: 1, length: 2, direction: trafficDirections.up, color: trafficColors.blue },
-      { id: 'l2-c', x: 4, y: 2, length: 2, direction: trafficDirections.left, color: trafficColors.mint },
-      { id: 'l2-d', x: 2, y: 0, length: 2, direction: trafficDirections.down, color: trafficColors.yellow },
-      { id: 'l2-e', x: 5, y: 4, length: 2, direction: trafficDirections.down, color: trafficColors.violet },
-      { id: 'l2-f', x: 3, y: 0, length: 2, direction: trafficDirections.left, color: trafficColors.orange },
-      { id: 'l2-g', x: 2, y: 5, length: 3, direction: trafficDirections.right, color: trafficColors.teal },
-    ],
-  },
-  {
-    id: 'traffic-level-03',
-    name: 'Tight lanes',
-    hint: 'Clear the edges before touching the long vertical car.',
-    vehicles: [
-      { id: 'l3-a', x: 0, y: 2, length: 3, direction: trafficDirections.left, color: trafficColors.coral },
-      { id: 'l3-b', x: 3, y: 1, length: 3, direction: trafficDirections.down, color: trafficColors.blue },
-      { id: 'l3-c', x: 3, y: 4, length: 2, direction: trafficDirections.left, color: trafficColors.mint },
-      { id: 'l3-d', x: 1, y: 0, length: 2, direction: trafficDirections.up, color: trafficColors.yellow },
-      { id: 'l3-e', x: 0, y: 3, length: 2, direction: trafficDirections.up, color: trafficColors.violet },
-      { id: 'l3-f', x: 1, y: 4, length: 2, direction: trafficDirections.up, color: trafficColors.orange },
-      { id: 'l3-g', x: 4, y: 3, length: 2, direction: trafficDirections.left, color: trafficColors.teal },
-      { id: 'l3-h', x: 5, y: 0, length: 2, direction: trafficDirections.down, color: trafficColors.pink },
-    ],
-  },
-  {
-    id: 'traffic-level-04',
-    name: 'One way out',
-    hint: 'The bottom-left car starts a chain reaction.',
-    vehicles: [
-      { id: 'l4-a', x: 1, y: 1, length: 3, direction: trafficDirections.left, color: trafficColors.coral },
-      { id: 'l4-b', x: 4, y: 3, length: 2, direction: trafficDirections.up, color: trafficColors.blue },
-      { id: 'l4-c', x: 0, y: 0, length: 2, direction: trafficDirections.down, color: trafficColors.mint },
-      { id: 'l4-d', x: 5, y: 3, length: 2, direction: trafficDirections.up, color: trafficColors.yellow },
-      { id: 'l4-e', x: 1, y: 2, length: 3, direction: trafficDirections.up, color: trafficColors.violet },
-      { id: 'l4-f', x: 0, y: 5, length: 3, direction: trafficDirections.right, color: trafficColors.orange },
-      { id: 'l4-g', x: 3, y: 2, length: 2, direction: trafficDirections.left, color: trafficColors.teal },
-      { id: 'l4-h', x: 4, y: 0, length: 2, direction: trafficDirections.left, color: trafficColors.pink },
-      { id: 'l4-i', x: 5, y: 1, length: 2, direction: trafficDirections.up, color: trafficColors.lime },
-    ],
-  },
-  {
-    id: 'traffic-level-05',
-    name: 'Rush hour',
-    hint: 'Open the three outer lanes, then work inward.',
-    vehicles: [
-      { id: 'l5-a', x: 0, y: 5, length: 2, direction: trafficDirections.left, color: trafficColors.coral },
-      { id: 'l5-b', x: 0, y: 3, length: 2, direction: trafficDirections.up, color: trafficColors.blue },
-      { id: 'l5-c', x: 5, y: 1, length: 2, direction: trafficDirections.down, color: trafficColors.mint },
-      { id: 'l5-d', x: 4, y: 4, length: 2, direction: trafficDirections.left, color: trafficColors.yellow },
-      { id: 'l5-e', x: 4, y: 1, length: 2, direction: trafficDirections.down, color: trafficColors.violet },
-      { id: 'l5-f', x: 1, y: 3, length: 2, direction: trafficDirections.down, color: trafficColors.orange },
-      { id: 'l5-g', x: 1, y: 0, length: 2, direction: trafficDirections.down, color: trafficColors.teal },
-      { id: 'l5-h', x: 1, y: 2, length: 2, direction: trafficDirections.right, color: trafficColors.pink },
-      { id: 'l5-i', x: 2, y: 4, length: 2, direction: trafficDirections.down, color: trafficColors.lime },
-      { id: 'l5-j', x: 0, y: 1, length: 2, direction: trafficDirections.up, color: trafficColors.sky },
-    ],
-  },
-  {
-    id: 'traffic-level-06',
-    name: 'Downtown knot',
-    hint: 'The short cars on the left and bottom are your first exits.',
-    vehicles: [
-      { id: 'l6-a', x: 1, y: 3, length: 3, direction: trafficDirections.right, color: trafficColors.coral },
-      { id: 'l6-b', x: 2, y: 2, length: 3, direction: trafficDirections.left, color: trafficColors.blue },
-      { id: 'l6-c', x: 4, y: 4, length: 2, direction: trafficDirections.up, color: trafficColors.mint },
-      { id: 'l6-d', x: 1, y: 5, length: 3, direction: trafficDirections.right, color: trafficColors.yellow },
-      { id: 'l6-e', x: 0, y: 0, length: 2, direction: trafficDirections.down, color: trafficColors.violet },
-      { id: 'l6-f', x: 2, y: 0, length: 2, direction: trafficDirections.left, color: trafficColors.orange },
-      { id: 'l6-g', x: 4, y: 0, length: 2, direction: trafficDirections.left, color: trafficColors.teal },
-      { id: 'l6-h', x: 5, y: 2, length: 3, direction: trafficDirections.up, color: trafficColors.pink },
-      { id: 'l6-i', x: 2, y: 4, length: 2, direction: trafficDirections.right, color: trafficColors.lime },
-      { id: 'l6-j', x: 4, y: 1, length: 2, direction: trafficDirections.left, color: trafficColors.sky },
-      { id: 'l6-k', x: 0, y: 4, length: 2, direction: trafficDirections.down, color: trafficColors.red },
-    ],
-  },
-  {
-    id: 'traffic-level-07',
-    name: 'City center',
-    hint: 'Several exits are available, but the right side must be unwound in order.',
-    vehicles: [
-      { id: 'l7-a', x: 3, y: 4, length: 2, direction: trafficDirections.left, color: trafficColors.coral },
-      { id: 'l7-b', x: 4, y: 0, length: 2, direction: trafficDirections.left, color: trafficColors.blue },
-      { id: 'l7-c', x: 0, y: 2, length: 3, direction: trafficDirections.left, color: trafficColors.mint },
-      { id: 'l7-d', x: 0, y: 3, length: 2, direction: trafficDirections.left, color: trafficColors.yellow },
-      { id: 'l7-e', x: 1, y: 4, length: 2, direction: trafficDirections.left, color: trafficColors.violet },
-      { id: 'l7-f', x: 4, y: 1, length: 2, direction: trafficDirections.left, color: trafficColors.orange },
-      { id: 'l7-g', x: 3, y: 0, length: 2, direction: trafficDirections.down, color: trafficColors.teal },
-      { id: 'l7-h', x: 5, y: 4, length: 2, direction: trafficDirections.up, color: trafficColors.pink },
-      { id: 'l7-i', x: 1, y: 1, length: 2, direction: trafficDirections.left, color: trafficColors.lime },
-      { id: 'l7-j', x: 1, y: 5, length: 2, direction: trafficDirections.right, color: trafficColors.sky },
-      { id: 'l7-k', x: 0, y: 0, length: 2, direction: trafficDirections.down, color: trafficColors.red },
-      { id: 'l7-l', x: 2, y: 3, length: 3, direction: trafficDirections.left, color: trafficColors.indigo },
-    ],
-  },
-] as const;
+const trafficColorCycle: ReadonlyArray<TrafficColor> = Object.values(trafficColors);
+
+type TrafficLevelPattern = typeof trafficLevelPatterns[keyof typeof trafficLevelPatterns];
+
+export const trafficLevels: ReadonlyArray<TrafficLevelDefinition> = Object.values(
+  trafficLevelPatterns,
+).map(buildTrafficLevel);
+
+function buildTrafficLevel(pattern: TrafficLevelPattern): TrafficLevelDefinition {
+  const structuralCars: Array<Omit<TrafficCarDefinition, 'color'>> = [];
+  const expectedSolution: Array<string> = [];
+
+  for (
+    let row = trafficRules.firstCoordinate;
+    row < pattern.horizontalRows;
+    row += trafficRules.cellStep
+  ) {
+    const outerId = `${trafficIdPrefixes.horizontalOuter}-${row}`;
+    const innerId = `${trafficIdPrefixes.horizontalInner}-${row}`;
+    structuralCars.push(
+      {
+        id: outerId,
+        x: trafficRules.firstCoordinate,
+        y: row,
+        length: trafficRules.carLength,
+        direction: trafficDirections.left,
+        capacity: trafficRules.carCapacity,
+      },
+      {
+        id: innerId,
+        x: trafficRules.carLength,
+        y: row,
+        length: trafficRules.carLength,
+        direction: trafficDirections.left,
+        capacity: trafficRules.carCapacity,
+      },
+    );
+    expectedSolution.push(outerId, innerId);
+  }
+
+  for (
+    let columnOffset = trafficRules.firstCoordinate;
+    columnOffset < pattern.verticalColumns;
+    columnOffset += trafficRules.cellStep
+  ) {
+    const column = trafficRules.verticalZoneStartColumn + columnOffset;
+    const columnCarIds: Array<string> = [];
+
+    for (
+      let slot = trafficRules.firstCoordinate;
+      slot < trafficRules.verticalCarsPerColumn;
+      slot += trafficRules.cellStep
+    ) {
+      const id = `${trafficIdPrefixes.vertical}-${column}-${slot}`;
+      const direction = slot < trafficRules.verticalTopChainLength
+        ? trafficDirections.up
+        : trafficDirections.down;
+      structuralCars.push({
+        id,
+        x: column,
+        y: slot * trafficRules.carLength,
+        length: trafficRules.carLength,
+        direction,
+        capacity: trafficRules.carCapacity,
+      });
+      columnCarIds.push(id);
+    }
+
+    expectedSolution.push(
+      ...columnCarIds.slice(
+        trafficRules.firstIndex,
+        trafficRules.verticalTopChainLength,
+      ),
+      ...columnCarIds.slice(trafficRules.verticalTopChainLength).reverse(),
+    );
+  }
+
+  const solutionIndexByCar = new Map(
+    expectedSolution.map((carId, solutionIndex) => [carId, solutionIndex]),
+  );
+  const cars: Array<TrafficCarDefinition> = structuralCars.map((car) => {
+    const solutionIndex = solutionIndexByCar.get(car.id) ?? trafficRules.firstIndex;
+    return {
+      ...car,
+      color: trafficColorCycle[
+        (solutionIndex + pattern.colorOffset) % trafficColorCycle.length
+      ]!,
+    };
+  });
+  const carById = new Map(cars.map((car) => [car.id, car]));
+  const passengers = expectedSolution.flatMap((carId) => {
+    const car = carById.get(carId);
+    if (car === undefined) {
+      return [];
+    }
+    return Array.from({ length: car.capacity }, () => car.color);
+  });
+
+  return {
+    id: pattern.id,
+    name: pattern.name,
+    objective: pattern.objective,
+    bayCount: pattern.bayCount,
+    cars,
+    passengers,
+    expectedSolution,
+  };
+}

@@ -1,51 +1,27 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "modules": [
     {
-      "id": "traffic-domain",
+      "id": "parking-domain",
       "path": "games/traffic-jam/runtime/domain",
-      "owns": [
-        "traffic state",
-        "level definitions",
-        "move validation",
-        "solver"
-      ],
+      "owns": ["parking state", "path validation", "pickup bays", "passenger queue", "score", "combo", "jam detection", "solver"],
       "dependsOn": []
     },
     {
-      "id": "traffic-ui",
-      "path": "games/traffic-jam/runtime/ui",
-      "owns": [
-        "browser presentation",
-        "touch and keyboard input",
-        "local progress preference",
-        "animation"
-      ],
-      "dependsOn": ["traffic-domain"]
+      "id": "parking-presentation",
+      "path": "games/traffic-jam/runtime/presentation",
+      "owns": ["3D scene", "procedural models", "HUD", "input", "animation", "local preferences"],
+      "dependsOn": ["parking-domain"]
     },
     {
       "id": "modoki-adapter",
-      "path": "games/traffic-jam/runtime",
-      "owns": [
-        "Modoki registration lifecycle",
-        "scene selection",
-        "web build integration"
-      ],
-      "dependsOn": ["traffic-ui"]
+      "path": "games/traffic-jam/runtime/setup.ts",
+      "owns": ["registration lifecycle"],
+      "dependsOn": ["parking-presentation"]
     }
   ],
   "forbidden": [
-    {
-      "from": "traffic-domain",
-      "to": "traffic-ui"
-    },
-    {
-      "from": "traffic-domain",
-      "to": "modoki-adapter"
-    },
-    {
-      "from": "traffic-ui",
-      "to": "modoki-adapter"
-    }
+    {"from": "parking-domain", "to": "parking-presentation"},
+    {"from": "parking-domain", "to": "modoki-adapter"}
   ]
 }

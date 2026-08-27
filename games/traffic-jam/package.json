@@ -1,7 +1,10 @@
 {
-  "name": "@slop-game/traffic-jam",
-  "version": "0.1.0",
+  "name": "@slop-game/parking-jam",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "A touch-first Traffic Jam game built as a Modoki external project."
+  "description": "A dense 3D parking and passenger jam game built with Modoki.",
+  "dependencies": {
+    "three": "0.180.0"
+  }
 }

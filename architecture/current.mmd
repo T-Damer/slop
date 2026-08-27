@@ -1,7 +1,10 @@
 flowchart LR
-    Domain[games/traffic-jam/runtime/domain] --> UI[games/traffic-jam/runtime/ui]
-    UI --> Setup[games/traffic-jam/runtime/setup.ts]
-    Setup --> Modoki[@modoki/engine runtime]
-    Config[games/traffic-jam/runtime/config.ts] --> Modoki
-    Game[games/traffic-jam/game.ts] --> Setup
-    Game --> Config
+    Domain[Parking domain\nstate · rules · queue · solver] --> App[Presentation controller\ninput · HUD · event playback]
+    Domain --> Scene[3D parking scene\nThree.js]
+    App --> Scene
+    Models[Procedural cars · people · props] --> Scene
+    Registry[Presentation tuning registries] --> App
+    Registry --> Scene
+    Setup[Modoki lifecycle adapter] --> App
+    Game[Modoki GameDefinition] --> Setup
+    Game --> Config[Modoki project config]

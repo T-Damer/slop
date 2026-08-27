@@ -48,7 +48,11 @@ jobs:
         working-directory: .modoki-engine
         run: npm ci --no-audit --no-fund
 
-      - name: Build Traffic Jam for Pages
+      - name: Install game runtime dependencies
+        working-directory: ${{ env.MODOKI_PROJECT_PATH }}
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Build Parking Jam for Pages
         working-directory: .modoki-engine
         env:
           MODOKI_PROJECT: ${{ github.workspace }}/${{ env.MODOKI_PROJECT_PATH }}
@@ -87,65 +91,7 @@ jobs:
         with:
           node-version: 24
 
-      - name: Verify published HTML and entry module
-        env:
-          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const pageUrl = process.env.PAGE_URL;
-          const smokeLimits = {
-            attempts: 12,
-            retryDelayMs: 5_000,
-          };
-
-          if (!pageUrl) {
-            throw new Error('Pages deployment did not return a URL.');
-          }
-
-          for (let attempt = 1; attempt <= smokeLimits.attempts; attempt += 1) {
-            try {
-              const pageResponse = await fetch(pageUrl, { redirect: 'follow' });
-              if (!pageResponse.ok) {
-                throw new Error(`HTML returned HTTP ${pageResponse.status}.`);
-              }
-
-              const html = await pageResponse.text();
-              if (!html.toLowerCase().includes('<!doctype html')) {
-                throw new Error('Published response is not an HTML document.');
-              }
-
-              const entryMatch = html.match(/<script[^>]+src="([^"]+\.js)"/i);
-              if (!entryMatch?.[1]) {
-                throw new Error('Published HTML has no JavaScript entry module.');
-              }
-
-              const entryUrl = new URL(entryMatch[1], pageUrl);
-              const entryResponse = await fetch(entryUrl, { redirect: 'follow' });
-              if (!entryResponse.ok) {
-                throw new Error(`Entry module returned HTTP ${entryResponse.status}.`);
-              }
-
-              const entrySource = await entryResponse.text();
-              if (entrySource.length === 0) {
-                throw new Error('Entry module is empty.');
-              }
-
-              console.log(`Pages HTTP smoke passed: ${pageUrl}`);
-              console.log(`Entry module: ${entryUrl}`);
-              process.exit(0);
-            } catch (error) {
-              console.error(`Smoke attempt ${attempt} failed:`, error);
-              if (attempt === smokeLimits.attempts) {
-                throw error;
-              }
-              await new Promise((resolve) => setTimeout(resolve, smokeLimits.retryDelayMs));
-            }
-          }
-          NODE
-
-      - name: Verify rendered mobile browser UI
+      - name: Verify rendered 3D mobile game
         env:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
         shell: bash
@@ -157,40 +103,47 @@ jobs:
             exit 1
           fi
 
-          timeout 60s "$browser" \
+          for attempt in $(seq 1 12); do
+            if curl --fail --location --silent --show-error "$PAGE_URL" >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == "12" ]]; then
+              exit 1
+            fi
+            sleep 5
+          done
+
+          timeout 90s "$browser" \
             --headless=new \
             --no-sandbox \
-            --disable-gpu \
             --disable-dev-shm-usage \
             --window-size=390,844 \
-            --virtual-time-budget=10000 \
+            --virtual-time-budget=14000 \
             --dump-dom \
-            "$PAGE_URL" > "${RUNNER_TEMP}/traffic-jam-dom.html"
+            "$PAGE_URL" > "${RUNNER_TEMP}/parking-jam-dom.html"
 
-          grep -q 'id="slop-traffic-jam"' "${RUNNER_TEMP}/traffic-jam-dom.html"
-          grep -q 'Traffic Jam' "${RUNNER_TEMP}/traffic-jam-dom.html"
-          grep -q 'traffic-board' "${RUNNER_TEMP}/traffic-jam-dom.html"
+          grep -q 'id="slop-parking-jam"' "${RUNNER_TEMP}/parking-jam-dom.html"
+          grep -q 'Parking Jam' "${RUNNER_TEMP}/parking-jam-dom.html"
+          grep -q 'parking-canvas' "${RUNNER_TEMP}/parking-jam-dom.html"
 
-          timeout 60s "$browser" \
+          timeout 90s "$browser" \
             --headless=new \
             --no-sandbox \
-            --disable-gpu \
             --disable-dev-shm-usage \
             --hide-scrollbars \
             --window-size=390,844 \
-            --virtual-time-budget=10000 \
-            --screenshot="${RUNNER_TEMP}/traffic-jam.png" \
+            --virtual-time-budget=14000 \
+            --screenshot="${RUNNER_TEMP}/parking-jam.png" \
             "$PAGE_URL"
 
-          test -s "${RUNNER_TEMP}/traffic-jam.png"
-          echo "Rendered browser smoke passed: ${PAGE_URL}"
+          test -s "${RUNNER_TEMP}/parking-jam.png"
 
       - name: Upload rendered smoke evidence
         uses: actions/upload-artifact@v4
         with:
-          name: traffic-jam-pages-smoke-${{ github.sha }}
+          name: parking-jam-pages-smoke-${{ github.sha }}
           path: |
-            ${{ runner.temp }}/traffic-jam.png
-            ${{ runner.temp }}/traffic-jam-dom.html
+            ${{ runner.temp }}/parking-jam.png
+            ${{ runner.temp }}/parking-jam-dom.html
           if-no-files-found: error
           retention-days: 14

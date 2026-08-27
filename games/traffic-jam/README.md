@@ -1,19 +1,12 @@
-# Traffic Jam
+# Parking Jam
 
-A touch-first Traffic Escape-style puzzle used as the first Modoki/Slop vertical slice.
+A touch-first 3D parking puzzle.
 
-## Rules
+- Dense isometric lot with up to 40 cars.
+- Cars physically drive out, turn onto the road, and enter pickup bays.
+- Low-poly passengers walk to matching cars.
+- Score, coins, combo, popups, camera feedback, and completion effects.
+- Limited pickup bays create a color-order jam if the player releases the wrong cars.
+- Undo, reset, hint, deterministic solver, and validated generated levels.
 
-Every vehicle has a fixed direction. Tap a vehicle when every cell between its front and the edge of the board is clear. The vehicle exits the board. Clear all vehicles to complete the level.
-
-The authoritative local rules live in `runtime/domain/**`. The Modoki adapter and DOM UI never reimplement blocking or completion logic.
-
-## Included
-
-- seven validated levels;
-- deterministic solver;
-- reset, undo, and hint controls;
-- touch/keyboard support;
-- responsive browser presentation;
-- no external art assets;
-- standalone Modoki web build.
+The domain does not depend on Modoki, Three.js, DOM, storage, or time APIs. The presentation consumes domain events and does not reimplement path, queue, scoring, or completion rules.
