@@ -133,7 +133,11 @@ export function getAvailableCarIds(
   level: TrafficLevelDefinition,
   state: TrafficState,
 ): ReadonlyArray<string> {
-  if (getFirstAvailableBayIndex(level, state) === null) {
+  if (
+    state.completed
+    || state.jammed
+    || getFirstAvailableBayIndex(level, state) === null
+  ) {
     return [];
   }
   return state.cars
@@ -283,10 +287,8 @@ export function isTrafficStateJammed(
   if (state.completed) {
     return false;
   }
-  if (getAvailableCarIds(level, state).length > trafficRules.emptyCollectionSize) {
-    return false;
-  }
-  return true;
+  return getAvailableCarIds(level, { ...state, jammed: false }).length
+    === trafficRules.emptyCollectionSize;
 }
 
 function resolvePassengerQueue(
@@ -299,7 +301,7 @@ function resolvePassengerQueue(
   let score = state.score;
   let coins = state.coins;
   let combo = state.combo;
-  let boardedAnyPassenger = false;
+  let boardedAnyGroup = false;
 
   while (passengers.length > trafficRules.emptyCollectionSize) {
     const nextPassengerColor = passengers[trafficRules.firstIndex];
@@ -310,7 +312,13 @@ function resolvePassengerQueue(
         return car?.color === nextPassengerColor
           && candidate.boarded < (car?.capacity ?? trafficRules.emptyCollectionSize);
       })
-      .sort((left, right) => (left.bayIndex ?? 0) - (right.bayIndex ?? 0))[trafficRules.firstIndex];
+      .sort(
+        (left, right) => (
+          left.bayIndex ?? trafficRules.firstIndex
+        ) - (
+          right.bayIndex ?? trafficRules.firstIndex
+        ),
+      )[trafficRules.firstIndex];
 
     if (matchingProgress === undefined || nextPassengerColor === undefined) {
       break;
@@ -320,17 +328,29 @@ function resolvePassengerQueue(
       break;
     }
 
-    passengers.shift();
-    matchingProgress.boarded += trafficRules.cellStep;
+    const remainingCapacity = matchingCar.capacity - matchingProgress.boarded;
+    const passengerCount = countLeadingPassengers(
+      passengers,
+      nextPassengerColor,
+      remainingCapacity,
+    );
+    if (passengerCount === trafficRules.emptyCollectionSize) {
+      break;
+    }
+
+    const firstSeatIndex = matchingProgress.boarded;
+    passengers.splice(trafficRules.firstIndex, passengerCount);
+    matchingProgress.boarded += passengerCount;
     combo = Math.min(combo + trafficRules.cellStep, trafficRules.maximumCombo);
-    const passengerPoints = trafficRules.passengerPoints * combo;
+    const passengerPoints = trafficRules.passengerPoints * passengerCount * combo;
     score += passengerPoints;
-    boardedAnyPassenger = true;
-    events.push(createEvent(trafficEvents.passengerBoarded, {
+    boardedAnyGroup = true;
+    events.push(createEvent(trafficEvents.passengerGroupBoarded, {
       carId: matchingCar.id,
       bayIndex: matchingProgress.bayIndex,
       passengerColor: matchingCar.color,
-      seatIndex: matchingProgress.boarded - trafficRules.cellStep,
+      seatIndex: firstSeatIndex,
+      passengerCount,
       points: passengerPoints,
       scoreAfter: score,
       coinsAfter: coins,
@@ -349,6 +369,7 @@ function resolvePassengerQueue(
         carId: matchingCar.id,
         bayIndex: departureBayIndex,
         passengerColor: matchingCar.color,
+        passengerCount: matchingCar.capacity,
         points: departurePoints,
         coins: trafficRules.departureCoins,
         scoreAfter: score,
@@ -359,7 +380,7 @@ function resolvePassengerQueue(
     }
   }
 
-  if (!boardedAnyPassenger && combo !== trafficRules.initialCombo) {
+  if (!boardedAnyGroup && combo !== trafficRules.initialCombo) {
     combo = trafficRules.initialCombo;
     events.push(createEvent(trafficEvents.comboReset, {
       scoreAfter: score,
@@ -379,6 +400,21 @@ function resolvePassengerQueue(
   };
 }
 
+function countLeadingPassengers(
+  passengers: ReadonlyArray<TrafficCarDefinition['color']>,
+  color: TrafficCarDefinition['color'],
+  maximumCount: number,
+): number {
+  let count = trafficRules.emptyCollectionSize;
+  while (
+    count < maximumCount
+    && passengers[count] === color
+  ) {
+    count += trafficRules.cellStep;
+  }
+  return count;
+}
+
 function createEvent(
   type: TrafficDomainEvent['type'],
   overrides: Partial<Omit<TrafficDomainEvent, 'type'>>,
@@ -389,6 +425,7 @@ function createEvent(
     bayIndex: null,
     passengerColor: null,
     seatIndex: null,
+    passengerCount: trafficRules.emptyCollectionSize,
     points: trafficRules.emptyCollectionSize,
     coins: trafficRules.emptyCollectionSize,
     scoreAfter: trafficRules.initialScore,
