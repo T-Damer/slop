@@ -35,6 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "Applying archive revision 2"
           wc -c .slop-patch/crowd-v3/part-*
           python3 - <<'PY'
           import base64
