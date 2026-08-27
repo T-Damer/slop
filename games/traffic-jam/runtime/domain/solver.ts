@@ -1,6 +1,7 @@
 import {
   trafficCarStatuses,
   trafficErrors,
+  trafficPassengerGroupSizes,
   trafficRules,
 } from './registry.ts';
 import {
@@ -62,6 +63,7 @@ export function validateTrafficLevel(level: TrafficLevelDefinition): Array<strin
   const ids = new Set<string>();
   const passengerCountByColor = new Map<string, number>();
   const capacityByColor = new Map<string, number>();
+  const allowedCapacities = new Set<number>(trafficPassengerGroupSizes);
 
   for (const passengerColor of level.passengers) {
     passengerCountByColor.set(
@@ -84,7 +86,7 @@ export function validateTrafficLevel(level: TrafficLevelDefinition): Array<strin
     if (car.length !== trafficRules.carLength) {
       errors.push(`length:${car.id}`);
     }
-    if (car.capacity <= trafficRules.emptyCollectionSize) {
+    if (!allowedCapacities.has(car.capacity)) {
       errors.push(`capacity:${car.id}`);
     }
 
