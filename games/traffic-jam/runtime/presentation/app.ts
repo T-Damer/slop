@@ -17,6 +17,7 @@ import type {
   TrafficState,
 } from '../domain/types.ts';
 import {
+  parkingColorNames,
   parkingColorPalette,
   parkingUiActions,
   parkingUiAttributes,
@@ -29,6 +30,7 @@ import {
 } from './registry.ts';
 import { ParkingJamScene } from './scene.ts';
 import { parkingStyles } from './styles.ts';
+import { parkingGuidanceStyles } from './guidance-styles.ts';
 
 let activeApp: ParkingJamApp | null = null;
 
@@ -145,6 +147,7 @@ class ParkingJamApp {
         await this.scene.showNoBay();
       }
       this.setBusy(false);
+      this.showMessage(this.targetInstruction());
       return;
     }
 
@@ -163,6 +166,8 @@ class ParkingJamApp {
     this.updateHud();
 
     if (this.state.completed) {
+      this.commitReward();
+      this.updateHud();
       this.scene.celebrate();
       this.runAfter(parkingUiTimings.completionDelayMs, () => {
         if (this.state.completed) {
@@ -178,7 +183,7 @@ class ParkingJamApp {
     }
 
     this.setBusy(false);
-    this.showMessage(parkingUiCopy.instruction);
+    this.showMessage(this.targetInstruction());
   }
 
   private async playEvent(event: TrafficDomainEvent): Promise<void> {
@@ -230,7 +235,7 @@ class ParkingJamApp {
     this.scene.load(this.level, this.state);
     this.setBusy(false);
     this.updateHud();
-    this.showMessage(parkingUiCopy.instruction);
+    this.showMessage(this.targetInstruction());
   }
 
   private resetLevel(): void {
@@ -244,7 +249,7 @@ class ParkingJamApp {
     this.scene.load(this.level, this.state);
     this.setBusy(false);
     this.updateHud();
-    this.showMessage(this.level.objective);
+    this.showMessage(this.targetInstruction());
   }
 
   private async showHint(): Promise<void> {
@@ -257,9 +262,11 @@ class ParkingJamApp {
     if (carId === undefined) {
       return;
     }
+    this.setBusy(true);
     this.showMessage(parkingUiCopy.hint);
     await this.scene.highlightCar(carId);
-    this.showMessage(parkingUiCopy.instruction);
+    this.setBusy(false);
+    this.showMessage(this.targetInstruction());
   }
 
   private nextLevel(): void {
@@ -283,7 +290,7 @@ class ParkingJamApp {
     this.scene?.load(this.level, this.state);
     this.setBusy(false);
     this.updateHud();
-    this.showMessage(this.level.objective);
+    this.showMessage(this.targetInstruction());
   }
 
   private commitReward(): void {
@@ -321,6 +328,7 @@ class ParkingJamApp {
     }
 
     this.renderNextPassengers(this.state.passengers);
+    this.scene?.syncGuidance(this.level, this.state);
     this.updateControls();
   }
 
@@ -353,11 +361,48 @@ class ParkingJamApp {
     if (next === null) {
       return;
     }
-    const dots = passengers
-      .slice(trafficRules.firstIndex, 5)
-      .map((color) => `<span class="parking-next-dot" style="background:${toCssHex(parkingColorPalette[color])}"></span>`)
+    const targetColor = passengers[trafficRules.firstIndex];
+    if (targetColor === undefined) {
+      next.innerHTML = '';
+      next.setAttribute('aria-label', parkingUiCopy.completedBody);
+      return;
+    }
+
+    const targetHex = toCssHex(parkingColorPalette[targetColor]);
+    const targetName = parkingColorNames[targetColor];
+    const queueDots = passengers
+      .slice(trafficRules.firstIndex, 6)
+      .map((color, index) => (
+        `<span class="parking-queue-dot ${index === trafficRules.firstIndex ? 'is-first' : ''}" style="background:${toCssHex(parkingColorPalette[color])}" title="${parkingColorNames[color]}"></span>`
+      ))
       .join('');
-    next.innerHTML = `<span class="parking-next-label">${parkingUiCopy.queue}</span>${dots}`;
+
+    next.setAttribute(
+      'aria-label',
+      `${parkingUiCopy.targetLabel} ${targetName} ${parkingUiCopy.targetSuffix}`,
+    );
+    next.innerHTML = `
+      <div class="parking-target-card" style="--target-color:${targetHex}">
+        <span class="parking-target-car" aria-hidden="true"></span>
+        <span class="parking-target-copy">
+          <small class="parking-target-label">${parkingUiCopy.targetLabel}</small>
+          <strong class="parking-target-name">${targetName} ${parkingUiCopy.targetSuffix}</strong>
+        </span>
+        <span class="parking-target-arrow" aria-hidden="true">${parkingUiSymbols.targetArrow}</span>
+      </div>
+      <div class="parking-queue-strip">
+        <span class="parking-queue-label">${parkingUiCopy.queue}</span>
+        ${queueDots}
+      </div>
+    `;
+  }
+
+  private targetInstruction(passengers: TrafficState['passengers'] = this.state.passengers): string {
+    const targetColor = passengers[trafficRules.firstIndex];
+    if (targetColor === undefined) {
+      return parkingUiCopy.instruction;
+    }
+    return `${parkingUiCopy.instructionPrefix} ${parkingColorNames[targetColor]} ${parkingUiCopy.instructionSuffix}`;
   }
 
   private updateControls(): void {
@@ -478,7 +523,7 @@ function installStyles(): void {
   document.getElementById(parkingUiIds.style)?.remove();
   const style = document.createElement('style');
   style.id = parkingUiIds.style;
-  style.textContent = parkingStyles;
+  style.textContent = `${parkingStyles}\n${parkingGuidanceStyles}`;
   document.head.append(style);
 }
 
