@@ -1,0 +1,217 @@
+name: Apply adaptive runtime quality
+
+on:
+  push:
+    branches:
+      - feature/core-traffic
+    paths:
+      - .github/workflows/apply-adaptive-quality.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-adaptive-runtime-quality
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feature/core-traffic
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Add adaptive renderer profile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > games/traffic-jam/runtime/presentation/quality.ts <<'TS'
+          export const parkingQualityIds = {
+            low: 'low',
+            medium: 'medium',
+            high: 'high',
+          } as const;
+
+          export type ParkingQualityId = typeof parkingQualityIds[keyof typeof parkingQualityIds];
+
+          export interface ParkingQualityProfile {
+            readonly id: ParkingQualityId;
+            readonly maximumPixelRatio: number;
+            readonly shadows: boolean;
+            readonly shadowMapSize: number;
+            readonly queueVisibleLimit: number;
+            readonly decorationDensity: number;
+          }
+
+          export const parkingQualityProfiles: Readonly<Record<ParkingQualityId, ParkingQualityProfile>> = {
+            [parkingQualityIds.low]: {
+              id: parkingQualityIds.low,
+              maximumPixelRatio: 1,
+              shadows: false,
+              shadowMapSize: 512,
+              queueVisibleLimit: 30,
+              decorationDensity: 0.45,
+            },
+            [parkingQualityIds.medium]: {
+              id: parkingQualityIds.medium,
+              maximumPixelRatio: 1.25,
+              shadows: true,
+              shadowMapSize: 512,
+              queueVisibleLimit: 45,
+              decorationDensity: 0.72,
+            },
+            [parkingQualityIds.high]: {
+              id: parkingQualityIds.high,
+              maximumPixelRatio: 1.6,
+              shadows: true,
+              shadowMapSize: 1024,
+              queueVisibleLimit: 60,
+              decorationDensity: 1,
+            },
+          };
+
+          export function resolveParkingQuality(
+            search: string = typeof location === 'undefined' ? '' : location.search,
+            runtimeNavigator: Navigator | null = typeof navigator === 'undefined' ? null : navigator,
+          ): ParkingQualityProfile {
+            const requested = new URLSearchParams(search).get('quality');
+            if (isParkingQualityId(requested)) {
+              return parkingQualityProfiles[requested];
+            }
+
+            const device = runtimeNavigator as (Navigator & { readonly deviceMemory?: number }) | null;
+            const memory = device?.deviceMemory ?? 8;
+            const cores = device?.hardwareConcurrency ?? 8;
+            if (memory <= 4 || cores <= 4) {
+              return parkingQualityProfiles[parkingQualityIds.low];
+            }
+            if (memory >= 12 && cores >= 10) {
+              return parkingQualityProfiles[parkingQualityIds.high];
+            }
+            return parkingQualityProfiles[parkingQualityIds.medium];
+          }
+
+          function isParkingQualityId(value: string | null): value is ParkingQualityId {
+            return value !== null && Object.hasOwn(parkingQualityProfiles, value);
+          }
+          TS
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          scene_path = Path('games/traffic-jam/runtime/presentation/scene.ts')
+          scene = scene_path.read_text(encoding='utf-8')
+          replacements = [
+              (
+                  "import { countLeadingQueueColor } from './queue-metrics.ts';\n",
+                  "import { resolveParkingQuality } from './quality.ts';\nimport { countLeadingQueueColor } from './queue-metrics.ts';\n",
+              ),
+              (
+                  "  private currentLevel: TrafficLevelDefinition | null = null;\n",
+                  "  private readonly quality = resolveParkingQuality();\n  private currentLevel: TrafficLevelDefinition | null = null;\n",
+              ),
+              (
+                  "this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, parkingLayout.maxPixelRatio));",
+                  "this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.quality.maximumPixelRatio));",
+              ),
+              (
+                  "this.renderer.shadowMap.enabled = true;",
+                  "this.renderer.shadowMap.enabled = this.quality.shadows;",
+              ),
+              (
+                  "    sun.castShadow = true;",
+                  "    sun.castShadow = this.quality.shadows;",
+              ),
+              (
+                  "sun.shadow.mapSize.set(parkingLayout.shadowMapSize, parkingLayout.shadowMapSize);",
+                  "sun.shadow.mapSize.set(this.quality.shadowMapSize, this.quality.shadowMapSize);",
+              ),
+              (
+                  "this.levelRoot.add(createParkingLocationDecorations(level.location));",
+                  "this.levelRoot.add(createParkingLocationDecorations(\n      level.location,\n      this.quality.decorationDensity,\n    ));",
+              ),
+              (
+                  "const desired = Math.min(passengers.length, parkingLayout.queueVisibleLimit);",
+                  "const desired = Math.min(passengers.length, this.quality.queueVisibleLimit);",
+              ),
+          ]
+          for old, new in replacements:
+              if old not in scene:
+                  raise SystemExit(f'scene replacement not found: {old!r}')
+              scene = scene.replace(old, new, 1)
+          scene_path.write_text(scene, encoding='utf-8')
+
+          locations_path = Path('games/traffic-jam/runtime/presentation/locations.ts')
+          locations = locations_path.read_text(encoding='utf-8')
+          replacements = [
+              (
+                  "export function createParkingLocationDecorations(\n  location: TrafficLocation,\n): THREE.Group {\n  return location === trafficLocations.beach\n    ? createBeachDecorations()\n    : createCityDecorations();\n}",
+                  "export function createParkingLocationDecorations(\n  location: TrafficLocation,\n  density = 1,\n): THREE.Group {\n  return location === trafficLocations.beach\n    ? createBeachDecorations(density)\n    : createCityDecorations(density);\n}",
+              ),
+              (
+                  "function createCityDecorations(): THREE.Group {",
+                  "function createCityDecorations(density: number): THREE.Group {",
+              ),
+              (
+                  "  parkingLocationGeometry.cityBuildingPositions.forEach(",
+                  "  selectByDensity(parkingLocationGeometry.cityBuildingPositions, density).forEach(",
+              ),
+              (
+                  "function createBeachDecorations(): THREE.Group {",
+                  "function createBeachDecorations(density: number): THREE.Group {",
+              ),
+              (
+                  "    waveIndex < parkingLocationGeometry.waveCount;",
+                  "    waveIndex < scaledCount(parkingLocationGeometry.waveCount, density, 3);",
+              ),
+              (
+                  "  for (const [x, z, scale] of parkingLocationGeometry.beachPalmPositions) {",
+                  "  for (const [x, z, scale] of selectByDensity(\n    parkingLocationGeometry.beachPalmPositions,\n    density,\n  )) {",
+              ),
+              (
+                  "  for (const [x, z, paletteIndex] of parkingLocationGeometry.beachUmbrellaPositions) {",
+                  "  for (const [x, z, paletteIndex] of selectByDensity(\n    parkingLocationGeometry.beachUmbrellaPositions,\n    density,\n  )) {",
+              ),
+          ]
+          for old, new in replacements:
+              if old not in locations:
+                  raise SystemExit(f'locations replacement not found: {old!r}')
+              locations = locations.replace(old, new, 1)
+          helper = """
+
+          function selectByDensity<T>(
+            values: ReadonlyArray<T>,
+            density: number,
+            minimum = 1,
+          ): ReadonlyArray<T> {
+            return values.slice(0, scaledCount(values.length, density, minimum));
+          }
+
+          function scaledCount(total: number, density: number, minimum: number): number {
+            const normalizedDensity = Math.min(1, Math.max(0, density));
+            return Math.min(total, Math.max(minimum, Math.ceil(total * normalizedDensity)));
+          }
+          """
+          marker = "\nfunction darken(color: number, factor: number): number {"
+          if marker not in locations:
+              raise SystemExit('locations helper marker not found')
+          locations = locations.replace(marker, helper + marker, 1)
+          locations_path.write_text(locations, encoding='utf-8')
+          PY
+
+      - name: Commit adaptive profile and remove workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "slop-quality-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/apply-adaptive-quality.yml
+          git add -A
+          git commit -m "perf: add adaptive renderer quality tiers"
+          git push origin HEAD:feature/core-traffic
