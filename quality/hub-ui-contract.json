@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "rootSelector": "#slop-game-hub",
+  "cardSelector": ".game-card",
+  "iconSelector": ".game-card__icon svg",
+  "junkyardLinkSelector": "[data-game-id=\"junkyard-station\"]",
+  "expectedGameIds": [
+    "junkyard-station",
+    "parking-jam"
+  ],
+  "minimumCardCount": 2,
+  "minimumTouchTargetPx": 44,
+  "maximumHorizontalOverflowPx": 0
+}
