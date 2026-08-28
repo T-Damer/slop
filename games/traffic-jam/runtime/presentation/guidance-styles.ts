@@ -1,7 +1,7 @@
 export const parkingGuidanceStyles = String.raw`
 .parking-next {
-  top: max(88px, calc(env(safe-area-inset-top) + 74px));
-  width: min(276px, calc(100vw - 176px));
+  top: max(98px, calc(env(safe-area-inset-top) + 84px));
+  width: min(248px, calc(100vw - 176px));
   display: grid;
   gap: 5px;
   padding: 0;
@@ -13,10 +13,10 @@ export const parkingGuidanceStyles = String.raw`
 .parking-target-card {
   --target-color: #ffffff;
   display: grid;
-  grid-template-columns: 47px minmax(0, 1fr) 18px;
+  grid-template-columns: 45px minmax(0, 1fr) 18px;
   align-items: center;
   gap: 9px;
-  min-height: 60px;
+  min-height: 52px;
   padding: 7px 10px 7px 8px;
   border: 2px solid rgba(31, 48, 46, .09);
   border-radius: 15px;
@@ -28,12 +28,13 @@ export const parkingGuidanceStyles = String.raw`
 .parking-target-car {
   position: relative;
   display: block;
-  width: 42px;
-  height: 27px;
-  border: 3px solid #ffffff;
-  border-radius: 10px 10px 7px 7px;
-  outline: 2px solid rgba(24, 38, 37, .12);
-  background: var(--target-color);
+  width: 40px;
+  height: 25px;
+  border: 2px solid rgba(24, 38, 37, .12);
+  border-radius: 9px 9px 7px 7px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.38), transparent 38%),
+    var(--target-color);
   box-shadow: inset 0 -4px 0 rgba(29, 43, 41, .12), 0 3px 0 rgba(33, 52, 49, .16);
 }
 
@@ -54,7 +55,7 @@ export const parkingGuidanceStyles = String.raw`
   position: absolute;
   left: 3px;
   right: 3px;
-  bottom: -5px;
+  bottom: -4px;
   height: 7px;
   border-left: 7px solid #26302f;
   border-right: 7px solid #26302f;
@@ -89,21 +90,6 @@ export const parkingGuidanceStyles = String.raw`
   white-space: nowrap;
 }
 
-.parking-target-group {
-  display: inline-block;
-  margin-top: 4px;
-  padding: 2px 7px 3px;
-  border-radius: 999px;
-  color: #ffffff;
-  background: var(--target-color);
-  box-shadow: 0 2px 0 rgba(35, 52, 49, .18);
-  font-family: system-ui, sans-serif;
-  font-size: 9px;
-  font-weight: 900;
-  line-height: 1;
-  text-shadow: 0 1px 2px rgba(30, 45, 42, .28);
-}
-
 .parking-target-arrow {
   color: var(--target-color);
   font-size: 28px;
@@ -115,11 +101,11 @@ export const parkingGuidanceStyles = String.raw`
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 4px;
-  min-height: 21px;
+  gap: 5px;
+  min-height: 19px;
   padding: 3px 8px 4px;
   border-radius: 999px;
-  background: rgba(255,255,255,.86);
+  background: rgba(255,255,255,.82);
   box-shadow: 0 3px 8px rgba(36, 61, 57, .1);
 }
 
@@ -133,61 +119,49 @@ export const parkingGuidanceStyles = String.raw`
 }
 
 .parking-queue-dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border: 2px solid rgba(255,255,255,.9);
   border-radius: 50%;
   box-shadow: 0 2px 3px rgba(32, 48, 46, .17);
 }
 
-.parking-queue-dot.is-current-group {
-  outline: 2px solid rgba(48, 65, 62, .2);
-  outline-offset: 1px;
-  transform: translateY(-1px);
-}
-
 .parking-queue-dot.is-first {
   width: 16px;
   height: 16px;
-  outline-width: 3px;
-  animation: parking-target-dot 850ms ease-in-out infinite alternate;
-}
-
-@keyframes parking-target-dot {
-  from { transform: translateY(-1px) scale(.94); }
-  to { transform: translateY(-1px) scale(1.08); }
+  outline: 2px solid rgba(48, 65, 62, .18);
+  outline-offset: 1px;
 }
 
 @media (max-width: 560px) {
   .parking-next {
-    top: max(73px, calc(env(safe-area-inset-top) + 66px));
-    width: min(244px, calc(100vw - 152px));
+    top: max(82px, calc(env(safe-area-inset-top) + 75px));
+    width: min(218px, calc(100vw - 158px));
   }
 
   .parking-target-card {
-    grid-template-columns: 40px minmax(0, 1fr) 15px;
+    grid-template-columns: 39px minmax(0, 1fr) 15px;
     gap: 7px;
-    min-height: 54px;
+    min-height: 47px;
     padding: 6px 8px 6px 7px;
     border-radius: 13px;
   }
 
   .parking-target-car {
-    width: 36px;
-    height: 23px;
+    width: 35px;
+    height: 22px;
   }
 
   .parking-target-name { font-size: 13px; }
-  .parking-target-group { margin-top: 3px; font-size: 8px; }
   .parking-target-arrow { font-size: 24px; }
-  .parking-queue-strip { min-height: 18px; padding-block: 2px 3px; }
-  .parking-queue-dot { width: 8px; height: 8px; }
-  .parking-queue-dot.is-first { width: 13px; height: 13px; }
+  .parking-queue-strip { min-height: 17px; padding-block: 2px 3px; }
+  .parking-queue-dot { width: 10px; height: 10px; }
+  .parking-queue-dot.is-first { width: 14px; height: 14px; }
 }
 
 @media (max-width: 410px) {
   .parking-next {
-    width: 214px;
+    width: 190px;
   }
   .parking-level-name { display: none; }
   .parking-target-name { font-size: 12px; }
