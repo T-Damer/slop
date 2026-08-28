@@ -17,13 +17,14 @@ concurrency:
 
 env:
   MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
-  MODOKI_PROJECT_PATH: games/traffic-jam
+  PARKING_PROJECT_PATH: games/traffic-jam
+  JUNKYARD_PROJECT_PATH: games/junkyard-station
   QUALITY_REPORT_DIR: quality-artifacts
 
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Check out stable
         uses: actions/checkout@v5
@@ -44,13 +45,18 @@ jobs:
           cache-dependency-path: |
             .modoki-engine/package-lock.json
             games/traffic-jam/package-lock.json
+            games/junkyard-station/package-lock.json
 
       - name: Install pinned Modoki toolchain
         working-directory: .modoki-engine
         run: npm ci --no-audit --no-fund
 
-      - name: Install locked game runtime
-        working-directory: ${{ env.MODOKI_PROJECT_PATH }}
+      - name: Install locked Parking Jam runtime
+        working-directory: ${{ env.PARKING_PROJECT_PATH }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install locked Junkyard Station runtime
+        working-directory: ${{ env.JUNKYARD_PROJECT_PATH }}
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Verify source contracts
@@ -59,11 +65,27 @@ jobs:
       - name: Build Parking Jam for Pages
         working-directory: .modoki-engine
         env:
-          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.MODOKI_PROJECT_PATH }}
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.PARKING_PROJECT_PATH }}
         run: npm run build -- --target web
 
-      - name: Enforce web bundle ratchet
+      - name: Build Junkyard Station for Pages
+        working-directory: .modoki-engine
+        env:
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.JUNKYARD_PROJECT_PATH }}
+        run: npm run build -- --target web
+
+      - name: Enforce per-game web bundle ratchets
         run: npm run web:budget
+
+      - name: Assemble Pages site
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .site
+          mkdir -p .site/games/parking-jam .site/games/junkyard-station
+          cp games/hub/index.html games/hub/styles.css games/hub/app.js games/hub/catalog.js .site/
+          cp -R "${PARKING_PROJECT_PATH}/dist/." .site/games/parking-jam/
+          cp -R "${JUNKYARD_PROJECT_PATH}/dist/." .site/games/junkyard-station/
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -71,12 +93,12 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ env.MODOKI_PROJECT_PATH }}/dist
+          path: .site
 
       - name: Upload build quality report
         uses: actions/upload-artifact@v4
         with:
-          name: parking-jam-build-quality-${{ github.sha }}
+          name: slop-hub-build-quality-${{ github.sha }}
           path: quality-artifacts
           if-no-files-found: error
           retention-days: 14
@@ -97,7 +119,7 @@ jobs:
   browser-quality:
     needs: deploy
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Check out stable quality harness
         uses: actions/checkout@v5
@@ -121,16 +143,26 @@ jobs:
           done
           exit 1
 
-      - name: Run deployed multi-viewport quality contract
+      - name: Run deployed game hub contract
         env:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
-        run: npm run ui:quality -- "$PAGE_URL"
+        run: npm run hub:quality -- "$PAGE_URL"
+
+      - name: Run deployed Parking Jam contract
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npm run ui:quality -- "${PAGE_URL}games/parking-jam/"
+
+      - name: Run deployed Junkyard Station contract
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npm run junkyard:quality -- "${PAGE_URL}games/junkyard-station/"
 
       - name: Upload deployed browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: parking-jam-pages-quality-${{ github.sha }}
+          name: slop-hub-pages-quality-${{ github.sha }}
           path: quality-artifacts
           if-no-files-found: warn
           retention-days: 14
