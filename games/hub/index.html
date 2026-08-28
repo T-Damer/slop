@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#e9c982" />
+    <meta
+      name="description"
+      content="A compact hub for original Slop browser games."
+    />
+    <title>Slop Games</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="slop-game-hub">
+      <div class="hub-landscape" aria-hidden="true"></div>
+      <div class="hub-shell">
+        <header class="hub-heading">
+          <div class="hub-heading__copy">
+            <span class="hub-kicker">Small worlds · one tap away</span>
+            <h1>Slop Games</h1>
+            <p>
+              Pick a compact game. Each one runs as an independent build while sharing
+              the same quality gates and reusable gameplay foundations.
+            </p>
+          </div>
+          <div class="hub-mark" aria-hidden="true">S</div>
+        </header>
+        <section class="game-grid" data-game-list aria-label="Available games"></section>
+        <p class="hub-note">Original prototypes. No copied store assets or source code.</p>
+      </div>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
