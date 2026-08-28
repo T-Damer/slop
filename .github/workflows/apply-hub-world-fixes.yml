@@ -1,0 +1,1199 @@
+name: Apply hub and world-kit finalization
+
+on:
+  push:
+    branches:
+      - feature/core-traffic
+    paths:
+      - .github/workflows/apply-hub-world-fixes.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feature/core-traffic
+
+      - name: Finalize semantic owners
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p games/junkyard-station/runtime/assets/scenes
+          cp games/traffic-jam/runtime/assets/scenes/main.scene.json \
+            games/junkyard-station/runtime/assets/scenes/main.scene.json
+
+          cat > games/hub/catalog.js <<'EOF'
+          export const hubGameIds = {
+            parkingJam: 'parking-jam',
+            junkyardStation: 'junkyard-station',
+          };
+
+          export const hubGameCatalog = [
+            {
+              id: hubGameIds.junkyardStation,
+              title: 'Junkyard Station',
+              description: 'Walk, collect, process, serve customers, and improve a roadside junkyard.',
+              path: './games/junkyard-station/',
+              icon: 'junkyard',
+              badge: 'World-kit base',
+            },
+            {
+              id: hubGameIds.parkingJam,
+              title: 'Parking Jam',
+              description: 'Release the right cars, board passenger groups, and keep the pickup bays moving.',
+              path: './games/parking-jam/',
+              icon: 'parking',
+              badge: 'Puzzle',
+            },
+          ];
+          EOF
+
+          cat > games/shared/game-shell/navigation.ts <<'EOF'
+          const gameNavigationUi = {
+            styleId: 'slop-game-navigation-style',
+            className: 'slop-game-nav',
+            gameAttribute: 'data-game-id',
+            labelPrefix: 'Back to game hub from',
+            arrow: '←',
+          } as const;
+
+          const gameNavigationPlacements: Readonly<Record<string, 'top' | 'bottom'>> = {
+            'parking-jam': 'bottom',
+            'junkyard-station': 'top',
+          };
+
+          const gameNavigationStyles = `
+            .slop-game-nav {
+              position: fixed;
+              left: max(12px, env(safe-area-inset-left));
+              z-index: 10000;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              width: 48px;
+              height: 48px;
+              border: 0;
+              border-radius: 16px;
+              background: #fff8e6;
+              color: #263238;
+              box-shadow: 0 8px 20px rgb(39 48 54 / 24%);
+              font: 800 24px/1 system-ui, sans-serif;
+              text-decoration: none;
+              -webkit-tap-highlight-color: transparent;
+            }
+
+            .slop-game-nav[data-placement="top"] {
+              top: max(12px, env(safe-area-inset-top));
+            }
+
+            .slop-game-nav[data-placement="bottom"] {
+              bottom: max(12px, env(safe-area-inset-bottom));
+            }
+
+            .slop-game-nav:hover,
+            .slop-game-nav:focus-visible {
+              transform: translateY(-1px);
+              background: #ffffff;
+              outline: 3px solid #ffbf47;
+              outline-offset: 2px;
+            }
+          `;
+
+          export function mountGameNavigation(
+            parent: HTMLElement,
+            gameName: string,
+            gameId: string,
+          ): () => void {
+            installGameNavigationStyles();
+            const link = document.createElement('a');
+            link.className = gameNavigationUi.className;
+            link.href = resolveHubUrl();
+            link.textContent = gameNavigationUi.arrow;
+            link.dataset.gameId = gameId;
+            link.dataset.placement = gameNavigationPlacements[gameId] ?? 'bottom';
+            link.setAttribute('aria-label', `${gameNavigationUi.labelPrefix} ${gameName}`);
+            parent.append(link);
+            return () => link.remove();
+          }
+
+          function resolveHubUrl(): string {
+            const url = new URL('../../', window.location.href);
+            url.search = '';
+            url.hash = '';
+            return url.toString();
+          }
+
+          function installGameNavigationStyles(): void {
+            if (document.getElementById(gameNavigationUi.styleId) !== null) {
+              return;
+            }
+            const style = document.createElement('style');
+            style.id = gameNavigationUi.styleId;
+            style.textContent = gameNavigationStyles;
+            document.head.append(style);
+          }
+          EOF
+
+          cat > games/traffic-jam/runtime/setup.ts <<'EOF'
+          import { mountGameNavigation } from '../../shared/game-shell/navigation.ts';
+          import {
+            mountParkingJam,
+            unmountParkingJam,
+          } from './presentation/app.ts';
+
+          let registered = false;
+          let unmountNavigation: (() => void) | null = null;
+
+          export function registerGameSystems(): void {
+            if (registered || typeof document === 'undefined') {
+              return;
+            }
+            registered = true;
+            mountParkingJam(document.body);
+            unmountNavigation = mountGameNavigation(
+              document.body,
+              'Parking Jam',
+              'parking-jam',
+            );
+          }
+
+          export function unregisterGameSystems(): void {
+            if (!registered || typeof document === 'undefined') {
+              return;
+            }
+            registered = false;
+            unmountNavigation?.();
+            unmountNavigation = null;
+            unmountParkingJam();
+          }
+          EOF
+
+          cat > games/junkyard-station/runtime/setup.ts <<'EOF'
+          import { mountGameNavigation } from '../../shared/game-shell/navigation.ts';
+          import {
+            mountJunkyardStation,
+            unmountJunkyardStation,
+          } from './presentation/app.ts';
+
+          let registered = false;
+          let unmountNavigation: (() => void) | null = null;
+
+          export function registerGameSystems(): void {
+            if (registered || typeof document === 'undefined') {
+              return;
+            }
+            registered = true;
+            mountJunkyardStation(document.body);
+            unmountNavigation = mountGameNavigation(
+              document.body,
+              'Junkyard Station',
+              'junkyard-station',
+            );
+          }
+
+          export function unregisterGameSystems(): void {
+            if (!registered || typeof document === 'undefined') {
+              return;
+            }
+            registered = false;
+            unmountNavigation?.();
+            unmountNavigation = null;
+            unmountJunkyardStation();
+          }
+          EOF
+
+          cat > games/shared/world-kit/domain/simulation.ts <<'EOF'
+          import {
+            worldEventTypes,
+            worldInteractionModes,
+            worldSimulationRules,
+          } from './registry.ts';
+          import type {
+            WalkWorldDefinition,
+            WalkWorldInput,
+            WalkWorldState,
+            WalkWorldStepResult,
+            WorldActiveInteraction,
+            WorldDomainEvent,
+            WorldInteractionDefinition,
+            WorldPoint,
+            WorldResourceAmount,
+          } from './types.ts';
+
+          export function createWalkWorldState(
+            definition: WalkWorldDefinition,
+            initialResources: Readonly<Record<string, number>> = {},
+          ): WalkWorldState {
+            const cooldownsMs: Record<string, number> = {};
+            for (const interaction of definition.interactions) {
+              cooldownsMs[interaction.id] = worldSimulationRules.zero;
+            }
+            return {
+              player: { ...definition.spawn },
+              resources: sanitizeLedger(initialResources),
+              cooldownsMs,
+              proximityId: findNearestInteractionId(definition, definition.spawn),
+              activeInteraction: null,
+              revision: worldSimulationRules.firstRevision,
+            };
+          }
+
+          export function advanceWalkWorld(
+            definition: WalkWorldDefinition,
+            state: WalkWorldState,
+            input: WalkWorldInput,
+            deltaMs: number,
+          ): WalkWorldStepResult {
+            const stepMs = clamp(
+              deltaMs,
+              worldSimulationRules.zero,
+              worldSimulationRules.maximumStepMs,
+            );
+            const events: Array<WorldDomainEvent> = [];
+            let nextState = tickCooldowns(state, stepMs);
+            if (nextState.activeInteraction !== null) {
+              const activeDefinition = getWorldInteraction(
+                definition,
+                nextState.activeInteraction.interactionId,
+              );
+              nextState = advanceActiveInteraction(definition, nextState, stepMs, events);
+              if (nextState.activeInteraction === null || activeDefinition?.lockMovement !== false) {
+                return { state: nextState, events };
+              }
+              nextState = moveAndMeasureProximity(
+                definition,
+                nextState,
+                input,
+                stepMs,
+                events,
+              );
+              return { state: nextState, events };
+            }
+
+            nextState = moveAndMeasureProximity(
+              definition,
+              nextState,
+              input,
+              stepMs,
+              events,
+            );
+            return tryStartInteraction(definition, nextState, input, events);
+          }
+
+          export function findNearestInteractionId(
+            definition: WalkWorldDefinition,
+            point: WorldPoint,
+          ): string | null {
+            let nearest: WorldInteractionDefinition | null = null;
+            let nearestDistance = Number.POSITIVE_INFINITY;
+            for (const interaction of definition.interactions) {
+              const distance = squaredDistance(point, interaction.position);
+              if (distance > interaction.radius * interaction.radius) {
+                continue;
+              }
+              const closer = distance < nearestDistance - worldSimulationRules.distanceTieEpsilon;
+              const tied = Math.abs(distance - nearestDistance)
+                <= worldSimulationRules.distanceTieEpsilon;
+              if (closer || (tied && interaction.id < (nearest?.id ?? interaction.id))) {
+                nearest = interaction;
+                nearestDistance = distance;
+              }
+            }
+            return nearest?.id ?? null;
+          }
+
+          export function getWorldInteraction(
+            definition: WalkWorldDefinition,
+            interactionId: string,
+          ): WorldInteractionDefinition | null {
+            return definition.interactions.find(
+              (interaction) => interaction.id === interactionId,
+            ) ?? null;
+          }
+
+          export function getWorldResource(
+            state: WalkWorldState,
+            resourceId: string,
+          ): number {
+            return state.resources[resourceId] ?? worldSimulationRules.zero;
+          }
+
+          function moveAndMeasureProximity(
+            definition: WalkWorldDefinition,
+            state: WalkWorldState,
+            input: WalkWorldInput,
+            stepMs: number,
+            events: Array<WorldDomainEvent>,
+          ): WalkWorldState {
+            const player = movePlayer(definition, state.player, input, stepMs);
+            const proximityId = findNearestInteractionId(definition, player);
+            if (proximityId !== state.proximityId) {
+              events.push({
+                type: worldEventTypes.proximityChanged,
+                interactionId: proximityId,
+              });
+            }
+            if (
+              player.x === state.player.x
+              && player.z === state.player.z
+              && proximityId === state.proximityId
+            ) {
+              return state;
+            }
+            return updateState(state, { player, proximityId });
+          }
+
+          function tryStartInteraction(
+            definition: WalkWorldDefinition,
+            state: WalkWorldState,
+            input: WalkWorldInput,
+            events: Array<WorldDomainEvent>,
+          ): WalkWorldStepResult {
+            const interaction = state.proximityId === null
+              ? null
+              : getWorldInteraction(definition, state.proximityId);
+            if (interaction === null || !shouldStartInteraction(interaction, input)) {
+              return { state, events };
+            }
+            if ((state.cooldownsMs[interaction.id] ?? worldSimulationRules.zero) > 0) {
+              return { state, events };
+            }
+            const missing = getMissingResources(state.resources, interaction.effect.costs);
+            if (missing.length > worldSimulationRules.zero) {
+              if (input.interact) {
+                events.push({
+                  type: worldEventTypes.interactionBlocked,
+                  interactionId: interaction.id,
+                  missing,
+                });
+              }
+              return { state, events };
+            }
+            const durationMs = Math.max(
+              worldSimulationRules.minimumInteractionDurationMs,
+              interaction.durationMs,
+            );
+            const activeInteraction: WorldActiveInteraction = {
+              interactionId: interaction.id,
+              remainingMs: durationMs,
+              totalMs: durationMs,
+            };
+            events.push({
+              type: worldEventTypes.interactionStarted,
+              interactionId: interaction.id,
+              durationMs,
+            });
+            return {
+              state: updateState(state, { activeInteraction }),
+              events,
+            };
+          }
+
+          function advanceActiveInteraction(
+            definition: WalkWorldDefinition,
+            state: WalkWorldState,
+            stepMs: number,
+            events: Array<WorldDomainEvent>,
+          ): WalkWorldState {
+            const active = state.activeInteraction;
+            if (active === null) {
+              return state;
+            }
+            const remainingMs = Math.max(
+              worldSimulationRules.zero,
+              active.remainingMs - stepMs,
+            );
+            if (remainingMs > worldSimulationRules.zero) {
+              return updateState(state, {
+                activeInteraction: { ...active, remainingMs },
+              });
+            }
+            const interaction = getWorldInteraction(definition, active.interactionId);
+            if (interaction === null) {
+              return updateState(state, { activeInteraction: null });
+            }
+            const missing = getMissingResources(state.resources, interaction.effect.costs);
+            if (missing.length > worldSimulationRules.zero) {
+              events.push({
+                type: worldEventTypes.interactionBlocked,
+                interactionId: interaction.id,
+                missing,
+              });
+              return updateState(state, { activeInteraction: null });
+            }
+            const resources = applyEffect(
+              state.resources,
+              interaction.effect.costs,
+              interaction.effect.rewards,
+            );
+            const cooldownsMs = {
+              ...state.cooldownsMs,
+              [interaction.id]: Math.max(worldSimulationRules.zero, interaction.cooldownMs),
+            };
+            events.push({
+              type: worldEventTypes.interactionCompleted,
+              interactionId: interaction.id,
+              costs: interaction.effect.costs,
+              rewards: interaction.effect.rewards,
+            });
+            return updateState(state, {
+              resources,
+              cooldownsMs,
+              activeInteraction: null,
+            });
+          }
+
+          function movePlayer(
+            definition: WalkWorldDefinition,
+            point: WorldPoint,
+            input: WalkWorldInput,
+            stepMs: number,
+          ): WorldPoint {
+            const magnitude = Math.hypot(input.moveX, input.moveZ);
+            if (magnitude <= worldSimulationRules.movementEpsilon || stepMs <= 0) {
+              return point;
+            }
+            const normalization = magnitude > 1 ? 1 / magnitude : 1;
+            const distance = definition.movementSpeedPerSecond * stepMs / 1000;
+            return {
+              x: clamp(
+                point.x + input.moveX * normalization * distance,
+                definition.bounds.minimumX,
+                definition.bounds.maximumX,
+              ),
+              z: clamp(
+                point.z + input.moveZ * normalization * distance,
+                definition.bounds.minimumZ,
+                definition.bounds.maximumZ,
+              ),
+            };
+          }
+
+          function tickCooldowns(state: WalkWorldState, stepMs: number): WalkWorldState {
+            let changed = false;
+            const cooldownsMs: Record<string, number> = {};
+            for (const [interactionId, remainingMs] of Object.entries(state.cooldownsMs)) {
+              const nextRemaining = Math.max(worldSimulationRules.zero, remainingMs - stepMs);
+              cooldownsMs[interactionId] = nextRemaining;
+              changed ||= nextRemaining !== remainingMs;
+            }
+            return changed ? updateState(state, { cooldownsMs }) : state;
+          }
+
+          function shouldStartInteraction(
+            interaction: WorldInteractionDefinition,
+            input: WalkWorldInput,
+          ): boolean {
+            return interaction.mode === worldInteractionModes.automatic || input.interact;
+          }
+
+          function getMissingResources(
+            resources: Readonly<Record<string, number>>,
+            costs: ReadonlyArray<WorldResourceAmount>,
+          ): Array<WorldResourceAmount> {
+            const missing: Array<WorldResourceAmount> = [];
+            for (const cost of costs) {
+              const available = resources[cost.resourceId] ?? worldSimulationRules.zero;
+              if (available < cost.amount) {
+                missing.push({
+                  resourceId: cost.resourceId,
+                  amount: cost.amount - available,
+                });
+              }
+            }
+            return missing;
+          }
+
+          function applyEffect(
+            resources: Readonly<Record<string, number>>,
+            costs: ReadonlyArray<WorldResourceAmount>,
+            rewards: ReadonlyArray<WorldResourceAmount>,
+          ): Readonly<Record<string, number>> {
+            const nextResources: Record<string, number> = { ...resources };
+            for (const cost of costs) {
+              nextResources[cost.resourceId] = Math.max(
+                worldSimulationRules.zero,
+                (nextResources[cost.resourceId] ?? worldSimulationRules.zero) - cost.amount,
+              );
+            }
+            for (const reward of rewards) {
+              nextResources[reward.resourceId] = Math.max(
+                worldSimulationRules.zero,
+                (nextResources[reward.resourceId] ?? worldSimulationRules.zero) + reward.amount,
+              );
+            }
+            return nextResources;
+          }
+
+          function sanitizeLedger(
+            resources: Readonly<Record<string, number>>,
+          ): Readonly<Record<string, number>> {
+            const sanitized: Record<string, number> = {};
+            for (const [resourceId, amount] of Object.entries(resources)) {
+              sanitized[resourceId] = Number.isFinite(amount)
+                ? Math.max(worldSimulationRules.zero, amount)
+                : worldSimulationRules.zero;
+            }
+            return sanitized;
+          }
+
+          function updateState(
+            state: WalkWorldState,
+            patch: Partial<Omit<WalkWorldState, 'revision'>>,
+          ): WalkWorldState {
+            return { ...state, ...patch, revision: state.revision + 1 };
+          }
+
+          function squaredDistance(left: WorldPoint, right: WorldPoint): number {
+            const deltaX = left.x - right.x;
+            const deltaZ = left.z - right.z;
+            return deltaX * deltaX + deltaZ * deltaZ;
+          }
+
+          function clamp(value: number, minimum: number, maximum: number): number {
+            return Math.min(maximum, Math.max(minimum, value));
+          }
+          EOF
+
+          cat > games/junkyard-station/runtime/presentation/models.ts <<'EOF'
+          import * as THREE from 'three';
+
+          import type { WorldStationVisual } from '../../../shared/world-kit/presentation/scene.ts';
+          import {
+            junkyardStations,
+            junkyardVisualKinds,
+            type JunkyardStationDefinition,
+          } from '../definition.ts';
+          import { junkyardPalette } from './palette.ts';
+
+          export function createJunkyardStationVisuals(): ReadonlyArray<WorldStationVisual> {
+            return junkyardStations.map((station) => {
+              const root = createStationModel(station);
+              root.position.set(
+                station.interaction.position.x,
+                0,
+                station.interaction.position.z,
+              );
+              return {
+                interactionId: station.interaction.id,
+                root,
+                accentColor: station.accentColor,
+                anchorHeight: station.anchorHeight,
+              };
+            });
+          }
+
+          function createStationModel(station: JunkyardStationDefinition): THREE.Group {
+            if (station.visualKind === junkyardVisualKinds.scrapPile) {
+              return createScrapPile();
+            }
+            if (station.visualKind === junkyardVisualKinds.crusher) {
+              return createCrusher();
+            }
+            if (station.visualKind === junkyardVisualKinds.fuelRack) {
+              return createFuelRack();
+            }
+            if (station.visualKind === junkyardVisualKinds.customer) {
+              return createCustomerStop();
+            }
+            return createUpgradePad(station.accentColor);
+          }
+
+          function createScrapPile(): THREE.Group {
+            const root = new THREE.Group();
+            const base = new THREE.Mesh(
+              new THREE.CylinderGeometry(1.05, 1.25, 0.4, 9),
+              createMaterial(junkyardPalette.steel, 0.92),
+            );
+            base.position.y = 0.2;
+            base.scale.z = 0.75;
+            root.add(base);
+            const pieces: ReadonlyArray<readonly [number, number, number, number]> = [
+              [-0.55, 0.62, 0.18, 0.7],
+              [0.05, 0.72, -0.1, -0.45],
+              [0.55, 0.48, 0.18, 0.9],
+              [-0.15, 0.95, 0.2, 0.25],
+            ];
+            for (const [x, y, z, rotation] of pieces) {
+              const piece = createBox(0.68, 0.22, 0.42, junkyardPalette.darkSteel);
+              piece.position.set(x, y, z);
+              piece.rotation.y = rotation;
+              root.add(piece);
+            }
+            const tire = new THREE.Mesh(
+              new THREE.TorusGeometry(0.42, 0.13, 8, 18),
+              createMaterial(junkyardPalette.tire, 0.9),
+            );
+            tire.position.set(0.4, 0.78, -0.15);
+            tire.rotation.x = Math.PI / 2.8;
+            root.add(tire);
+            return root;
+          }
+
+          function createCrusher(): THREE.Group {
+            const root = new THREE.Group();
+            const platform = createBox(2.25, 0.22, 1.7, junkyardPalette.darkSteel);
+            platform.position.y = 0.11;
+            const towerLeft = createBox(0.35, 2.45, 0.52, junkyardPalette.red);
+            const towerRight = createBox(0.35, 2.45, 0.52, junkyardPalette.red);
+            towerLeft.position.set(-0.86, 1.35, 0);
+            towerRight.position.set(0.86, 1.35, 0);
+            const beam = createBox(2.05, 0.42, 0.68, junkyardPalette.darkRed);
+            beam.position.y = 2.45;
+            const jaw = createBox(1.55, 0.32, 1.1, junkyardPalette.steel);
+            jaw.position.y = 1.55;
+            root.add(platform, towerLeft, towerRight, beam, jaw);
+            return root;
+          }
+
+          function createFuelRack(): THREE.Group {
+            const root = new THREE.Group();
+            const tank = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.62, 0.62, 1.8, 16),
+              createMaterial(junkyardPalette.fuel, 0.76),
+            );
+            tank.rotation.z = Math.PI / 2;
+            tank.position.y = 1.05;
+            const stand = createBox(1.95, 0.22, 1.25, junkyardPalette.darkSteel);
+            stand.position.y = 0.11;
+            const pump = createBox(0.62, 1.35, 0.58, junkyardPalette.cream);
+            pump.position.set(0.92, 0.78, 0.15);
+            const screen = createBox(0.38, 0.3, 0.05, junkyardPalette.glass);
+            screen.position.set(0.92, 1.04, 0.46);
+            root.add(stand, tank, pump, screen);
+            return root;
+          }
+
+          function createCustomerStop(): THREE.Group {
+            const root = new THREE.Group();
+            const car = createBox(2.25, 0.62, 1.18, junkyardPalette.customerShirt);
+            car.position.set(0.25, 0.52, -0.2);
+            const cabin = createBox(1.1, 0.5, 1.02, junkyardPalette.glass);
+            cabin.position.set(0.05, 1.02, -0.2);
+            root.add(car, cabin);
+            for (const x of [-0.62, 0.88]) {
+              for (const z of [-0.67, 0.27]) {
+                const wheel = new THREE.Mesh(
+                  new THREE.CylinderGeometry(0.24, 0.24, 0.18, 12),
+                  createMaterial(junkyardPalette.tire, 0.9),
+                );
+                wheel.rotation.x = Math.PI / 2;
+                wheel.position.set(x, 0.32, z);
+                wheel.castShadow = true;
+                root.add(wheel);
+              }
+            }
+            const customer = createSimplePerson();
+            customer.position.set(-1.35, 0, 0.35);
+            root.add(customer);
+            return root;
+          }
+
+          function createUpgradePad(color: number): THREE.Group {
+            const root = new THREE.Group();
+            const pad = new THREE.Mesh(
+              new THREE.CylinderGeometry(1.05, 1.18, 0.16, 24),
+              new THREE.MeshStandardMaterial({
+                color,
+                roughness: 0.66,
+                metalness: 0.08,
+              }),
+            );
+            pad.position.y = 0.08;
+            const arrow = new THREE.Mesh(
+              new THREE.ConeGeometry(0.35, 0.75, 4),
+              new THREE.MeshBasicMaterial({ color: 0xffffff }),
+            );
+            arrow.position.y = 0.62;
+            arrow.rotation.y = Math.PI / 4;
+            root.add(pad, arrow);
+            return root;
+          }
+
+          function createSimplePerson(): THREE.Group {
+            const root = new THREE.Group();
+            const body = new THREE.Mesh(
+              new THREE.CapsuleGeometry(0.22, 0.58, 5, 9),
+              createMaterial(junkyardPalette.customerShirt, 0.82),
+            );
+            body.position.y = 0.84;
+            const head = new THREE.Mesh(
+              new THREE.SphereGeometry(0.19, 12, 8),
+              createMaterial(junkyardPalette.skin, 0.86),
+            );
+            head.position.y = 1.4;
+            const legs = createBox(0.34, 0.52, 0.26, junkyardPalette.customerTrousers);
+            legs.position.y = 0.28;
+            root.add(body, head, legs);
+            return root;
+          }
+
+          function createBox(
+            width: number,
+            height: number,
+            depth: number,
+            color: number,
+          ): THREE.Mesh {
+            const mesh = new THREE.Mesh(
+              new THREE.BoxGeometry(width, height, depth),
+              createMaterial(color, 0.84),
+            );
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+          }
+
+          function createMaterial(
+            color: number,
+            roughness: number,
+          ): THREE.MeshStandardMaterial {
+            return new THREE.MeshStandardMaterial({
+              color,
+              roughness,
+              metalness: 0.02,
+            });
+          }
+          EOF
+
+          cat > games/shared/world-kit/presentation/scene.ts <<'EOF'
+          import * as THREE from 'three';
+
+          import { worldEventTypes } from '../domain/registry.ts';
+          import type {
+            WalkWorldDefinition,
+            WalkWorldState,
+            WorldDomainEvent,
+          } from '../domain/types.ts';
+          import {
+            createInteractionRing,
+            createWalkerVisual,
+            disposeWorldObject,
+            type WalkerVisual,
+          } from './models.ts';
+          import type { WorldQualityProfile } from './quality.ts';
+
+          const worldSceneTuning = {
+            cameraHeight: 9.5,
+            cameraOffsetX: 7.6,
+            cameraOffsetZ: 8.8,
+            cameraViewHeight: 10.8,
+            cameraNear: 0.1,
+            cameraFar: 80,
+            cameraFollow: 0.12,
+            fogNear: 16,
+            fogFar: 34,
+            groundPadding: 8,
+            playerLerp: 0.26,
+            turnLerp: 0.22,
+            walkingPhaseSpeed: 10,
+            walkingSwing: 0.58,
+            walkingBob: 0.045,
+            movementEpsilon: 0.00002,
+            pulseDurationSeconds: 0.5,
+            pulseScale: 0.16,
+            activeRingSpin: 1.8,
+          } as const;
+
+          export interface WorldStationVisual {
+            readonly interactionId: string;
+            readonly root: THREE.Object3D;
+            readonly accentColor: number;
+            readonly anchorHeight: number;
+          }
+
+          export interface WalkWorldSceneOptions {
+            readonly host: HTMLElement;
+            readonly definition: WalkWorldDefinition;
+            readonly quality: WorldQualityProfile;
+            readonly backgroundColor: number;
+            readonly fogColor: number;
+            readonly groundColor: number;
+            readonly playerShirtColor: number;
+            readonly playerAccentColor: number;
+            readonly stationVisuals: ReadonlyArray<WorldStationVisual>;
+            readonly decorate: (root: THREE.Group, density: number) => void;
+          }
+
+          export interface WorldSceneStats {
+            readonly calls: number;
+            readonly triangles: number;
+            readonly geometries: number;
+            readonly textures: number;
+            readonly pixelRatio: number;
+            readonly shadows: boolean;
+          }
+
+          export class WalkWorldScene {
+            private readonly canvas = document.createElement('canvas');
+            private readonly renderer: THREE.WebGLRenderer;
+            private readonly scene = new THREE.Scene();
+            private readonly camera = new THREE.OrthographicCamera();
+            private readonly worldRoot = new THREE.Group();
+            private readonly walker: WalkerVisual;
+            private readonly stationVisuals = new Map<string, WorldStationVisual>();
+            private readonly stationRings = new Map<string, THREE.Mesh>();
+            private readonly pulseEnds = new Map<string, number>();
+            private readonly previousPlayer = new THREE.Vector3();
+            private readonly visualPlayer = new THREE.Vector3();
+            private readonly followTarget = new THREE.Vector3();
+            private readonly cameraOffset = new THREE.Vector3(
+              worldSceneTuning.cameraOffsetX,
+              worldSceneTuning.cameraHeight,
+              worldSceneTuning.cameraOffsetZ,
+            );
+            private sceneTime = 0;
+            private walkingPhase = 0;
+            private disposed = false;
+
+            public constructor(private readonly options: WalkWorldSceneOptions) {
+              this.configureCanvas();
+              this.renderer = this.createRenderer();
+              this.configureScene();
+              this.walker = createWalkerVisual(
+                options.playerShirtColor,
+                options.playerAccentColor,
+              );
+              this.addWalker();
+              this.addStations();
+              window.addEventListener('resize', this.resize);
+              this.resize();
+            }
+
+            public update(state: WalkWorldState, deltaSeconds: number): void {
+              this.sceneTime += Math.max(0, deltaSeconds);
+              const target = new THREE.Vector3(state.player.x, 0, state.player.z);
+              this.visualPlayer.lerp(target, worldSceneTuning.playerLerp);
+              this.walker.root.position.copy(this.visualPlayer);
+              this.updateWalkerAnimation(target, deltaSeconds);
+              this.updateCamera();
+              this.updateStations(state, deltaSeconds);
+            }
+
+            public render(): void {
+              this.renderer.render(this.scene, this.camera);
+            }
+
+            public markEvent(event: WorldDomainEvent): void {
+              if (
+                event.type === worldEventTypes.interactionStarted
+                || event.type === worldEventTypes.interactionCompleted
+                || event.type === worldEventTypes.interactionBlocked
+              ) {
+                this.pulseEnds.set(
+                  event.interactionId,
+                  this.sceneTime + worldSceneTuning.pulseDurationSeconds,
+                );
+              }
+            }
+
+            public projectInteraction(
+              interactionId: string,
+            ): { x: number; y: number; visible: boolean } | null {
+              const station = this.stationVisuals.get(interactionId);
+              if (station === undefined) {
+                return null;
+              }
+              const point = new THREE.Vector3(
+                station.root.position.x,
+                station.anchorHeight,
+                station.root.position.z,
+              );
+              point.project(this.camera);
+              const rect = this.canvas.getBoundingClientRect();
+              return {
+                x: rect.left + (point.x + 1) * rect.width / 2,
+                y: rect.top + (1 - point.y) * rect.height / 2,
+                visible: point.z >= -1 && point.z <= 1,
+              };
+            }
+
+            public getStats(): WorldSceneStats {
+              return {
+                calls: this.renderer.info.render.calls,
+                triangles: this.renderer.info.render.triangles,
+                geometries: this.renderer.info.memory.geometries,
+                textures: this.renderer.info.memory.textures,
+                pixelRatio: this.renderer.getPixelRatio(),
+                shadows: this.renderer.shadowMap.enabled,
+              };
+            }
+
+            public destroy(): void {
+              if (this.disposed) {
+                return;
+              }
+              this.disposed = true;
+              window.removeEventListener('resize', this.resize);
+              disposeWorldObject(this.worldRoot);
+              this.renderer.dispose();
+              this.canvas.remove();
+            }
+
+            private configureCanvas(): void {
+              this.canvas.className = 'junkyard-canvas';
+              this.canvas.setAttribute('aria-label', '3D walkable junkyard');
+              this.options.host.append(this.canvas);
+            }
+
+            private createRenderer(): THREE.WebGLRenderer {
+              const renderer = new THREE.WebGLRenderer({
+                canvas: this.canvas,
+                antialias: this.options.quality.id !== 'low',
+                alpha: false,
+                powerPreference: 'high-performance',
+              });
+              renderer.setPixelRatio(
+                Math.min(
+                  window.devicePixelRatio,
+                  this.options.quality.maximumPixelRatio,
+                ),
+              );
+              renderer.outputColorSpace = THREE.SRGBColorSpace;
+              renderer.toneMapping = THREE.ACESFilmicToneMapping;
+              renderer.toneMappingExposure = 1.12;
+              renderer.shadowMap.enabled = this.options.quality.shadows;
+              renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+              return renderer;
+            }
+
+            private configureScene(): void {
+              this.scene.background = new THREE.Color(this.options.backgroundColor);
+              this.scene.fog = new THREE.Fog(
+                this.options.fogColor,
+                worldSceneTuning.fogNear,
+                worldSceneTuning.fogFar,
+              );
+              this.scene.add(this.worldRoot);
+              this.addGroundAndLights();
+              this.options.decorate(
+                this.worldRoot,
+                this.options.quality.decorationDensity,
+              );
+            }
+
+            private addGroundAndLights(): void {
+              const bounds = this.options.definition.bounds;
+              const width = bounds.maximumX - bounds.minimumX
+                + worldSceneTuning.groundPadding;
+              const depth = bounds.maximumZ - bounds.minimumZ
+                + worldSceneTuning.groundPadding;
+              const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(width, depth),
+                new THREE.MeshStandardMaterial({
+                  color: this.options.groundColor,
+                  roughness: 0.98,
+                }),
+              );
+              ground.rotation.x = -Math.PI / 2;
+              ground.position.y = -0.04;
+              ground.receiveShadow = true;
+              this.worldRoot.add(ground);
+              this.scene.add(new THREE.HemisphereLight(0xfff3d4, 0x50636d, 2.1));
+              const sun = new THREE.DirectionalLight(0xffdfaa, 3.2);
+              sun.position.set(-7, 12, 5);
+              sun.castShadow = this.options.quality.shadows;
+              sun.shadow.mapSize.set(
+                this.options.quality.shadowMapSize,
+                this.options.quality.shadowMapSize,
+              );
+              sun.shadow.camera.left = -12;
+              sun.shadow.camera.right = 12;
+              sun.shadow.camera.top = 12;
+              sun.shadow.camera.bottom = -12;
+              sun.shadow.camera.near = 1;
+              sun.shadow.camera.far = 34;
+              sun.shadow.bias = -0.0004;
+              this.scene.add(sun);
+            }
+
+            private addWalker(): void {
+              const spawn = this.options.definition.spawn;
+              this.walker.root.position.set(spawn.x, 0, spawn.z);
+              this.previousPlayer.copy(this.walker.root.position);
+              this.visualPlayer.copy(this.walker.root.position);
+              this.worldRoot.add(this.walker.root);
+            }
+
+            private addStations(): void {
+              for (const station of this.options.stationVisuals) {
+                this.stationVisuals.set(station.interactionId, station);
+                this.worldRoot.add(station.root);
+                const ring = createInteractionRing(station.accentColor);
+                ring.position.x = station.root.position.x;
+                ring.position.z = station.root.position.z;
+                this.stationRings.set(station.interactionId, ring);
+                this.worldRoot.add(ring);
+              }
+            }
+
+            private updateWalkerAnimation(
+              target: THREE.Vector3,
+              deltaSeconds: number,
+            ): void {
+              const deltaX = target.x - this.previousPlayer.x;
+              const deltaZ = target.z - this.previousPlayer.z;
+              const moving = deltaX * deltaX + deltaZ * deltaZ
+                > worldSceneTuning.movementEpsilon;
+              if (moving) {
+                this.walker.root.rotation.y = dampAngle(
+                  this.walker.root.rotation.y,
+                  Math.atan2(deltaX, deltaZ),
+                  worldSceneTuning.turnLerp,
+                );
+                this.walkingPhase += deltaSeconds * worldSceneTuning.walkingPhaseSpeed;
+              }
+              const swing = moving
+                ? Math.sin(this.walkingPhase) * worldSceneTuning.walkingSwing
+                : 0;
+              this.walker.leftArm.rotation.x = swing;
+              this.walker.rightArm.rotation.x = -swing;
+              this.walker.leftLeg.rotation.x = -swing;
+              this.walker.rightLeg.rotation.x = swing;
+              this.walker.root.position.y = moving
+                ? Math.abs(Math.sin(this.walkingPhase * 2)) * worldSceneTuning.walkingBob
+                : 0;
+              this.previousPlayer.copy(target);
+            }
+
+            private updateCamera(): void {
+              this.followTarget.lerp(this.visualPlayer, worldSceneTuning.cameraFollow);
+              this.camera.position.copy(this.followTarget).add(this.cameraOffset);
+              this.camera.lookAt(this.followTarget);
+              this.camera.updateMatrixWorld();
+            }
+
+            private updateStations(state: WalkWorldState, deltaSeconds: number): void {
+              for (const [interactionId, station] of this.stationVisuals) {
+                const ring = this.stationRings.get(interactionId);
+                const active = state.activeInteraction?.interactionId === interactionId;
+                const nearby = state.proximityId === interactionId;
+                if (ring !== undefined) {
+                  ring.visible = active || nearby;
+                  ring.rotation.z += active
+                    ? deltaSeconds * worldSceneTuning.activeRingSpin
+                    : 0;
+                  ring.scale.setScalar(active ? 1.12 : 1);
+                }
+                const pulseEnd = this.pulseEnds.get(interactionId) ?? 0;
+                const pulse = pulseEnd > this.sceneTime
+                  ? 1 + Math.sin((pulseEnd - this.sceneTime) * Math.PI * 5)
+                    * worldSceneTuning.pulseScale
+                  : 1;
+                station.root.scale.setScalar(pulse);
+              }
+            }
+
+            private readonly resize = (): void => {
+              const width = Math.max(1, this.options.host.clientWidth);
+              const height = Math.max(1, this.options.host.clientHeight);
+              const halfHeight = worldSceneTuning.cameraViewHeight / 2;
+              const aspect = width / height;
+              this.camera.left = -halfHeight * aspect;
+              this.camera.right = halfHeight * aspect;
+              this.camera.top = halfHeight;
+              this.camera.bottom = -halfHeight;
+              this.camera.near = worldSceneTuning.cameraNear;
+              this.camera.far = worldSceneTuning.cameraFar;
+              this.camera.updateProjectionMatrix();
+              this.renderer.setSize(width, height, false);
+            };
+          }
+
+          function dampAngle(current: number, target: number, amount: number): number {
+            const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
+            return current + delta * amount;
+          }
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('games/junkyard-station/runtime/presentation/ui.ts')
+          content = path.read_text()
+          old = """  elements.prompt.style.setProperty('--junkyard-accent', toCssColor(station.accentColor));
+            elements.prompt.style.transform = `translate3d(${projected.x - 117}px, ${projected.y - 78}px, 0)`;
+            elements.prompt.classList.add('is-visible');"""
+          new = """  elements.prompt.style.setProperty('--junkyard-accent', toCssColor(station.accentColor));
+            const left = Math.min(window.innerWidth - 247, Math.max(12, projected.x - 117));
+            const top = Math.min(window.innerHeight - 90, Math.max(72, projected.y - 78));
+            elements.prompt.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+            elements.prompt.classList.add('is-visible');"""
+          if old not in content:
+              raise SystemExit('Junkyard prompt placement block was not found')
+          path.write_text(content.replace(old, new))
+          PY
+
+      - name: Check out pinned Modoki
+        uses: actions/checkout@v5
+        with:
+          repository: lsgmasa33/modoki-engine
+          ref: ${{ env.MODOKI_COMMIT }}
+          path: .modoki-engine
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            .modoki-engine/package-lock.json
+            games/traffic-jam/package-lock.json
+            games/junkyard-station/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/requirements-assets.txt
+
+      - name: Install pinned Modoki toolchain
+        working-directory: .modoki-engine
+        run: npm ci --no-audit --no-fund
+
+      - name: Install game runtimes
+        shell: bash
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund --prefix games/traffic-jam
+          npm ci --ignore-scripts --no-audit --no-fund --prefix games/junkyard-station
+
+      - name: Install asset toolchain
+        run: python -m pip install --disable-pip-version-check -r tools/requirements-assets.txt
+
+      - name: Reproduce assets and validate source
+        run: |
+          npm run assets:reproduce
+          npm run check
+
+      - name: Build both Modoki games
+        shell: bash
+        run: |
+          MODOKI_PROJECT="${GITHUB_WORKSPACE}/games/traffic-jam" npm run build --prefix .modoki-engine -- --target web
+          MODOKI_PROJECT="${GITHUB_WORKSPACE}/games/junkyard-station" npm run build --prefix .modoki-engine -- --target web
+          npm run web:budget
+
+      - name: Commit validated implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .github/payload
+          rm -f .github/workflows/apply-hub-world-fixes.yml
+          git config user.name "slop-quality-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "feat: add game hub and reusable Junkyard Station world base"
+          git push origin HEAD:feature/core-traffic
