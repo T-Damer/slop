@@ -181,6 +181,7 @@ async function inspectViewport({
       heapBytes: performance.memory?.usedJSHeapSize ?? null
     };
   })()`);
+  addPerformanceFailures(performance, contract.ui.performance, failures);
 
   for (const runtimeError of runtimeErrors) {
     failures.push(`Browser error: ${runtimeError}`);
@@ -203,4 +204,24 @@ async function inspectViewport({
     `${JSON.stringify(report, null, 2)}\n`,
   );
   return report;
+}
+
+function addPerformanceFailures(performance, limits, failures) {
+  if (!limits) {
+    return;
+  }
+  const checks = [
+    ['domContentLoadedMs', 'maximumDomContentLoadedMs', 'DOMContentLoaded'],
+    ['loadMs', 'maximumLoadMs', 'load'],
+    ['firstPaintMs', 'maximumFirstPaintMs', 'first paint'],
+    ['firstContentfulPaintMs', 'maximumFirstContentfulPaintMs', 'first contentful paint'],
+    ['heapBytes', 'maximumHeapBytes', 'JavaScript heap'],
+  ];
+  for (const [metric, limitKey, label] of checks) {
+    const value = performance[metric];
+    const limit = limits[limitKey];
+    if (typeof value === 'number' && typeof limit === 'number' && value > limit) {
+      failures.push(`${label} exceeded the ratchet: ${value} > ${limit}.`);
+    }
+  }
 }

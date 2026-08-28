@@ -44,6 +44,13 @@
     "minimumTouchTargetPx": 44,
     "maximumHorizontalOverflowPx": 0,
     "maximumCriticalOverlapPx": 96,
-    "minimumCanvasViewportShare": 0.7
+    "minimumCanvasViewportShare": 0.7,
+    "performance": {
+      "maximumDomContentLoadedMs": 4000,
+      "maximumLoadMs": 4000,
+      "maximumFirstPaintMs": 4000,
+      "maximumFirstContentfulPaintMs": 4000,
+      "maximumHeapBytes": 140000000
+    }
   }
 }
