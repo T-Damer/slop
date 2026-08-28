@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "rootSelector": "#slop-junkyard",
+  "canvasSelector": ".junkyard-canvas",
+  "touchTargetSelector": "button, a",
+  "criticalSelectors": [
+    ".junkyard-hud",
+    ".junkyard-objective",
+    ".world-joystick",
+    ".world-action",
+    ".slop-game-nav"
+  ],
+  "stableQuery": "quality=low&qa=1",
+  "qaExpression": "window.__SLOP_JUNKYARD_QA__?.snapshot()",
+  "movement": {
+    "key": "w",
+    "code": "KeyW",
+    "virtualKeyCode": 87,
+    "holdMs": 1900,
+    "minimumDistance": 0.45,
+    "rewardResourceId": "scrap",
+    "minimumReward": 1
+  }
+}
