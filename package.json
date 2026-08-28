@@ -8,12 +8,14 @@
   },
   "scripts": {
     "test": "node --experimental-strip-types --test games/traffic-jam/runtime/domain/rules.test.ts games/traffic-jam/runtime/domain/generation.test.ts",
+    "typecheck": "node .modoki-engine/node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "architecture:check": "node tools/check-architecture.mjs",
     "code:check": "node tools/check-code-quality.mjs",
-    "assets:check": "python3 tools/check-assets.py",
-    "check": "npm run test && npm run architecture:check && npm run code:check && npm run assets:check",
-    "web:budget": "node tools/check-web-budget.mjs",
-    "ui:quality": "python3 tools/check-browser-quality.py",
+    "assets:check": "node tools/check-assets.mjs",
+    "check:source": "npm run test && npm run architecture:check && npm run code:check && npm run assets:check",
+    "check": "npm run check:source && npm run typecheck",
+    "web:budget": "node tools/check-web-budget.mjs games/traffic-jam/dist",
+    "ui:quality": "node tools/check-browser-quality.mjs",
     "assets:generate": "python3 tools/generate-traffic-assets.py"
   }
 }
