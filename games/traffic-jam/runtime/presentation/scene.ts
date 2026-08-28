@@ -78,11 +78,11 @@ export class ParkingJamScene {
   private currentLevel: TrafficLevelDefinition | null = null;
   private currentState: TrafficState | null = null;
   private targetColor: TrafficColor | null = null;
-  private targetGroupSize = trafficRules.emptyCollectionSize;
-  private passengerSerial = trafficRules.firstIndex;
-  private animationFrame = trafficRules.firstIndex;
-  private lastFrameAt = trafficRules.firstCoordinate;
-  private shakeStrength = trafficRules.firstCoordinate;
+  private targetGroupSize: number = trafficRules.emptyCollectionSize;
+  private passengerSerial: number = trafficRules.firstIndex;
+  private animationFrame: number = trafficRules.firstIndex;
+  private lastFrameAt: number = trafficRules.firstCoordinate;
+  private shakeStrength: number = trafficRules.firstCoordinate;
   private interactive = true;
   private disposed = false;
 

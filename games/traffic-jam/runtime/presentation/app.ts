@@ -554,7 +554,7 @@ function normalizeLevelIndex(levelIndex: number): number {
     : trafficRules.firstIndex;
 }
 
-function createRuntimeSeed(previousSeed = trafficRules.emptyCollectionSize): number {
+function createRuntimeSeed(previousSeed: number = trafficRules.emptyCollectionSize): number {
   const values = new Uint32Array(trafficRules.cellStep);
   globalThis.crypto?.getRandomValues?.(values);
   const randomSeed = values[trafficRules.firstIndex] ?? trafficRules.emptyCollectionSize;
@@ -563,7 +563,7 @@ function createRuntimeSeed(previousSeed = trafficRules.emptyCollectionSize): num
 }
 
 function countLeadingGroup(passengers: TrafficState['passengers'], color: TrafficState['passengers'][number]): number {
-  let count = trafficRules.emptyCollectionSize;
+  let count: number = trafficRules.emptyCollectionSize;
   while (passengers[count] === color) {
     count += trafficRules.cellStep;
   }

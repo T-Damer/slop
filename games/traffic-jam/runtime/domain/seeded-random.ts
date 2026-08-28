@@ -51,7 +51,7 @@ export function createSeededRandom(seed: number): SeededRandom {
 }
 
 export function hashTrafficSeed(value: string): number {
-  let hash = trafficRandomization.hashOffset;
+  let hash: number = trafficRandomization.hashOffset;
   for (const character of value) {
     hash ^= character.charCodeAt(trafficRules.firstIndex);
     hash = Math.imul(hash, trafficRandomization.hashPrime);

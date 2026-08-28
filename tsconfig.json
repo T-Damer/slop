@@ -3,7 +3,13 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "three": [".modoki-engine/node_modules/@types/three/index.d.ts"],
+      "three/*": [".modoki-engine/node_modules/@types/three/*"]
+    },
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
     "strict": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
@@ -11,16 +17,8 @@
     "useDefineForClassFields": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "typeRoots": [
-      ".modoki-engine/node_modules/@types"
-    ]
+    "typeRoots": [".modoki-engine/node_modules/@types"]
   },
-  "include": [
-    "games/traffic-jam/**/*.ts",
-    "types/**/*.d.ts"
-  ],
-  "exclude": [
-    "games/traffic-jam/dist",
-    "games/traffic-jam/node_modules"
-  ]
+  "include": ["games/traffic-jam/**/*.ts", "types/**/*.d.ts"],
+  "exclude": ["games/traffic-jam/dist", "games/traffic-jam/node_modules"]
 }

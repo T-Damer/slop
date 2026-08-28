@@ -39,18 +39,20 @@ for (
       assert.ok(level.cars.every((car) => car.capacity > trafficRules.cellStep));
       const analysis = analyzeTrafficLevel(level);
       assert.equal(analysis.valid, true, analysis.errors.join(', '));
-      assert.ok(analysis.solution);
-      assert.equal(analysis.solution.length, level.cars.length);
+      const solution = requireValue(analysis.solution, 'Expected a valid solution.');
+      assert.equal(solution.length, level.cars.length);
       assert.ok(analysis.visitedStates <= trafficRules.solverMaximumVisitedStates);
     });
 
     test(`${level.id} seed ${seed} completes with crowd events and rewards intact`, () => {
-      const solution = solveTrafficLevel(level);
-      assert.ok(solution);
+      const solution = requireValue(
+        solveTrafficLevel(level),
+        `Expected ${level.id} seed ${seed} to be solvable.`,
+      );
       let state = createInitialTrafficState(level);
-      let boardedPassengerCount = trafficRules.emptyCollectionSize;
-      let boardedGroupCount = trafficRules.emptyCollectionSize;
-      let departedEvents = trafficRules.emptyCollectionSize;
+      let boardedPassengerCount: number = trafficRules.emptyCollectionSize;
+      let boardedGroupCount: number = trafficRules.emptyCollectionSize;
+      let departedEvents: number = trafficRules.emptyCollectionSize;
 
       for (const carId of solution) {
         const result = releaseTrafficCar(level, state, carId);
@@ -62,7 +64,7 @@ for (
           (event) => event.type === trafficEvents.passengerGroupBoarded,
         );
         boardedGroupCount += groupEvents.length;
-        boardedPassengerCount += groupEvents.reduce(
+        boardedPassengerCount += groupEvents.reduce<number>(
           (total, event) => total + event.passengerCount,
           trafficRules.emptyCollectionSize,
         );
@@ -108,8 +110,10 @@ test('a blocked car is rejected without mutating state', () => {
   const level = trafficLevels[trafficRules.firstIndex]!;
   const state = createInitialTrafficState(level);
   const available = new Set(getAvailableCarIds(level, state));
-  const blockedCar = level.cars.find((car) => !available.has(car.id));
-  assert.ok(blockedCar);
+  const blockedCar = requireValue(
+    level.cars.find((car) => !available.has(car.id)),
+    'Expected at least one blocked car.',
+  );
 
   const result = releaseTrafficCar(level, state, blockedCar.id);
   assert.equal(result.ok, false);
@@ -123,17 +127,22 @@ test('a blocked car is rejected without mutating state', () => {
 test('wrong colors can occupy every bay and create a recoverable jam', () => {
   const level = trafficLevels[trafficRules.firstIndex]!;
   let state = createInitialTrafficState(level);
-  const firstPassengerColor = state.passengers[trafficRules.firstIndex];
+  const firstPassengerColor = requireValue(
+    state.passengers[trafficRules.firstIndex],
+    'Expected a passenger queue.',
+  );
 
   for (
     let bayIndex = trafficRules.firstIndex;
     bayIndex < level.bayCount;
     bayIndex += trafficRules.cellStep
   ) {
-    const wrongCarId = getAvailableCarIds(level, state).find(
-      (carId) => level.cars.find((car) => car.id === carId)?.color !== firstPassengerColor,
+    const wrongCarId = requireValue(
+      getAvailableCarIds(level, state).find(
+        (carId) => level.cars.find((car) => car.id === carId)?.color !== firstPassengerColor,
+      ),
+      `Expected a wrong-color car for bay ${bayIndex}.`,
     );
-    assert.ok(wrongCarId);
     const result = releaseTrafficCar(level, state, wrongCarId);
     assert.equal(result.ok, true);
     if (result.ok) {
@@ -149,21 +158,37 @@ test('wrong colors can occupy every bay and create a recoverable jam', () => {
 test('the recommended first car boards a whole group and departs', () => {
   const level = trafficLevels[trafficRules.firstIndex]!;
   const state = createInitialTrafficState(level);
-  const firstCarId = level.expectedSolution[trafficRules.firstIndex]!;
-  const firstCar = level.cars.find((car) => car.id === firstCarId);
-  assert.ok(firstCar);
+  const firstCarId = requireValue(
+    level.expectedSolution[trafficRules.firstIndex],
+    'Expected a recommended first car.',
+  );
+  const firstCar = requireValue(
+    level.cars.find((car) => car.id === firstCarId),
+    'Expected the recommended car definition.',
+  );
 
   const result = releaseTrafficCar(level, state, firstCarId);
   assert.equal(result.ok, true);
-  if (!result.ok || firstCar === undefined) {
+  if (!result.ok) {
     return;
   }
-  const groupEvent = result.events.find(
-    (event) => event.type === trafficEvents.passengerGroupBoarded,
+  const groupEvent = requireValue(
+    result.events.find((event) => event.type === trafficEvents.passengerGroupBoarded),
+    'Expected a passenger-group event.',
   );
-  assert.ok(groupEvent);
   assert.equal(groupEvent.passengerCount, firstCar.capacity);
   assert.ok(result.events.some((event) => event.type === trafficEvents.carDeparted));
   assert.ok(result.state.score > state.score);
   assert.ok(result.state.coins > state.coins);
 });
+
+function requireValue<T>(
+  value: T | null | undefined,
+  message: string,
+): T {
+  assert.ok(value !== null && value !== undefined, message);
+  if (value === null || value === undefined) {
+    throw new Error(message);
+  }
+  return value;
+}

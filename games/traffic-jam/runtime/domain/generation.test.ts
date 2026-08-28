@@ -50,7 +50,10 @@ for (
 
       const analysis = analyzeTrafficLevel(left);
       assert.equal(analysis.valid, true, `Seed ${seed}: ${analysis.errors.join(', ')}`);
-      assert.ok(analysis.solution, `Seed ${seed} must have a solution.`);
+      const solution = requireValue(
+        analysis.solution,
+        `Seed ${seed} must have a solution.`,
+      );
       assert.ok(
         analysis.visitedStates <= trafficRules.solverMaximumVisitedStates,
         `Seed ${seed} exceeded the solver state budget.`,
@@ -62,7 +65,7 @@ for (
         `Seed ${seed} must conserve passenger demand by color.`,
       );
 
-      const finalState = playSolution(left, analysis.solution);
+      const finalState = playSolution(left, solution);
       assert.equal(finalState.completed, true);
       assert.equal(finalState.jammed, false);
       assert.equal(finalState.passengers.length, trafficRules.emptyCollectionSize);
@@ -120,4 +123,15 @@ function createLevelSignature(level: TrafficLevelDefinition): string {
     .map((car) => `${car.id}:${car.x}:${car.y}:${car.direction}:${car.color}:${car.capacity}`)
     .sort()
     .join('|');
+}
+
+function requireValue<T>(
+  value: T | null | undefined,
+  message: string,
+): T {
+  assert.ok(value !== null && value !== undefined, message);
+  if (value === null || value === undefined) {
+    throw new Error(message);
+  }
+  return value;
 }
