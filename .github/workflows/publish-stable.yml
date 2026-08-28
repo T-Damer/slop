@@ -18,10 +18,12 @@ concurrency:
 env:
   MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
   MODOKI_PROJECT_PATH: games/traffic-jam
+  QUALITY_REPORT_DIR: quality-artifacts
 
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Check out stable
         uses: actions/checkout@v5
@@ -39,18 +41,20 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: .modoki-engine/package-lock.json
+          cache-dependency-path: |
+            .modoki-engine/package-lock.json
+            games/traffic-jam/package-lock.json
 
-      - name: Verify Slop source
-        run: npm run check
-
-      - name: Install Modoki dependencies
+      - name: Install pinned Modoki toolchain
         working-directory: .modoki-engine
         run: npm ci --no-audit --no-fund
 
-      - name: Install game runtime dependencies
+      - name: Install locked game runtime
         working-directory: ${{ env.MODOKI_PROJECT_PATH }}
-        run: npm install --ignore-scripts --no-audit --no-fund
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Verify source contracts
+        run: npm run check
 
       - name: Build Parking Jam for Pages
         working-directory: .modoki-engine
@@ -58,8 +62,8 @@ jobs:
           MODOKI_PROJECT: ${{ github.workspace }}/${{ env.MODOKI_PROJECT_PATH }}
         run: npm run build -- --target web
 
-      - name: Verify Pages artifact
-        run: test -f "${MODOKI_PROJECT_PATH}/dist/index.html"
+      - name: Enforce web bundle ratchet
+        run: npm run web:budget
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -68,6 +72,14 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ${{ env.MODOKI_PROJECT_PATH }}/dist
+
+      - name: Upload build quality report
+        uses: actions/upload-artifact@v4
+        with:
+          name: parking-jam-build-quality-${{ github.sha }}
+          path: quality-artifacts
+          if-no-files-found: error
+          retention-days: 14
 
   deploy:
     needs: build
@@ -82,68 +94,43 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  smoke:
+  browser-quality:
     needs: deploy
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
+      - name: Check out stable quality harness
+        uses: actions/checkout@v5
+
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
           node-version: 24
 
-      - name: Verify rendered 3D mobile game
+      - name: Wait for Pages propagation
         env:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
         shell: bash
         run: |
           set -euo pipefail
-          browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
-          if [[ -z "$browser" ]]; then
-            echo "No supported Chromium browser is installed on the runner." >&2
-            exit 1
-          fi
-
-          for attempt in $(seq 1 12); do
-            if curl --fail --location --silent --show-error "$PAGE_URL" >/dev/null; then
-              break
-            fi
-            if [[ "$attempt" == "12" ]]; then
-              exit 1
+          for attempt in $(seq 1 24); do
+            if curl --fail --location --silent "$PAGE_URL" >/dev/null; then
+              exit 0
             fi
             sleep 5
           done
+          exit 1
 
-          timeout 90s "$browser" \
-            --headless=new \
-            --no-sandbox \
-            --disable-dev-shm-usage \
-            --window-size=390,844 \
-            --virtual-time-budget=14000 \
-            --dump-dom \
-            "$PAGE_URL" > "${RUNNER_TEMP}/parking-jam-dom.html"
+      - name: Run deployed multi-viewport quality contract
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npm run ui:quality -- "$PAGE_URL"
 
-          grep -q 'id="slop-parking-jam"' "${RUNNER_TEMP}/parking-jam-dom.html"
-          grep -q 'Parking Jam' "${RUNNER_TEMP}/parking-jam-dom.html"
-          grep -q 'parking-canvas' "${RUNNER_TEMP}/parking-jam-dom.html"
-
-          timeout 90s "$browser" \
-            --headless=new \
-            --no-sandbox \
-            --disable-dev-shm-usage \
-            --hide-scrollbars \
-            --window-size=390,844 \
-            --virtual-time-budget=14000 \
-            --screenshot="${RUNNER_TEMP}/parking-jam.png" \
-            "$PAGE_URL"
-
-          test -s "${RUNNER_TEMP}/parking-jam.png"
-
-      - name: Upload rendered smoke evidence
+      - name: Upload deployed browser evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: parking-jam-pages-smoke-${{ github.sha }}
-          path: |
-            ${{ runner.temp }}/parking-jam.png
-            ${{ runner.temp }}/parking-jam-dom.html
-          if-no-files-found: error
+          name: parking-jam-pages-quality-${{ github.sha }}
+          path: quality-artifacts
+          if-no-files-found: warn
           retention-days: 14
