@@ -19,13 +19,14 @@ concurrency:
 
 env:
   MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
-  MODOKI_PROJECT_PATH: games/traffic-jam
+  PARKING_PROJECT_PATH: games/traffic-jam
+  JUNKYARD_PROJECT_PATH: games/junkyard-station
   QUALITY_REPORT_DIR: quality-artifacts
 
 jobs:
   quality-build-browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Check out Slop
         uses: actions/checkout@v5
@@ -46,6 +47,7 @@ jobs:
           cache-dependency-path: |
             .modoki-engine/package-lock.json
             games/traffic-jam/package-lock.json
+            games/junkyard-station/package-lock.json
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -58,8 +60,12 @@ jobs:
         working-directory: .modoki-engine
         run: npm ci --no-audit --no-fund
 
-      - name: Install locked game runtime
-        working-directory: ${{ env.MODOKI_PROJECT_PATH }}
+      - name: Install locked Parking Jam runtime
+        working-directory: ${{ env.PARKING_PROJECT_PATH }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install locked Junkyard Station runtime
+        working-directory: ${{ env.JUNKYARD_PROJECT_PATH }}
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Install locked asset toolchain
@@ -74,19 +80,30 @@ jobs:
       - name: Build Parking Jam for web
         working-directory: .modoki-engine
         env:
-          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.MODOKI_PROJECT_PATH }}
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.PARKING_PROJECT_PATH }}
         run: npm run build -- --target web
 
-      - name: Enforce web bundle ratchet
+      - name: Build Junkyard Station for web
+        working-directory: .modoki-engine
+        env:
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.JUNKYARD_PROJECT_PATH }}
+        run: npm run build -- --target web
+
+      - name: Enforce per-game web bundle ratchets
         run: npm run web:budget
 
-      - name: Serve production build
+      - name: Assemble and serve the complete site
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf "${RUNNER_TEMP}/slop-site"
+          rm -rf .site "${RUNNER_TEMP}/slop-site"
+          mkdir -p .site/games/parking-jam .site/games/junkyard-station
+          cp games/hub/index.html games/hub/styles.css games/hub/app.js games/hub/catalog.js .site/
+          cp -R "${PARKING_PROJECT_PATH}/dist/." .site/games/parking-jam/
+          cp -R "${JUNKYARD_PROJECT_PATH}/dist/." .site/games/junkyard-station/
+
           mkdir -p "${RUNNER_TEMP}/slop-site/slop"
-          cp -R "${MODOKI_PROJECT_PATH}/dist/." "${RUNNER_TEMP}/slop-site/slop/"
+          cp -R .site/. "${RUNNER_TEMP}/slop-site/slop/"
           python3 -m http.server 4173 --bind 127.0.0.1 --directory "${RUNNER_TEMP}/slop-site" >"${RUNNER_TEMP}/slop-http.log" 2>&1 &
           echo $! > "${RUNNER_TEMP}/slop-http.pid"
 
@@ -99,8 +116,14 @@ jobs:
           cat "${RUNNER_TEMP}/slop-http.log"
           exit 1
 
-      - name: Run multi-viewport browser quality contract
-        run: npm run ui:quality -- http://127.0.0.1:4173/slop/
+      - name: Run game hub browser contract
+        run: npm run hub:quality -- http://127.0.0.1:4173/slop/
+
+      - name: Run Parking Jam browser contract
+        run: npm run ui:quality -- http://127.0.0.1:4173/slop/games/parking-jam/
+
+      - name: Run Junkyard Station browser contract
+        run: npm run junkyard:quality -- http://127.0.0.1:4173/slop/games/junkyard-station/
 
       - name: Stop production server
         if: always()
@@ -110,13 +133,15 @@ jobs:
             kill "$(cat "${RUNNER_TEMP}/slop-http.pid")" || true
           fi
 
-      - name: Upload build and quality evidence
+      - name: Upload site and quality evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: parking-jam-quality-${{ github.sha }}
+          name: slop-hub-quality-${{ github.sha }}
           path: |
-            ${{ env.MODOKI_PROJECT_PATH }}/dist
+            .site
+            ${{ env.PARKING_PROJECT_PATH }}/dist
+            ${{ env.JUNKYARD_PROJECT_PATH }}/dist
             quality-artifacts
           if-no-files-found: warn
           retention-days: 14
