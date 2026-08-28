@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "area": "quality.platform-gates",
-  "problem": "The Parking Jam prototype can build and render while code structure, assets, bundle size, and UI interactions regress unnoticed.",
+  "problem": "The Parking Jam prototype could build and render while code structure, assets, bundle size, performance, and UI interactions regressed unnoticed.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
@@ -9,7 +9,7 @@
     ".github/workflows/ci.yml",
     ".github/workflows/publish-stable.yml"
   ],
-  "reuseDecision": "Extend the existing architecture and GitHub Actions validation layer instead of introducing a second test harness or runtime.",
+  "reuseDecision": "The implementation extends the existing architecture and GitHub Actions validation layer instead of introducing a second test harness or runtime.",
   "stateOwner": "quality/quality-contract.json",
   "nonGoals": [
     "Change parking gameplay rules",
@@ -21,7 +21,7 @@
     "Generated levels, source files, GLB assets, and browser bundle have ratchets",
     "Existing debt ceilings are reduced through semantic splits rather than raised for quality fixes",
     "Weak-device quality tiers reduce pixel ratio, shadows, crowd size, and decoration density without changing domain state",
-    "Real browser interactions and layout contracts run across six viewports",
-    "All reports are retained as CI artifacts"
+    "Real browser interactions, layout, load, paint, and heap contracts run across six viewports",
+    "All reports and screenshots are retained as CI artifacts"
   ]
 }
