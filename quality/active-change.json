@@ -17,7 +17,7 @@
     "Replace Modoki or Three.js"
   ],
   "acceptance": [
-    "Strict TypeScript checking runs against the pinned Modoki toolchain",
+    "Strict TypeScript checking runs against the pinned Modoki toolchain and includes test sources",
     "Generated levels, source files, GLB assets, and browser bundle have ratchets",
     "Real browser interactions and layout contracts run across six viewports",
     "All reports are retained as CI artifacts"
