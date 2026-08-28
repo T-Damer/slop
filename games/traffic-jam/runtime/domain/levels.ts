@@ -18,6 +18,19 @@ interface SeededRandom {
   readonly shuffle: <T>(values: ReadonlyArray<T>) => Array<T>;
 }
 
+interface StructuralLayout {
+  readonly cars: ReadonlyArray<StructuralCar>;
+  readonly solutionChains: ReadonlyArray<ReadonlyArray<string>>;
+}
+
+interface GridSelection {
+  readonly mirrorX: boolean;
+  readonly mirrorY: boolean;
+  readonly location: TrafficLevelDefinition['location'];
+  readonly horizontalRows: ReadonlyArray<number>;
+  readonly verticalColumns: ReadonlyArray<number>;
+}
+
 type TrafficLevelPattern = typeof trafficLevelPatterns[keyof typeof trafficLevelPatterns];
 type StructuralCar = Omit<TrafficCarDefinition, 'color' | 'capacity'>;
 
@@ -52,6 +65,43 @@ function buildTrafficLevel(
   seed: number,
 ): TrafficLevelDefinition {
   const random = createSeededRandom(seed ^ hashString(pattern.id));
+  const selection = selectGrid(pattern, random);
+  const horizontal = createHorizontalLayout(selection.horizontalRows, selection.mirrorX);
+  const vertical = createVerticalLayout(
+    selection.verticalColumns,
+    selection.mirrorY,
+    random,
+  );
+  const structuralCars = [...horizontal.cars, ...vertical.cars];
+  const expectedSolution = random.shuffle([
+    ...horizontal.solutionChains,
+    ...vertical.solutionChains,
+  ]).flat();
+  const cars = assignCarDemand(
+    structuralCars,
+    expectedSolution,
+    pattern,
+    seed,
+    random,
+  );
+
+  return {
+    id: pattern.id,
+    name: pattern.name,
+    objective: pattern.objective,
+    location: selection.location,
+    variantSeed: seed,
+    bayCount: pattern.bayCount,
+    cars,
+    passengers: createPassengerQueue(cars, expectedSolution),
+    expectedSolution,
+  };
+}
+
+function selectGrid(
+  pattern: TrafficLevelPattern,
+  random: SeededRandom,
+): GridSelection {
   const mirrorX = random.boolean();
   const mirrorY = random.boolean();
   const location = pattern.locations[random.integer(pattern.locations.length)]
@@ -70,82 +120,118 @@ function buildTrafficLevel(
     )
     .slice(trafficRules.firstIndex, pattern.verticalColumns);
 
-  const structuralCars: Array<StructuralCar> = [];
-  const solutionChains: Array<ReadonlyArray<string>> = [];
+  return {
+    mirrorX,
+    mirrorY,
+    location,
+    horizontalRows,
+    verticalColumns,
+  };
+}
 
-  for (const row of horizontalRows) {
+function createHorizontalLayout(
+  rows: ReadonlyArray<number>,
+  mirrorX: boolean,
+): StructuralLayout {
+  const cars: Array<StructuralCar> = [];
+  const solutionChains: Array<ReadonlyArray<string>> = [];
+  const outerX = mirrorX
+    ? trafficRules.boardColumns - trafficRules.carLength
+    : trafficRules.firstCoordinate;
+  const innerX = mirrorX
+    ? trafficRules.boardColumns - trafficRules.carLength * 2
+    : trafficRules.carLength;
+  const direction = mirrorX ? trafficDirections.right : trafficDirections.left;
+
+  for (const row of rows) {
     const outerId = `${trafficIdPrefixes.horizontalOuter}-${row}`;
     const innerId = `${trafficIdPrefixes.horizontalInner}-${row}`;
-    const outerX = mirrorX
-      ? trafficRules.boardColumns - trafficRules.carLength
-      : trafficRules.firstCoordinate;
-    const innerX = mirrorX
-      ? trafficRules.boardColumns - trafficRules.carLength * 2
-      : trafficRules.carLength;
-    const direction = mirrorX ? trafficDirections.right : trafficDirections.left;
-
-    structuralCars.push(
-      {
-        id: outerId,
-        x: outerX,
-        y: row,
-        length: trafficRules.carLength,
-        direction,
-      },
-      {
-        id: innerId,
-        x: innerX,
-        y: row,
-        length: trafficRules.carLength,
-        direction,
-      },
+    cars.push(
+      createStructuralCar(outerId, outerX, row, direction),
+      createStructuralCar(innerId, innerX, row, direction),
     );
     solutionChains.push([outerId, innerId]);
   }
+  return { cars, solutionChains };
+}
 
-  for (const column of verticalColumns) {
-    const topChainLength = random.integer(
-      trafficRules.verticalMaximumTopChainLength
-        - trafficRules.verticalMinimumTopChainLength
-        + trafficRules.cellStep,
-    ) + trafficRules.verticalMinimumTopChainLength;
+function createVerticalLayout(
+  columns: ReadonlyArray<number>,
+  mirrorY: boolean,
+  random: SeededRandom,
+): StructuralLayout {
+  const cars: Array<StructuralCar> = [];
+  const solutionChains: Array<ReadonlyArray<string>> = [];
+
+  for (const column of columns) {
+    const topChainLength = createTopChainLength(random);
     const columnCarIds: Array<string> = [];
-
     for (
       let slot = trafficRules.firstCoordinate;
       slot < trafficRules.verticalCarsPerColumn;
       slot += trafficRules.cellStep
     ) {
-      const id = `${trafficIdPrefixes.vertical}-${column}-${slot}`;
-      const baseY = slot * trafficRules.carLength;
-      const facesTop = slot < topChainLength;
-      const directionBeforeMirror = facesTop
-        ? trafficDirections.up
-        : trafficDirections.down;
-      const y = mirrorY
-        ? trafficRules.boardRows - trafficRules.carLength - baseY
-        : baseY;
-      const direction = mirrorY
-        ? flipVerticalDirection(directionBeforeMirror)
-        : directionBeforeMirror;
-
-      structuralCars.push({
-        id,
-        x: column,
-        y,
-        length: trafficRules.carLength,
-        direction,
-      });
-      columnCarIds.push(id);
+      const car = createVerticalCar(column, slot, topChainLength, mirrorY);
+      cars.push(car);
+      columnCarIds.push(car.id);
     }
-
     solutionChains.push([
       ...columnCarIds.slice(trafficRules.firstIndex, topChainLength),
       ...columnCarIds.slice(topChainLength).reverse(),
     ]);
   }
+  return { cars, solutionChains };
+}
 
-  const expectedSolution = random.shuffle(solutionChains).flat();
+function createVerticalCar(
+  column: number,
+  slot: number,
+  topChainLength: number,
+  mirrorY: boolean,
+): StructuralCar {
+  const id = `${trafficIdPrefixes.vertical}-${column}-${slot}`;
+  const baseY = slot * trafficRules.carLength;
+  const directionBeforeMirror = slot < topChainLength
+    ? trafficDirections.up
+    : trafficDirections.down;
+  const y = mirrorY
+    ? trafficRules.boardRows - trafficRules.carLength - baseY
+    : baseY;
+  const direction = mirrorY
+    ? flipVerticalDirection(directionBeforeMirror)
+    : directionBeforeMirror;
+  return createStructuralCar(id, column, y, direction);
+}
+
+function createStructuralCar(
+  id: string,
+  x: number,
+  y: number,
+  direction: StructuralCar['direction'],
+): StructuralCar {
+  return {
+    id,
+    x,
+    y,
+    length: trafficRules.carLength,
+    direction,
+  };
+}
+
+function createTopChainLength(random: SeededRandom): number {
+  const possibleLengths = trafficRules.verticalMaximumTopChainLength
+    - trafficRules.verticalMinimumTopChainLength
+    + trafficRules.cellStep;
+  return random.integer(possibleLengths) + trafficRules.verticalMinimumTopChainLength;
+}
+
+function assignCarDemand(
+  structuralCars: ReadonlyArray<StructuralCar>,
+  expectedSolution: ReadonlyArray<string>,
+  pattern: TrafficLevelPattern,
+  seed: number,
+  random: SeededRandom,
+): ReadonlyArray<TrafficCarDefinition> {
   const solutionIndexByCar = new Map(
     expectedSolution.map((carId, solutionIndex) => [carId, solutionIndex]),
   );
@@ -153,7 +239,8 @@ function buildTrafficLevel(
   const colorOffset = (
     pattern.colorOffset + random.integer(trafficColorOrder.length)
   ) % trafficColorOrder.length;
-  const cars: Array<TrafficCarDefinition> = structuralCars.map((car) => {
+
+  return structuralCars.map((car) => {
     const solutionIndex = solutionIndexByCar.get(car.id) ?? trafficRules.firstIndex;
     const color = trafficColorOrder[
       (solutionIndex + colorOffset) % trafficColorOrder.length
@@ -165,32 +252,21 @@ function buildTrafficLevel(
         + seedOffset
       ) % trafficPassengerGroupSizes.length
     ]!;
-    return {
-      ...car,
-      color,
-      capacity,
-    };
+    return { ...car, color, capacity };
   });
-  const carById = new Map(cars.map((car) => [car.id, car]));
-  const passengers = expectedSolution.flatMap((carId) => {
-    const car = carById.get(carId);
-    if (car === undefined) {
-      return [];
-    }
-    return Array.from({ length: car.capacity }, () => car.color);
-  });
+}
 
-  return {
-    id: pattern.id,
-    name: pattern.name,
-    objective: pattern.objective,
-    location,
-    variantSeed: seed,
-    bayCount: pattern.bayCount,
-    cars,
-    passengers,
-    expectedSolution,
-  };
+function createPassengerQueue(
+  cars: ReadonlyArray<TrafficCarDefinition>,
+  expectedSolution: ReadonlyArray<string>,
+): ReadonlyArray<TrafficCarDefinition['color']> {
+  const carById = new Map(cars.map((car) => [car.id, car]));
+  return expectedSolution.flatMap((carId) => {
+    const car = carById.get(carId);
+    return car === undefined
+      ? []
+      : Array.from({ length: car.capacity }, () => car.color);
+  });
 }
 
 function normalizeLevelIndex(levelIndex: number): number {
@@ -214,21 +290,17 @@ function normalizeSeed(seed: number): number {
 
 function createSeededRandom(seed: number): SeededRandom {
   let state = normalizeSeed(seed);
-
   const next = (): number => {
     state ^= state << 13;
     state ^= state >>> 17;
     state ^= state << 5;
     return (state >>> trafficRules.firstCoordinate) / trafficRandomization.uint32Divisor;
   };
-
-  const integer = (maximumExclusive: number): number => {
-    if (maximumExclusive <= trafficRules.cellStep) {
-      return trafficRules.firstIndex;
-    }
-    return Math.floor(next() * maximumExclusive);
-  };
-
+  const integer = (maximumExclusive: number): number => (
+    maximumExclusive <= trafficRules.cellStep
+      ? trafficRules.firstIndex
+      : Math.floor(next() * maximumExclusive)
+  );
   const shuffle = <T>(values: ReadonlyArray<T>): Array<T> => {
     const output = [...values];
     for (
@@ -237,13 +309,10 @@ function createSeededRandom(seed: number): SeededRandom {
       index -= trafficRules.cellStep
     ) {
       const swapIndex = integer(index + trafficRules.cellStep);
-      const current = output[index];
-      output[index] = output[swapIndex]!;
-      output[swapIndex] = current!;
+      [output[index], output[swapIndex]] = [output[swapIndex]!, output[index]!];
     }
     return output;
   };
-
   return {
     integer,
     boolean: () => integer(2) === trafficRules.firstIndex,
