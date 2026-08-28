@@ -8,9 +8,9 @@
     "debugBuild": false
   },
   "app": {
-    "appId": "io.tdamer.slop.parkingjam",
-    "appName": "Parking Jam",
-    "version": "0.2.0",
-    "buildNumber": 2
+    "appId": "io.tdamer.slop.arcade",
+    "appName": "Slop Games",
+    "version": "0.3.0",
+    "buildNumber": 3
   }
 }

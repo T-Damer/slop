@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "area": "quality.platform-gates",
-  "problem": "The Parking Jam prototype could build and render while code structure, assets, bundle size, performance, and UI interactions regressed unnoticed.",
+  "area": "platform.game-hub-and-proximity-world",
+  "problem": "Slop had one hard-wired Parking Jam experience and no reusable character movement or automatic proximity-interaction base for tycoon-style games.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
-    "tools/check-architecture.mjs",
-    ".github/workflows/ci.yml",
-    ".github/workflows/publish-stable.yml"
+    "games/traffic-jam/runtime/setup.ts",
+    "games/traffic-jam/runtime/presentation/app.ts",
+    "quality/ui-contract.json"
   ],
-  "reuseDecision": "The implementation extends the existing architecture and GitHub Actions validation layer instead of introducing a second test harness or runtime.",
-  "stateOwner": "quality/quality-contract.json",
+  "reuseDecision": "Keep the validated Modoki build shell and Parking Jam implementation, add one shared pure proximity-world domain, route both games through a lightweight hub, and build an original junkyard-station vertical slice without copying proprietary code or assets.",
+  "stateOwner": "games/shared/proximity-world/domain/rules.ts",
   "nonGoals": [
-    "Change parking gameplay rules",
-    "Merge PR #1",
-    "Replace Modoki or Three.js"
+    "Copy proprietary MSN, Homa, or StoreRider source code, branding, levels, models, sounds, or textures",
+    "Implement offline income, employees, upgrades, multiple locations, ads, or monetization in the first vertical slice",
+    "Merge PR #1 or replace Modoki and Three.js"
   ],
   "acceptance": [
-    "Strict TypeScript checking runs against the pinned Modoki toolchain and includes test sources",
-    "Generated levels, source files, GLB assets, and browser bundle have ratchets",
-    "Existing debt ceilings are reduced through semantic splits rather than raised for quality fixes",
-    "Weak-device quality tiers reduce pixel ratio, shadows, crowd size, and decoration density without changing domain state",
-    "Real browser interactions, layout, load, paint, and heap contracts run across six viewports",
-    "All reports and screenshots are retained as CI artifacts"
+    "The default route renders a touch-safe hub with Parking Jam and Junkyard Station cards",
+    "Legacy Parking Jam seed and viewport links still open Parking Jam without requiring a game parameter",
+    "A pure reusable domain owns bounded movement, nearest ready interaction selection, sustained progress, cooldown, and completion events",
+    "Junkyard Station supports keyboard and touch movement plus automatic talk, junk clearing, construction, fueling, and cash collection interactions",
+    "Domain tests cover the reusable proximity base and the complete starter tycoon loop",
+    "Production browser checks enter the hub, launch Junkyard Station, move the real character into a junk interaction, observe domain progress, return home, and launch Parking Jam"
   ]
 }

@@ -1,7 +1,7 @@
 import {
-  mountParkingJam,
-  unmountParkingJam,
-} from './presentation/app.ts';
+  mountGameHub,
+  unmountGameHub,
+} from '../../hub/runtime/presentation/app.ts';
 
 let registered = false;
 
@@ -10,7 +10,7 @@ export function registerGameSystems(): void {
     return;
   }
   registered = true;
-  mountParkingJam(document.body);
+  mountGameHub(document.body);
 }
 
 export function unregisterGameSystems(): void {
@@ -18,5 +18,5 @@ export function unregisterGameSystems(): void {
     return;
   }
   registered = false;
-  unmountParkingJam();
+  unmountGameHub();
 }

@@ -1,14 +1,8 @@
 flowchart LR
-    Domain[Parking domain\nstate · rules · queue · solver] --> App[Presentation controller\ninput · HUD · event playback]
-    Domain --> Scene[3D parking scene\nThree.js]
-    App --> Scene
-    Models[Procedural cars · people · props] --> Scene
-    Setup[Modoki lifecycle adapter] --> App
-    Game[Modoki GameDefinition] --> Setup
-    Game --> Config[Modoki project config]
-
-    Contract[Quality contract\nratchets · recipes · viewports] --> Gates[Code · asset · build · browser gates]
-    Domain --> Gates
-    App --> Gates
-    Scene --> Gates
-    Gates --> CI[GitHub Actions reports]
+    Hub[Slop game hub] --> ParkingPresentation[Parking Jam presentation]
+    Hub --> JunkyardPresentation[Junkyard Station presentation]
+    ParkingPresentation --> ParkingDomain[Parking pure domain]
+    JunkyardPresentation --> JunkyardDomain[Junkyard pure domain]
+    JunkyardDomain --> ProximityDomain[Shared proximity-world domain]
+    Adapter[Thin Modoki adapter] --> Hub
+    Quality[Quality contract] --> Tooling[CI and browser tooling]

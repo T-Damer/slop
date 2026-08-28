@@ -1,13 +1,13 @@
 {
   "name": "slop",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test games/traffic-jam/runtime/domain/rules.test.ts games/traffic-jam/runtime/domain/generation.test.ts",
+    "test": "node --experimental-strip-types --test games/traffic-jam/runtime/domain/rules.test.ts games/traffic-jam/runtime/domain/generation.test.ts games/shared/proximity-world/domain/rules.test.ts games/junkyard-tycoon/runtime/domain/rules.test.ts",
     "typecheck": "node .modoki-engine/node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "change:check": "node tools/check-change-contract.mjs",
     "architecture:check": "node tools/check-architecture.mjs",
@@ -18,6 +18,6 @@
     "check:source": "npm run test && npm run change:check && npm run architecture:check && npm run code:check && npm run assets:check",
     "check": "npm run check:source && npm run typecheck",
     "web:budget": "node tools/check-web-budget.mjs games/traffic-jam/dist",
-    "ui:quality": "node tools/check-browser-quality.mjs"
+    "ui:quality": "node tools/check-all-browser-quality.mjs"
   }
 }

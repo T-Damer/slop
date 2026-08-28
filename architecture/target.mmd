@@ -1,14 +1,22 @@
 flowchart LR
     Task[AI or human change contract] --> Search[Search · reuse · extend · compose]
-    Search --> Domain[Pure game domain]
+    Search --> SharedDomain[Reusable pure gameplay domains]
+    Search --> GameDomain[Game-specific pure domain]
     Search --> Presentation[Runtime-specific presentation]
-    Domain --> Tests[Seed sweep · solver · invariants · replay]
-    Presentation --> Runtime[Modoki / Three.js adapter]
+    SharedDomain --> GameDomain
+    GameDomain --> Tests[Seed sweeps · invariants · replay]
+    Presentation --> Hub[Game hub and lifecycle]
+    Hub --> Runtime[Modoki / Three.js adapter]
     Runtime --> Build[Compact browser artifact]
+
+    Proximity[Proximity world base] --> Movement[Movement · bounds · interaction selection]
+    Proximity --> Progress[Hold progress · cooldown · completion events]
+    Movement --> Tycoon[Junkyard and future tycoon worlds]
+    Progress --> Tycoon
 
     Quality[Machine quality contract] --> CodeGate[Strict types · ownership · debt ratchet]
     Quality --> AssetGate[Recipe · provenance · GLB validation]
-    Quality --> UiGate[Six viewports · real interactions · layout]
+    Quality --> UiGate[Hub · six viewports · real interactions]
     Quality --> BudgetGate[Raw · gzip · brotli · JS ratchet]
     CodeGate --> CI[Reviewable reports]
     AssetGate --> CI
@@ -16,4 +24,5 @@ flowchart LR
     BudgetGate --> CI
     Build --> CI
 
-    Domain -. forbidden .-> Three[Three.js · DOM · Modoki]
+    SharedDomain -. forbidden .-> Three[Three.js · DOM · Modoki]
+    GameDomain -. forbidden .-> Three

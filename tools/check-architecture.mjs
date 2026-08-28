@@ -53,33 +53,12 @@ for (const forbidden of model.forbidden ?? []) {
   }
 }
 
-const domainDirectory = 'games/traffic-jam/runtime/domain';
-const domainForbidden = [
-  /@modoki\//u,
-  /from\s+['"]three['"]/u,
-  /(?:^|\W)document(?:\W|$)/u,
-  /(?:^|\W)window(?:\W|$)/u,
-  /(?:^|\W)localStorage(?:\W|$)/u,
-  /(?:^|\W)HTMLElement(?:\W|$)/u,
-  /\.\.\/presentation\//u,
-  /Math\.random\s*\(/u,
-  /Date\.now\s*\(/u,
-  /performance\.now\s*\(/u,
-];
-for (const file of await listTypeScriptFiles(domainDirectory)) {
-  const content = await readFile(file, 'utf8');
-  for (const pattern of domainForbidden) {
-    if (pattern.test(content)) {
-      failures.push(`${file} crosses the pure-domain boundary: ${pattern}.`);
-    }
-  }
+for (const module of modules.filter((candidate) => candidate.kind === 'domain')) {
+  await validatePureDomain(module);
 }
-
 await validateRelativeModuleDependencies(modules);
-
-const setup = await readFile('games/traffic-jam/runtime/setup.ts', 'utf8');
-if (setup.includes("from 'three'") || setup.includes('@modoki/engine')) {
-  failures.push('runtime/setup.ts must remain a thin presentation lifecycle adapter.');
+for (const module of modules.filter((candidate) => candidate.kind === 'adapter')) {
+  await validateThinAdapter(module);
 }
 
 const report = {
@@ -92,13 +71,41 @@ if (failures.length > 0) {
   process.exitCode = 1;
 }
 
+async function validatePureDomain(module) {
+  const forbiddenPatterns = [
+    /@modoki\//u,
+    /from\s+['"]three['"]/u,
+    /(?:^|\W)document(?:\W|$)/u,
+    /(?:^|\W)window(?:\W|$)/u,
+    /(?:^|\W)localStorage(?:\W|$)/u,
+    /(?:^|\W)HTMLElement(?:\W|$)/u,
+    /\/presentation\//u,
+    /Math\.random\s*\(/u,
+    /Date\.now\s*\(/u,
+    /performance\.now\s*\(/u,
+  ];
+  for (const file of await sourceFilesForModule(module)) {
+    const content = await readFile(file, 'utf8');
+    for (const pattern of forbiddenPatterns) {
+      if (pattern.test(content)) {
+        failures.push(`${file} crosses the pure-domain boundary: ${pattern}.`);
+      }
+    }
+  }
+}
+
+async function validateThinAdapter(module) {
+  for (const file of await sourceFilesForModule(module)) {
+    const content = await readFile(file, 'utf8');
+    if (content.includes("from 'three'") || content.includes('@modoki/engine')) {
+      failures.push(`${file} must remain a thin presentation lifecycle adapter.`);
+    }
+  }
+}
+
 async function validateRelativeModuleDependencies(allModules) {
   for (const module of allModules) {
-    const metadata = await stat(module.path);
-    const files = metadata.isDirectory()
-      ? await listTypeScriptFiles(module.path)
-      : [module.path];
-    for (const file of files) {
+    for (const file of await sourceFilesForModule(module)) {
       const content = await readFile(file, 'utf8');
       for (const specifier of extractImportSpecifiers(content)) {
         if (!specifier.startsWith('.')) {
@@ -122,6 +129,13 @@ async function validateRelativeModuleDependencies(allModules) {
       }
     }
   }
+}
+
+async function sourceFilesForModule(module) {
+  const metadata = await stat(module.path);
+  return metadata.isDirectory()
+    ? listTypeScriptFiles(module.path)
+    : [module.path];
 }
 
 function extractImportSpecifiers(content) {

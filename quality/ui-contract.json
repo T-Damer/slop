@@ -9,7 +9,7 @@
     ".parking-message",
     ".parking-controls"
   ],
-  "stableQuery": "level=0&seed=17&quality=low&qa=1",
+  "stableQuery": "game=parking-jam&level=0&seed=17&quality=low&qa=1",
   "interaction": {
     "hintSelector": "[data-action=\"hint\"]",
     "shuffleSelector": "[data-action=\"reset\"]",

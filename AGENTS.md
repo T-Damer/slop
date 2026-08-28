@@ -18,7 +18,8 @@ Default order:
 
 - One behavior or state value has one canonical owner.
 - Gameplay rules are pure TypeScript and never depend on Modoki, Three.js, DOM, storage, network, or wall-clock APIs.
-- Presentation consumes state and semantic events. It does not decide whether a move, score, queue transition, or completion is valid.
+- Presentation consumes state and semantic events. It does not decide whether a move, reward, interaction, or completion is valid.
+- Cross-game mechanics belong in `games/shared/**`; game folders compose them instead of copy-pasting variants.
 - Domain strings and tuning numbers belong to cohesive typed registries/config objects. An orphan local constant is not a valid fix.
 - `const` by default; `let` only for intentional reassignment; never `var`.
 - Do not copy-paste variants. Extend or compose the existing semantic owner.
@@ -27,12 +28,17 @@ Default order:
 - Files listed in `quality/debt.json` may not grow. New files obey `quality/quality-contract.json`.
 - Development-only AI, MCP, validation, and asset tooling never ships in the game bundle.
 - A working patch can be rejected for incorrect ownership, duplication, weak game feel, budget regression, or architectural drift.
+- Recreate mechanics and interaction patterns, not proprietary source code, branding, levels, models, sounds, textures, or exact compositions.
 
 ## Current architecture
 
+- `games/shared/proximity-world/domain/**` owns reusable movement, bounds, nearest interaction selection, progress, cooldown, and completion events.
+- `games/junkyard-tycoon/runtime/domain/**` owns junkyard progression, resources, construction, fueling, payment, and objectives.
+- `games/junkyard-tycoon/runtime/presentation/**` owns the tycoon 3D scene, character input, visual interactions, and HUD.
 - `games/traffic-jam/runtime/domain/**` owns parking rules, passengers, scoring, jam detection, and solver behavior.
-- `games/traffic-jam/runtime/presentation/**` owns the 3D scene, models, minimal HUD, input, and animation.
-- `games/traffic-jam/runtime/setup.ts` is the thin Modoki lifecycle adapter.
+- `games/traffic-jam/runtime/presentation/**` owns the Parking Jam scene, models, minimal HUD, input, and animation.
+- `games/hub/runtime/presentation/**` owns game catalog, routing, and child-game lifecycle.
+- `games/traffic-jam/runtime/setup.ts` is the thin Modoki lifecycle adapter for the full hub build.
 - `quality/quality-contract.json` owns code, asset, runtime, and UI ratchets.
 - `architecture/model.json` owns module boundaries; current and target diagrams show actual versus intended structure.
 
@@ -40,9 +46,10 @@ Default order:
 
 - Gameplay must dominate the screen.
 - Do not generate dashboard, landing-page, glassmorphism, oversized title-card, or generic AI-demo UI.
-- Cars and people must remain recognizable at mobile scale.
-- Decoration may not cover the parking interaction area, exit routes, pickup bays, or passenger queue.
+- Characters, cars, interaction props, and rewards must remain recognizable at mobile scale.
+- Decoration may not cover interaction zones, movement routes, parking exits, pickup bays, or queues.
 - Every core action needs physical feedback and a visible reward consequence.
+- Auto-interaction worlds show what will happen, progress while the player stays nearby, and clear feedback when the action completes.
 - Review visual changes against `quality/visual-target.md`.
 
 ## Repository flow
@@ -56,7 +63,7 @@ Default order:
 
 A change is complete only when all applicable checks pass:
 
-1. strict TypeScript and domain seed sweeps;
+1. strict TypeScript and domain tests;
 2. architecture, code-size, duplicate, and change-contract gates;
 3. deterministic asset reproduction and GLB recipes;
 4. real Modoki production build and bundle ratchet;

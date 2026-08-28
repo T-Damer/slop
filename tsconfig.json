@@ -18,6 +18,6 @@
     "resolveJsonModule": true,
     "typeRoots": [".modoki-engine/node_modules/@types"]
   },
-  "include": ["games/traffic-jam/**/*.ts", "types/**/*.d.ts"],
-  "exclude": ["games/traffic-jam/dist", "games/traffic-jam/node_modules"]
+  "include": ["games/**/*.ts", "types/**/*.d.ts"],
+  "exclude": ["games/**/dist", "games/**/node_modules"]
 }

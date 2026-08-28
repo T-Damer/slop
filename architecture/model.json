@@ -2,39 +2,75 @@
   "schemaVersion": 3,
   "modules": [
     {
+      "id": "proximity-domain",
+      "kind": "domain",
+      "path": "games/shared/proximity-world/domain",
+      "owns": ["top-down movement", "world bounds", "nearest interaction selection", "interaction progress", "cooldown", "completion events"],
+      "dependsOn": []
+    },
+    {
       "id": "parking-domain",
+      "kind": "domain",
       "path": "games/traffic-jam/runtime/domain",
       "owns": ["parking state", "path validation", "pickup bays", "passenger queue", "score", "combo", "jam detection", "solver"],
       "dependsOn": []
     },
     {
       "id": "parking-presentation",
+      "kind": "presentation",
       "path": "games/traffic-jam/runtime/presentation",
-      "owns": ["3D scene", "procedural models", "HUD", "input", "animation", "local preferences"],
+      "owns": ["parking 3D scene", "parking models", "parking HUD", "parking input", "parking animation", "local preferences"],
       "dependsOn": ["parking-domain"]
     },
     {
+      "id": "junkyard-domain",
+      "kind": "domain",
+      "path": "games/junkyard-tycoon/runtime/domain",
+      "owns": ["junk clearing", "pump construction", "fuel service", "cash collection", "starter objectives"],
+      "dependsOn": ["proximity-domain"]
+    },
+    {
+      "id": "junkyard-presentation",
+      "kind": "presentation",
+      "path": "games/junkyard-tycoon/runtime/presentation",
+      "owns": ["junkyard 3D scene", "character controller input", "interaction feedback", "station models", "junkyard HUD"],
+      "dependsOn": ["junkyard-domain", "proximity-domain"]
+    },
+    {
+      "id": "hub-presentation",
+      "kind": "presentation",
+      "path": "games/hub/runtime/presentation",
+      "owns": ["game catalog", "game routing", "game lifecycle", "hub cards", "legacy Parking Jam links"],
+      "dependsOn": ["parking-presentation", "junkyard-presentation"]
+    },
+    {
       "id": "modoki-adapter",
+      "kind": "adapter",
       "path": "games/traffic-jam/runtime/setup.ts",
-      "owns": ["registration lifecycle"],
-      "dependsOn": ["parking-presentation"]
+      "owns": ["Modoki registration lifecycle"],
+      "dependsOn": ["hub-presentation"]
     },
     {
       "id": "quality-contract",
+      "kind": "contract",
       "path": "quality",
       "owns": ["code ratchets", "asset recipes", "runtime budgets", "UI contracts", "visual target"],
       "dependsOn": []
     },
     {
       "id": "quality-tooling",
+      "kind": "tooling",
       "path": "tools",
       "owns": ["architecture validation", "asset validation", "browser interaction tests", "build reports"],
       "dependsOn": ["quality-contract"]
     }
   ],
   "forbidden": [
+    { "from": "proximity-domain", "to": "hub-presentation" },
+    { "from": "proximity-domain", "to": "junkyard-presentation" },
+    { "from": "junkyard-domain", "to": "junkyard-presentation" },
+    { "from": "junkyard-domain", "to": "modoki-adapter" },
     { "from": "parking-domain", "to": "parking-presentation" },
-    { "from": "parking-domain", "to": "modoki-adapter" },
-    { "from": "parking-domain", "to": "quality-tooling" }
+    { "from": "parking-domain", "to": "modoki-adapter" }
   ]
 }
