@@ -1,0 +1,170 @@
+name: Finalize game hub and world kit
+
+on:
+  push:
+    branches:
+      - feature/core-traffic
+    paths:
+      - .github/workflows/finalize-hub-world-kit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
+  PARKING_PROJECT_PATH: games/traffic-jam
+  JUNKYARD_PROJECT_PATH: games/junkyard-station
+  QUALITY_REPORT_DIR: quality-artifacts
+
+concurrency:
+  group: finalize-hub-world-kit
+  cancel-in-progress: false
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Check out latest feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feature/core-traffic
+          fetch-depth: 0
+
+      - name: Synchronize and apply finalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin feature/core-traffic
+          git reset --hard origin/feature/core-traffic
+          bash .github/finalize-hub-world-kit.sh
+
+      - name: Check out pinned Modoki
+        uses: actions/checkout@v5
+        with:
+          repository: lsgmasa33/modoki-engine
+          ref: ${{ env.MODOKI_COMMIT }}
+          path: .modoki-engine
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            .modoki-engine/package-lock.json
+            games/traffic-jam/package-lock.json
+            games/junkyard-station/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/requirements-assets.txt
+
+      - name: Install pinned Modoki toolchain
+        working-directory: .modoki-engine
+        run: npm ci --no-audit --no-fund
+
+      - name: Install both locked game runtimes
+        shell: bash
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund --prefix "${PARKING_PROJECT_PATH}"
+          npm ci --ignore-scripts --no-audit --no-fund --prefix "${JUNKYARD_PROJECT_PATH}"
+
+      - name: Install locked asset toolchain
+        run: python -m pip install --disable-pip-version-check -r tools/requirements-assets.txt
+
+      - name: Reproduce source assets
+        run: npm run assets:reproduce
+
+      - name: Run strict source gates
+        run: npm run check
+
+      - name: Build Parking Jam
+        working-directory: .modoki-engine
+        env:
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.PARKING_PROJECT_PATH }}
+        run: npm run build -- --target web
+
+      - name: Build Junkyard Station
+        working-directory: .modoki-engine
+        env:
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.JUNKYARD_PROJECT_PATH }}
+        run: npm run build -- --target web
+
+      - name: Enforce both bundle ratchets
+        run: npm run web:budget
+
+      - name: Assemble and serve the production site
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .site "${RUNNER_TEMP}/slop-site"
+          mkdir -p .site/games/parking-jam .site/games/junkyard-station
+          cp games/hub/index.html games/hub/styles.css games/hub/app.js games/hub/catalog.js .site/
+          cp -R "${PARKING_PROJECT_PATH}/dist/." .site/games/parking-jam/
+          cp -R "${JUNKYARD_PROJECT_PATH}/dist/." .site/games/junkyard-station/
+          mkdir -p "${RUNNER_TEMP}/slop-site/slop"
+          cp -R .site/. "${RUNNER_TEMP}/slop-site/slop/"
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory "${RUNNER_TEMP}/slop-site" >"${RUNNER_TEMP}/slop-http.log" 2>&1 &
+          echo $! > "${RUNNER_TEMP}/slop-http.pid"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/slop/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "${RUNNER_TEMP}/slop-http.log"
+          exit 1
+
+      - name: Validate the game hub
+        run: npm run hub:quality -- http://127.0.0.1:4173/slop/
+
+      - name: Validate Parking Jam through the hub path
+        run: npm run ui:quality -- http://127.0.0.1:4173/slop/games/parking-jam/
+
+      - name: Validate Junkyard Station movement and interactions
+        run: npm run junkyard:quality -- http://127.0.0.1:4173/slop/games/junkyard-station/
+
+      - name: Stop production server
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "${RUNNER_TEMP}/slop-http.pid" ]]; then
+            kill "$(cat "${RUNNER_TEMP}/slop-http.pid")" || true
+          fi
+
+      - name: Upload final browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hub-world-kit-final-${{ github.sha }}
+          path: |
+            .site
+            quality-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Commit the validated implementation and publish stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .site quality-artifacts
+          rm -rf "${PARKING_PROJECT_PATH}/dist" "${JUNKYARD_PROJECT_PATH}/dist"
+          find games -type f -name '*.meta' -delete
+          rm -rf .github/payload
+          rm -f .github/workflows/apply-hub-world-fixes.yml
+          rm -f .github/workflows/finalize-hub-world-kit.yml
+          rm -f .github/finalize-hub-world-kit.sh
+          git config user.name "slop-quality-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "feat: add game hub and reusable Junkyard Station world base"
+          fi
+          git push origin HEAD:feature/core-traffic
+          git push origin HEAD:stable
