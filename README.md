@@ -16,10 +16,16 @@ The first vertical slice is **Parking Jam**, built as an external Modoki project
 
 GitHub Pages: **https://t-damer.github.io/slop/**
 
-A reproducible low-quality QA view can be opened with:
+A reproducible weak-device QA view can be opened with:
 
 ```text
 https://t-damer.github.io/slop/?level=0&seed=17&quality=low&qa=1
+```
+
+Latest validated stable workflow:
+
+```text
+https://github.com/T-Damer/slop/actions/runs/33186086344
 ```
 
 ## Quality commands
