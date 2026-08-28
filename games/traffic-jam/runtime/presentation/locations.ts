@@ -5,6 +5,10 @@ import {
   type TrafficLocation,
 } from '../domain/registry.ts';
 import {
+  scaledCount,
+  selectByDensity,
+} from './location-density.ts';
+import {
   parkingLayout,
   parkingLocationThemes,
   parkingSceneColors,
@@ -99,7 +103,6 @@ function createCityDecorations(density: number): THREE.Group {
 function createBeachDecorations(density: number): THREE.Group {
   const root = new THREE.Group();
   const theme = parkingLocationThemes[trafficLocations.beach];
-
   const ocean = new THREE.Mesh(
     new THREE.PlaneGeometry(
       parkingLocationGeometry.oceanWidth,
@@ -171,7 +174,6 @@ function createBeachDecorations(density: number): THREE.Group {
     umbrella.position.set(x, 0, z);
     root.add(umbrella);
   }
-
   return root;
 }
 
@@ -241,18 +243,12 @@ function createBuilding(
 
 function createPalmTree(scale: number): THREE.Group {
   const group = new THREE.Group();
-  const trunkMaterial = new THREE.MeshStandardMaterial({
-    color: parkingSceneColors.beachPalmTrunk,
-    roughness: 0.93,
-  });
   const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(
-      0.1 * scale,
-      0.17 * scale,
-      1.8 * scale,
-      8,
-    ),
-    trunkMaterial,
+    new THREE.CylinderGeometry(0.1 * scale, 0.17 * scale, 1.8 * scale, 8),
+    new THREE.MeshStandardMaterial({
+      color: parkingSceneColors.beachPalmTrunk,
+      roughness: 0.93,
+    }),
   );
   trunk.position.y = 0.9 * scale;
   trunk.rotation.z = 0.08;
@@ -304,20 +300,6 @@ function createBeachUmbrella(color: number): THREE.Group {
   canopy.castShadow = true;
   group.add(canopy);
   return group;
-}
-
-
-function selectByDensity<T>(
-  values: ReadonlyArray<T>,
-  density: number,
-  minimum = 1,
-): ReadonlyArray<T> {
-  return values.slice(0, scaledCount(values.length, density, minimum));
-}
-
-function scaledCount(total: number, density: number, minimum: number): number {
-  const normalizedDensity = Math.min(1, Math.max(0, density));
-  return Math.min(total, Math.max(minimum, Math.ceil(total * normalizedDensity)));
 }
 
 function darken(color: number, factor: number): number {
