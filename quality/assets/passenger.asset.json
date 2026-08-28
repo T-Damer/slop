@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "passenger",
+  "path": "games/traffic-jam/runtime/assets/models/passenger.glb",
+  "license": "project-authored",
+  "units": "meters",
+  "upAxis": "Z",
+  "forwardAxis": "+Y",
+  "originPolicy": "ground-center",
+  "runtimeUse": "source reference; procedural runtime fallback remains active until the GLB loader is separately validated",
+  "generator": {
+    "path": "tools/generate-traffic-assets.py",
+    "version": "1.0.0",
+    "sourceGitBlobSha": "8412b3dec0e529430a8ef2240c51b2d1728260b6"
+  },
+  "requiredNodes": [
+    "passenger_torso",
+    "passenger_head",
+    "passenger_hair",
+    "leg_0",
+    "leg_1",
+    "arm_0",
+    "arm_1"
+  ],
+  "sha256": "cfbf5dcb661d88a2638c5f282388d752a91c788c6baba8388c4f9347f2fdea99",
+  "budgets": {
+    "maximumBytes": 20000,
+    "maximumMeshes": 8,
+    "maximumMaterials": 8,
+    "maximumTriangles": 1000
+  }
+}

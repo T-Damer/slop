@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "rootSelector": "#slop-parking-jam",
+  "canvasSelector": ".parking-canvas",
+  "touchTargetSelector": "button",
+  "criticalSelectors": [
+    ".parking-hud",
+    ".parking-next",
+    ".parking-message",
+    ".parking-controls"
+  ],
+  "stableQuery": "level=0&seed=17&quality=low&qa=1",
+  "interaction": {
+    "hintSelector": "[data-action=\"hint\"]",
+    "shuffleSelector": "[data-action=\"reset\"]",
+    "scoreSelector": "[data-hud=\"score\"]",
+    "messageSelector": "[data-hud=\"message\"]",
+    "targetSelector": ".parking-target-name"
+  }
+}

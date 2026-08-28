@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "area": "quality.platform-gates",
+  "problem": "The Parking Jam prototype can build and render while code structure, assets, bundle size, and UI interactions regress unnoticed.",
+  "existingOwnersChecked": [
+    "AGENTS.md",
+    "architecture/model.json",
+    "tools/check-architecture.mjs",
+    ".github/workflows/ci.yml",
+    ".github/workflows/publish-stable.yml"
+  ],
+  "reuseDecision": "Extend the existing architecture and GitHub Actions validation layer instead of introducing a second test harness or runtime.",
+  "stateOwner": "quality/quality-contract.json",
+  "nonGoals": [
+    "Change parking gameplay rules",
+    "Merge PR #1",
+    "Replace Modoki or Three.js"
+  ],
+  "acceptance": [
+    "Strict TypeScript checking runs against the pinned Modoki toolchain",
+    "Generated levels, source files, GLB assets, and browser bundle have ratchets",
+    "Real browser interactions and layout contracts run across six viewports",
+    "All reports are retained as CI artifacts"
+  ]
+}

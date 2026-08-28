@@ -3,8 +3,12 @@ flowchart LR
     Domain --> Scene[3D parking scene\nThree.js]
     App --> Scene
     Models[Procedural cars · people · props] --> Scene
-    Registry[Presentation tuning registries] --> App
-    Registry --> Scene
     Setup[Modoki lifecycle adapter] --> App
     Game[Modoki GameDefinition] --> Setup
     Game --> Config[Modoki project config]
+
+    Contract[Quality contract\nratchets · recipes · viewports] --> Gates[Code · asset · build · browser gates]
+    Domain --> Gates
+    App --> Gates
+    Scene --> Gates
+    Gates --> CI[GitHub Actions reports]

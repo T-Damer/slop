@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "activeChangeContractPath": "quality/active-change.json",
+  "code": {
+    "defaultMaximumLines": 320,
+    "defaultMaximumBytes": 16000,
+    "maximumFunctionLines": 80,
+    "duplicateBlockMinimumLines": 12,
+    "forbiddenGenericOwners": [
+      "constants.ts",
+      "utils.ts",
+      "helpers.ts"
+    ],
+    "forbiddenSuppressions": [
+      "@ts-ignore",
+      "@ts-expect-error",
+      "eslint-disable",
+      "biome-ignore",
+      "as any"
+    ]
+  },
+  "assets": {
+    "recipeDirectory": "quality/assets",
+    "requireRuntimeUseDeclaration": true,
+    "requireSha256": true,
+    "forbidExternalUris": true
+  },
+  "runtime": {
+    "rawRatchetBytes": 3700000,
+    "gzipRatchetBytes": 1350000,
+    "brotliRatchetBytes": 1150000,
+    "largestJavaScriptRatchetBytes": 900000,
+    "targetBrotliBytes": 700000
+  },
+  "ui": {
+    "requiredViewports": [
+      { "id": "small-phone", "width": 360, "height": 640 },
+      { "id": "phone", "width": 390, "height": 844 },
+      { "id": "tall-phone", "width": 412, "height": 915 },
+      { "id": "tablet-portrait", "width": 768, "height": 1024 },
+      { "id": "tablet-landscape", "width": 1024, "height": 768 },
+      { "id": "desktop", "width": 1366, "height": 768 }
+    ],
+    "minimumTouchTargetPx": 44,
+    "maximumHorizontalOverflowPx": 0,
+    "maximumCriticalOverlapPx": 96,
+    "minimumCanvasViewportShare": 0.7
+  }
+}

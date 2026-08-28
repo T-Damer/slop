@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "modules": [
     {
       "id": "parking-domain",
@@ -18,10 +18,23 @@
       "path": "games/traffic-jam/runtime/setup.ts",
       "owns": ["registration lifecycle"],
       "dependsOn": ["parking-presentation"]
+    },
+    {
+      "id": "quality-contract",
+      "path": "quality",
+      "owns": ["code ratchets", "asset recipes", "runtime budgets", "UI contracts", "visual target"],
+      "dependsOn": []
+    },
+    {
+      "id": "quality-tooling",
+      "path": "tools",
+      "owns": ["architecture validation", "asset validation", "browser interaction tests", "build reports"],
+      "dependsOn": ["quality-contract"]
     }
   ],
   "forbidden": [
-    {"from": "parking-domain", "to": "parking-presentation"},
-    {"from": "parking-domain", "to": "modoki-adapter"}
+    { "from": "parking-domain", "to": "parking-presentation" },
+    { "from": "parking-domain", "to": "modoki-adapter" },
+    { "from": "parking-domain", "to": "quality-tooling" }
   ]
 }

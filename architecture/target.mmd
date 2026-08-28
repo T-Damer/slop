@@ -1,9 +1,19 @@
 flowchart LR
-    Prompt[AI or human task] --> Domain[Pure game domain]
-    Domain --> Tests[Solver · invariants · replay tests]
-    Domain --> Presentation[Runtime-specific presentation]
-    Presentation --> Validation[Rendered mobile smoke + visual review]
-    Presentation --> Modoki[Modoki authoring/build adapter]
-    Modoki --> Pages[Compact browser build]
+    Task[AI or human change contract] --> Search[Search · reuse · extend · compose]
+    Search --> Domain[Pure game domain]
+    Search --> Presentation[Runtime-specific presentation]
+    Domain --> Tests[Seed sweep · solver · invariants · replay]
+    Presentation --> Runtime[Modoki / Three.js adapter]
+    Runtime --> Build[Compact browser artifact]
 
-    Domain -. forbidden .-> Three[Three.js / DOM / Modoki]
+    Quality[Machine quality contract] --> CodeGate[Strict types · ownership · debt ratchet]
+    Quality --> AssetGate[Recipe · provenance · GLB validation]
+    Quality --> UiGate[Six viewports · real interactions · layout]
+    Quality --> BudgetGate[Raw · gzip · brotli · JS ratchet]
+    CodeGate --> CI[Reviewable reports]
+    AssetGate --> CI
+    UiGate --> CI
+    BudgetGate --> CI
+    Build --> CI
+
+    Domain -. forbidden .-> Three[Three.js · DOM · Modoki]
