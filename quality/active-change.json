@@ -20,6 +20,7 @@
     "Strict TypeScript checking runs against the pinned Modoki toolchain and includes test sources",
     "Generated levels, source files, GLB assets, and browser bundle have ratchets",
     "Existing debt ceilings are reduced through semantic splits rather than raised for quality fixes",
+    "Weak-device quality tiers reduce pixel ratio, shadows, crowd size, and decoration density without changing domain state",
     "Real browser interactions and layout contracts run across six viewports",
     "All reports are retained as CI artifacts"
   ]
