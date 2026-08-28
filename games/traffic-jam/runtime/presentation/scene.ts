@@ -17,7 +17,15 @@ import type {
   TrafficLevelDefinition,
   TrafficState,
 } from '../domain/types.ts';
+import {
+  dampAngle,
+  easeInCubic,
+  easeInOutCubic,
+  easeOutCubic,
+  linear,
+} from './animation-curves.ts';
 import { createParkingLocationDecorations } from './locations.ts';
+import { countLeadingQueueColor } from './queue-metrics.ts';
 import {
   createBayMarker,
   createCarModel,
@@ -164,7 +172,7 @@ export class ParkingJamScene {
     this.targetColor = state.passengers[trafficRules.firstIndex] ?? null;
     this.targetGroupSize = this.targetColor === null
       ? trafficRules.emptyCollectionSize
-      : countLeadingColor(state.passengers, this.targetColor);
+      : countLeadingQueueColor(state.passengers, this.targetColor);
     this.replenishPassengerQueue(state.passengers);
     const available = new Set(getAvailableCarIds(level, state));
 
@@ -1012,13 +1020,6 @@ export class ParkingJamScene {
   }
 }
 
-function countLeadingColor(passengers: TrafficState['passengers'], color: TrafficColor): number {
-  let count = trafficRules.emptyCollectionSize;
-  while (passengers[count] === color) {
-    count += trafficRules.cellStep;
-  }
-  return count;
-}
 
 function dedupePoints(points: ReadonlyArray<THREE.Vector3>): Array<THREE.Vector3> {
   const output: Array<THREE.Vector3> = [];
@@ -1031,25 +1032,3 @@ function dedupePoints(points: ReadonlyArray<THREE.Vector3>): Array<THREE.Vector3
   return output;
 }
 
-function dampAngle(current: number, target: number, amount: number): number {
-  const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
-  return current + delta * amount;
-}
-
-function linear(progress: number): number {
-  return progress;
-}
-
-function easeInCubic(progress: number): number {
-  return progress * progress * progress;
-}
-
-function easeOutCubic(progress: number): number {
-  return 1 - Math.pow(1 - progress, 3);
-}
-
-function easeInOutCubic(progress: number): number {
-  return progress < 0.5
-    ? 4 * progress * progress * progress
-    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-}

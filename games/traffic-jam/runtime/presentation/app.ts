@@ -36,6 +36,7 @@ import {
   parkingUiSymbols,
   parkingUiTimings,
 } from './registry.ts';
+import { countLeadingQueueColor } from './queue-metrics.ts';
 import { ParkingJamScene } from './scene.ts';
 import { parkingStyles } from './styles.ts';
 
@@ -361,7 +362,7 @@ class ParkingJamApp {
       return;
     }
 
-    const groupSize = countLeadingGroup(passengers, color);
+    const groupSize = countLeadingQueueColor(passengers, color);
     const css = parkingColorCss[color];
     const name = parkingColorNames[color];
     const dots = passengers
@@ -394,7 +395,7 @@ class ParkingJamApp {
     if (color === undefined) {
       return parkingUiCopy.instruction;
     }
-    const groupSize = countLeadingGroup(this.state.passengers, color);
+    const groupSize = countLeadingQueueColor(this.state.passengers, color);
     return `${parkingUiCopy.instructionPrefix} ${parkingColorNames[color]} ${parkingUiCopy.instructionMiddle} ${groupSize} ${parkingUiCopy.instructionSuffix}`;
   }
 
@@ -562,13 +563,6 @@ function createRuntimeSeed(previousSeed: number = trafficRules.emptyCollectionSi
   return mixed === trafficRules.emptyCollectionSize ? trafficRandomization.fallbackSeed : mixed;
 }
 
-function countLeadingGroup(passengers: TrafficState['passengers'], color: TrafficState['passengers'][number]): number {
-  let count: number = trafficRules.emptyCollectionSize;
-  while (passengers[count] === color) {
-    count += trafficRules.cellStep;
-  }
-  return count;
-}
 
 function loadNumber(key: string, fallback: number): number {
   try {
