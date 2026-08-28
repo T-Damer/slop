@@ -57,15 +57,16 @@ const parkingLocationGeometry = {
 
 export function createParkingLocationDecorations(
   location: TrafficLocation,
+  density = 1,
 ): THREE.Group {
   return location === trafficLocations.beach
-    ? createBeachDecorations()
-    : createCityDecorations();
+    ? createBeachDecorations(density)
+    : createCityDecorations(density);
 }
 
-function createCityDecorations(): THREE.Group {
+function createCityDecorations(density: number): THREE.Group {
   const root = new THREE.Group();
-  parkingLocationGeometry.cityBuildingPositions.forEach(
+  selectByDensity(parkingLocationGeometry.cityBuildingPositions, density).forEach(
     ([x, z, width, height, depth], index) => {
       const color = parkingSceneColors.cityBuildingPalette[
         index % parkingSceneColors.cityBuildingPalette.length
@@ -95,7 +96,7 @@ function createCityDecorations(): THREE.Group {
   return root;
 }
 
-function createBeachDecorations(): THREE.Group {
+function createBeachDecorations(density: number): THREE.Group {
   const root = new THREE.Group();
   const theme = parkingLocationThemes[trafficLocations.beach];
 
@@ -129,7 +130,7 @@ function createBeachDecorations(): THREE.Group {
   });
   for (
     let waveIndex = 0;
-    waveIndex < parkingLocationGeometry.waveCount;
+    waveIndex < scaledCount(parkingLocationGeometry.waveCount, density, 3);
     waveIndex += 1
   ) {
     const wave = new THREE.Mesh(
@@ -150,13 +151,19 @@ function createBeachDecorations(): THREE.Group {
     root.add(wave);
   }
 
-  for (const [x, z, scale] of parkingLocationGeometry.beachPalmPositions) {
+  for (const [x, z, scale] of selectByDensity(
+    parkingLocationGeometry.beachPalmPositions,
+    density,
+  )) {
     const palm = createPalmTree(scale);
     palm.position.set(x, 0, z);
     root.add(palm);
   }
 
-  for (const [x, z, paletteIndex] of parkingLocationGeometry.beachUmbrellaPositions) {
+  for (const [x, z, paletteIndex] of selectByDensity(
+    parkingLocationGeometry.beachUmbrellaPositions,
+    density,
+  )) {
     const color = parkingSceneColors.beachUmbrellaPalette[
       paletteIndex % parkingSceneColors.beachUmbrellaPalette.length
     ]!;
@@ -297,6 +304,20 @@ function createBeachUmbrella(color: number): THREE.Group {
   canopy.castShadow = true;
   group.add(canopy);
   return group;
+}
+
+
+function selectByDensity<T>(
+  values: ReadonlyArray<T>,
+  density: number,
+  minimum = 1,
+): ReadonlyArray<T> {
+  return values.slice(0, scaledCount(values.length, density, minimum));
+}
+
+function scaledCount(total: number, density: number, minimum: number): number {
+  const normalizedDensity = Math.min(1, Math.max(0, density));
+  return Math.min(total, Math.max(minimum, Math.ceil(total * normalizedDensity)));
 }
 
 function darken(color: number, factor: number): number {

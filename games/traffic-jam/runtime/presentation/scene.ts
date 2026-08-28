@@ -25,6 +25,7 @@ import {
   linear,
 } from './animation-curves.ts';
 import { createParkingLocationDecorations } from './locations.ts';
+import { resolveParkingQuality } from './quality.ts';
 import { countLeadingQueueColor } from './queue-metrics.ts';
 import {
   createBayMarker,
@@ -83,6 +84,7 @@ export class ParkingJamScene {
     parkingCamera.positionY,
     parkingCamera.positionZ,
   );
+  private readonly quality = resolveParkingQuality();
   private currentLevel: TrafficLevelDefinition | null = null;
   private currentState: TrafficState | null = null;
   private targetColor: TrafficColor | null = null;
@@ -109,11 +111,11 @@ export class ParkingJamScene {
       alpha: false,
       powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, parkingLayout.maxPixelRatio));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.quality.maximumPixelRatio));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = parkingCamera.toneMappingExposure;
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = this.quality.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     this.scene.add(this.levelRoot, this.effectsRoot);
@@ -496,8 +498,8 @@ export class ParkingJamScene {
     this.scene.add(new THREE.HemisphereLight(0xf8fff9, 0x567451, 2));
     const sun = new THREE.DirectionalLight(0xfff3d5, 3.4);
     sun.position.set(-7, 13, -5);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(parkingLayout.shadowMapSize, parkingLayout.shadowMapSize);
+    sun.castShadow = this.quality.shadows;
+    sun.shadow.mapSize.set(this.quality.shadowMapSize, this.quality.shadowMapSize);
     sun.shadow.camera.left = -10;
     sun.shadow.camera.right = 10;
     sun.shadow.camera.top = 10;
@@ -601,7 +603,10 @@ export class ParkingJamScene {
       this.levelRoot.add(rail);
     }
 
-    this.levelRoot.add(createParkingLocationDecorations(level.location));
+    this.levelRoot.add(createParkingLocationDecorations(
+      level.location,
+      this.quality.decorationDensity,
+    ));
     if (level.location === trafficLocations.city) {
       const decorations: Array<[THREE.Object3D, number, number]> = [
         [createTree(0.78), -4.6, 4.2],
@@ -638,7 +643,7 @@ export class ParkingJamScene {
   }
 
   private replenishPassengerQueue(passengers: TrafficState['passengers'], animate = true): void {
-    const desired = Math.min(passengers.length, parkingLayout.queueVisibleLimit);
+    const desired = Math.min(passengers.length, this.quality.queueVisibleLimit);
     while (this.passengerModels.length < desired) {
       const index = this.passengerModels.length;
       const color = passengers[index];
