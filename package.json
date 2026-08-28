@@ -1,14 +1,19 @@
 {
   "name": "slop",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test games/traffic-jam/runtime/domain/rules.test.ts",
+    "test": "node --experimental-strip-types --test games/traffic-jam/runtime/domain/rules.test.ts games/traffic-jam/runtime/domain/generation.test.ts",
     "architecture:check": "node tools/check-architecture.mjs",
-    "check": "npm run test && npm run architecture:check"
+    "code:check": "node tools/check-code-quality.mjs",
+    "assets:check": "python3 tools/check-assets.py",
+    "check": "npm run test && npm run architecture:check && npm run code:check && npm run assets:check",
+    "web:budget": "node tools/check-web-budget.mjs",
+    "ui:quality": "python3 tools/check-browser-quality.py",
+    "assets:generate": "python3 tools/generate-traffic-assets.py"
   }
 }
