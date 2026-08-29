@@ -1,14 +1,14 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "rootSelector": "#slop-junkyard-tycoon",
   "canvasSelector": ".junkyard-canvas",
   "touchTargetSelector": "button",
   "criticalSelectors": [
-    ".junkyard-hud",
+    ".junkyard-resource-strip",
     ".junkyard-objective",
+    ".junkyard-message",
     ".junkyard-joystick",
-    ".junkyard-reset",
-    ".slop-home-button"
+    ".junkyard-reset"
   ],
   "stableQuery": "game=junkyard-station&quality=low&qa=1",
   "qaExpression": "window.__SLOP_JUNKYARD_QA__?.snapshot()",
