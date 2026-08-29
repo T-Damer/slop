@@ -17,8 +17,7 @@ concurrency:
 
 env:
   MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
-  PARKING_PROJECT_PATH: games/traffic-jam
-  JUNKYARD_PROJECT_PATH: games/junkyard-station
+  HUB_PROJECT_PATH: games/traffic-jam
   QUALITY_REPORT_DIR: quality-artifacts
 
 jobs:
@@ -45,47 +44,42 @@ jobs:
           cache-dependency-path: |
             .modoki-engine/package-lock.json
             games/traffic-jam/package-lock.json
-            games/junkyard-station/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/requirements-assets.txt
 
       - name: Install pinned Modoki toolchain
         working-directory: .modoki-engine
         run: npm ci --no-audit --no-fund
 
-      - name: Install locked Parking Jam runtime
-        working-directory: ${{ env.PARKING_PROJECT_PATH }}
+      - name: Install locked game-hub runtime
+        working-directory: ${{ env.HUB_PROJECT_PATH }}
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Install locked Junkyard Station runtime
-        working-directory: ${{ env.JUNKYARD_PROJECT_PATH }}
-        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install locked asset toolchain
+        run: python -m pip install --disable-pip-version-check -r tools/requirements-assets.txt
+
+      - name: Reproduce source assets
+        run: npm run assets:reproduce
 
       - name: Verify source contracts
         run: npm run check
 
-      - name: Build Parking Jam for Pages
+      - name: Build the Slop game hub for Pages
         working-directory: .modoki-engine
         env:
-          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.PARKING_PROJECT_PATH }}
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.HUB_PROJECT_PATH }}
         run: npm run build -- --target web
 
-      - name: Build Junkyard Station for Pages
-        working-directory: .modoki-engine
-        env:
-          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.JUNKYARD_PROJECT_PATH }}
-        run: npm run build -- --target web
-
-      - name: Enforce per-game web bundle ratchets
+      - name: Enforce the hub web bundle ratchet
         run: npm run web:budget
 
-      - name: Assemble Pages site
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf .site
-          mkdir -p .site/games/parking-jam .site/games/junkyard-station
-          cp games/hub/index.html games/hub/styles.css games/hub/app.js games/hub/catalog.js .site/
-          cp -R "${PARKING_PROJECT_PATH}/dist/." .site/games/parking-jam/
-          cp -R "${JUNKYARD_PROJECT_PATH}/dist/." .site/games/junkyard-station/
+      - name: Verify Pages artifact
+        run: test -f "${HUB_PROJECT_PATH}/dist/index.html"
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -93,7 +87,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .site
+          path: ${{ env.HUB_PROJECT_PATH }}/dist
 
       - name: Upload build quality report
         uses: actions/upload-artifact@v4
@@ -151,12 +145,12 @@ jobs:
       - name: Run deployed Parking Jam contract
         env:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
-        run: npm run ui:quality -- "${PAGE_URL}games/parking-jam/"
+        run: npm run ui:quality -- "$PAGE_URL"
 
       - name: Run deployed Junkyard Station contract
         env:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
-        run: npm run junkyard:quality -- "${PAGE_URL}games/junkyard-station/"
+        run: npm run junkyard:quality -- "$PAGE_URL"
 
       - name: Upload deployed browser evidence
         if: always()
