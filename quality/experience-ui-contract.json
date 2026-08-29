@@ -1,9 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "hub": {
     "rootSelector": "#slop-game-hub",
     "cardSelector": "[data-game-id]",
-    "junkyardCardSelector": "[data-game-id=\"junkyard-tycoon\"]",
+    "junkyardCardSelector": "[data-game-id=\"junkyard-station\"]",
     "parkingCardSelector": "[data-game-id=\"parking-jam\"]"
   },
   "junkyard": {
@@ -11,6 +11,6 @@
     "canvasSelector": ".junkyard-canvas",
     "actionBubbleSelector": ".junkyard-action-bubble",
     "homeSelector": "[data-hub-action=\"home\"]",
-    "stableQuery": "game=junkyard-tycoon&quality=low&qa=1"
+    "stableQuery": "game=junkyard-station&quality=low&qa=1"
   }
 }
