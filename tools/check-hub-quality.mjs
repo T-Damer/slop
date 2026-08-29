@@ -49,7 +49,7 @@ try {
     report.failures.map((failure) => `${report.id}: ${failure}`),
   );
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     browserPath: chromium.browserPath,
     baseUrl,
     viewports: viewportReports,
@@ -85,7 +85,7 @@ async function inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors })
   await cdp.send('Page.navigate', { url: baseUrl });
   await waitForExpression(
     cdp,
-    `document.querySelector(${JSON.stringify(ui.rootSelector)})?.classList.contains('is-ready')`,
+    `Boolean(document.querySelector(${JSON.stringify(ui.rootSelector)}))`,
     15000,
   );
   await delay(500);
@@ -98,10 +98,10 @@ async function inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors })
   if (viewport.id === 'phone') {
     interactions.junkyardLaunch = await launchJunkyard(cdp, ui, directory);
     if (!interactions.junkyardLaunch.launched) {
-      failures.push('Junkyard Station card did not launch its game build.');
+      failures.push('Junkyard Station card did not launch the game shell.');
     }
     if (!interactions.junkyardLaunch.returned) {
-      failures.push('Shared game navigation did not return to the hub.');
+      failures.push('The game-shell home control did not return to the hub.');
     }
   }
 
@@ -126,38 +126,41 @@ async function inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors })
 }
 
 async function launchJunkyard(cdp, ui, directory) {
-  const destination = await evaluate(cdp, `(() => {
-    const link = document.querySelector(${JSON.stringify(ui.junkyardLinkSelector)});
-    if (!(link instanceof HTMLAnchorElement)) return null;
-    const href = link.href;
-    link.click();
-    return href;
+  const clicked = await evaluate(cdp, `(() => {
+    const button = document.querySelector(${JSON.stringify(ui.junkyardLinkSelector)});
+    if (!(button instanceof HTMLButtonElement)) return false;
+    button.click();
+    return true;
   })()`);
-  if (destination === null) {
-    return { launched: false, returned: false, destination: null };
+  if (!clicked) {
+    return { launched: false, returned: false };
   }
-  await waitForExpression(cdp, "Boolean(document.querySelector('#slop-junkyard'))", 20000);
+  await waitForExpression(
+    cdp,
+    `Boolean(document.querySelector(${JSON.stringify(ui.junkyardRootSelector)}))`,
+    20000,
+  );
   await delay(900);
   await captureScreenshot(cdp, path.join(directory, 'junkyard-launch.png'));
-  const navigationVisible = await evaluate(
+  const homeVisible = await evaluate(
     cdp,
-    "Boolean(document.querySelector('.slop-game-nav'))",
+    `Boolean(document.querySelector(${JSON.stringify(ui.homeSelector)}))`,
   );
-  if (!navigationVisible) {
-    return { launched: true, returned: false, destination };
+  if (!homeVisible) {
+    return { launched: true, returned: false };
   }
   await evaluate(cdp, `(() => {
-    const link = document.querySelector('.slop-game-nav');
-    if (!(link instanceof HTMLAnchorElement)) return false;
-    link.click();
+    const button = document.querySelector(${JSON.stringify(ui.homeSelector)});
+    if (!(button instanceof HTMLButtonElement)) return false;
+    button.click();
     return true;
   })()`);
   await waitForExpression(
     cdp,
-    `document.querySelector(${JSON.stringify(ui.rootSelector)})?.classList.contains('is-ready')`,
+    `Boolean(document.querySelector(${JSON.stringify(ui.rootSelector)}))`,
     20000,
   );
-  return { launched: true, returned: true, destination };
+  return { launched: true, returned: true };
 }
 
 function createHubLayoutExpression(ui) {
@@ -168,12 +171,11 @@ function createHubLayoutExpression(ui) {
       failures.push('Horizontal overflow: ' + overflow + 'px.');
     }
     const cards = [...document.querySelectorAll(${JSON.stringify(ui.cardSelector)})]
-      .filter((element) => element instanceof HTMLAnchorElement)
+      .filter((element) => element instanceof HTMLButtonElement)
       .map((element) => {
         const rect = element.getBoundingClientRect();
         return {
           id: element.dataset.gameId ?? '',
-          href: element.href,
           width: rect.width,
           height: rect.height,
           visible: element.offsetParent !== null
