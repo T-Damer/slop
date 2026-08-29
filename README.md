@@ -2,7 +2,7 @@
 
 Slop is an AI-oriented game factory built around small, testable game domains, reusable mechanics, runtime adapters, and machine-enforced generation contracts.
 
-The browser build now opens a shared game hub with two vertical slices:
+The browser build opens a shared game hub with two vertical slices:
 
 - **Junkyard Station** — the base for character-driven tycoon worlds: move with keyboard or touch, approach an object or NPC, and let a reusable proximity interaction progress automatically;
 - **Parking Jam** — the existing isometric parking and passenger puzzle with deterministic seeded levels and a solver-backed domain.
@@ -16,14 +16,16 @@ GitHub Pages: **https://t-damer.github.io/slop/**
 Direct routes:
 
 ```text
-https://t-damer.github.io/slop/?game=junkyard-tycoon
+https://t-damer.github.io/slop/?game=junkyard-station
 https://t-damer.github.io/slop/?game=parking-jam&level=0&seed=17
 ```
+
+The previous `game=junkyard-tycoon` route remains supported as a compatibility alias.
 
 Weak-device QA routes:
 
 ```text
-https://t-damer.github.io/slop/?game=junkyard-tycoon&quality=low&qa=1
+https://t-damer.github.io/slop/?game=junkyard-station&quality=low&qa=1
 https://t-damer.github.io/slop/?game=parking-jam&level=0&seed=17&quality=low&qa=1
 ```
 
@@ -48,7 +50,9 @@ The full CI toolchain checks out the pinned Modoki revision and installs locked 
 ```bash
 npm run check
 npm run web:budget
+npm run hub:quality -- http://127.0.0.1:4173/slop/
 npm run ui:quality -- http://127.0.0.1:4173/slop/
+npm run junkyard:quality -- http://127.0.0.1:4173/slop/
 ```
 
 `npm run check` includes:
@@ -62,11 +66,11 @@ npm run ui:quality -- http://127.0.0.1:4173/slop/
 - GLB recipe, provenance, structure, hash, and budget validation;
 - strict TypeScript checking against the pinned Modoki toolchain.
 
-The browser contract tests Parking Jam at six viewports and separately verifies the hub and cross-game journey. It launches Junkyard Station, moves the real character into an interaction, observes resource changes through a read-only QA bridge, returns to the hub, and launches Parking Jam. Screenshots and JSON reports are retained as workflow artifacts.
+The browser contracts test the hub, route into each game, move the real Junkyard Station character into an interaction, observe resource changes through a read-only QA bridge, and exercise Parking Jam across the required viewports. Screenshots and JSON reports are retained as workflow artifacts.
 
 ## Build with Modoki
 
-The workflows pin Modoki `v0.5.2` by commit. The current build shell remains `games/traffic-jam` while the hub migration is in progress:
+The workflows pin Modoki `v0.5.2` by commit. `games/traffic-jam` currently acts as the Modoki shell for the shared game hub:
 
 ```bash
 git clone https://github.com/lsgmasa33/modoki-engine.git .modoki-engine
@@ -80,7 +84,7 @@ MODOKI_PROJECT=/absolute/path/to/slop/games/traffic-jam \
   npm run build -- --target web
 ```
 
-The artifact is written to `games/traffic-jam/dist`.
+The complete hub artifact is written to `games/traffic-jam/dist` and is deployed directly to GitHub Pages.
 
 ## Architecture
 
