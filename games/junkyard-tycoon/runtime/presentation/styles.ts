@@ -218,8 +218,8 @@ export const junkyardStyles = `
   }
 
   .junkyard-message {
-    bottom: max(76px, calc(env(safe-area-inset-bottom) + 68px));
-    width: min(260px, calc(100vw - 176px));
+    bottom: max(150px, calc(env(safe-area-inset-bottom) + 142px));
+    width: min(300px, calc(100vw - 32px));
     font-size: 0.78rem;
   }
 
