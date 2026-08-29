@@ -30,6 +30,28 @@ jobs:
       - name: Check out Slop
         uses: actions/checkout@v5
 
+      - name: Create source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar \
+            --exclude=.git \
+            --exclude=.modoki-engine \
+            --exclude=.site \
+            --exclude=quality-artifacts \
+            --exclude=node_modules \
+            --exclude='*/node_modules' \
+            --exclude='*/dist' \
+            -czf "${RUNNER_TEMP}/slop-source.tar.gz" .
+
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: slop-source-${{ github.sha }}
+          path: ${{ runner.temp }}/slop-source.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Check out pinned Modoki
         uses: actions/checkout@v5
         with:
