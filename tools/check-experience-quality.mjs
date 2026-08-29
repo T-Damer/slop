@@ -54,7 +54,7 @@ try {
     ...journey.failures.map((failure) => `journey: ${failure}`),
   ];
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     baseUrl,
     browserPath: chromium.browserPath,
     hubs: hubReports,
@@ -262,18 +262,27 @@ function hubLayoutExpression() {
       .filter((element) => element.offsetParent !== null)
       .map((element) => {
         const rect = element.getBoundingClientRect();
+        const horizontalViewportClipping = rect.left < -1 || rect.right > innerWidth + 1;
+        const internalClipping = element.scrollWidth > element.clientWidth + 1
+          || element.scrollHeight > element.clientHeight + 1;
         return {
           label: element.getAttribute('aria-label') || element.textContent?.trim() || 'button',
           width: rect.width,
           height: rect.height,
-          clipped: rect.left < -1 || rect.top < -1 || rect.right > innerWidth + 1 || rect.bottom > innerHeight + 1
+          horizontalViewportClipping,
+          internalClipping
         };
       });
     for (const button of buttons) {
       if (button.width < ${quality.ui.minimumTouchTargetPx} || button.height < ${quality.ui.minimumTouchTargetPx}) {
         failures.push('Touch target too small: ' + button.label + '.');
       }
-      if (button.clipped) failures.push('Hub control is clipped: ' + button.label + '.');
+      if (button.horizontalViewportClipping) {
+        failures.push('Hub control crosses the horizontal viewport: ' + button.label + '.');
+      }
+      if (button.internalClipping) {
+        failures.push('Hub control clips its own content: ' + button.label + '.');
+      }
     }
     return { viewport: { width: innerWidth, height: innerHeight }, overflow, cardCount: cards.length, buttons, failures };
   })()`;
