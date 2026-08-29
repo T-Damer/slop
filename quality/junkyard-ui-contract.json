@@ -13,10 +13,11 @@
   "stableQuery": "game=junkyard-station&quality=low&qa=1",
   "qaExpression": "window.__SLOP_JUNKYARD_QA__?.snapshot()",
   "movement": {
-    "key": "w",
-    "code": "KeyW",
-    "virtualKeyCode": 87,
-    "holdMs": 1900,
+    "key": "d",
+    "code": "KeyD",
+    "virtualKeyCode": 68,
+    "holdMs": 520,
+    "settleMs": 1400,
     "minimumDistance": 0.45,
     "rewardResourceId": "scrap",
     "minimumReward": 1
