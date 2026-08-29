@@ -51,7 +51,7 @@ try {
     report.failures.map((failure) => `${report.id}: ${failure}`),
   );
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     browserPath: chromium.browserPath,
     baseUrl,
     viewports: viewportReports,
@@ -109,10 +109,10 @@ async function inspectViewport({
   if (viewport.id === 'phone') {
     interactions.walkAndCollect = await exerciseWalkAndCollect(cdp, ui);
     if (!interactions.walkAndCollect.moved) {
-      failures.push('Keyboard movement did not move the world-kit player.');
+      failures.push('Keyboard movement did not move the proximity-world player.');
     }
     if (!interactions.walkAndCollect.rewarded) {
-      failures.push('Approaching the automatic scrap station did not award scrap.');
+      failures.push('Approaching the first junk pile did not award scrap.');
     }
     await captureScreenshot(cdp, path.join(directory, 'after-walk.png'));
   }
@@ -157,13 +157,15 @@ async function exerciseWalkAndCollect(cdp, ui) {
     windowsVirtualKeyCode: ui.movement.virtualKeyCode,
     nativeVirtualKeyCode: ui.movement.virtualKeyCode,
   });
-  await delay(900);
+  await delay(ui.movement.settleMs ?? 900);
   const current = await evaluate(cdp, ui.qaExpression);
-  const deltaX = current.state.player.x - baseline.state.player.x;
-  const deltaZ = current.state.player.z - baseline.state.player.z;
+  const baselinePosition = readPlayerPosition(baseline);
+  const currentPosition = readPlayerPosition(current);
+  const deltaX = currentPosition.x - baselinePosition.x;
+  const deltaZ = currentPosition.z - baselinePosition.z;
   const distance = Math.hypot(deltaX, deltaZ);
-  const baselineReward = baseline.state.resources[ui.movement.rewardResourceId] ?? 0;
-  const currentReward = current.state.resources[ui.movement.rewardResourceId] ?? 0;
+  const baselineReward = readResource(baseline, ui.movement.rewardResourceId);
+  const currentReward = readResource(current, ui.movement.rewardResourceId);
   return {
     baseline,
     current,
@@ -171,6 +173,29 @@ async function exerciseWalkAndCollect(cdp, ui) {
     moved: distance >= ui.movement.minimumDistance,
     rewarded: currentReward - baselineReward >= ui.movement.minimumReward,
   };
+}
+
+function readPlayerPosition(snapshot) {
+  const state = snapshot?.state;
+  const position = state?.world?.playerPosition
+    ?? state?.playerPosition
+    ?? state?.player
+    ?? { x: 0, z: 0 };
+  return {
+    x: Number(position.x ?? 0),
+    z: Number(position.z ?? 0),
+  };
+}
+
+function readResource(snapshot, resourceId) {
+  const state = snapshot?.state;
+  const direct = state?.[resourceId];
+  if (typeof direct === 'number') {
+    return direct;
+  }
+  const nested = state?.resources?.[resourceId]
+    ?? state?.world?.resources?.[resourceId];
+  return typeof nested === 'number' ? nested : 0;
 }
 
 function collectRuntimeErrors(cdp) {
