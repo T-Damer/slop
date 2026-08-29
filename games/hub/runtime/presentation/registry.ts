@@ -1,7 +1,11 @@
 export const hubGameIds = {
   hub: 'hub',
-  junkyardTycoon: 'junkyard-tycoon',
+  junkyardTycoon: 'junkyard-station',
   parkingJam: 'parking-jam',
+} as const;
+
+export const hubLegacyGameIds = {
+  junkyardTycoon: 'junkyard-tycoon',
 } as const;
 
 export type HubGameId = typeof hubGameIds[keyof typeof hubGameIds];
