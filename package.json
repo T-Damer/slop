@@ -18,6 +18,8 @@
     "check:source": "npm run test && npm run change:check && npm run architecture:check && npm run code:check && npm run assets:check",
     "check": "npm run check:source && npm run typecheck",
     "web:budget": "node tools/check-web-budget.mjs games/traffic-jam/dist",
+    "hub:quality": "node tools/check-hub-quality.mjs",
+    "junkyard:quality": "node tools/check-junkyard-quality.mjs",
     "ui:quality": "node tools/check-all-browser-quality.mjs"
   }
 }
