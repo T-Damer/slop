@@ -1,9 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "rootSelector": "#slop-game-hub",
-  "cardSelector": ".game-card",
-  "iconSelector": ".game-card__icon svg",
+  "shellSelector": "#slop-game-shell",
+  "cardSelector": ".slop-game-card",
+  "iconSelector": ".slop-game-art svg",
   "junkyardLinkSelector": "[data-game-id=\"junkyard-station\"]",
+  "homeSelector": ".slop-home-button",
+  "junkyardRootSelector": "#slop-junkyard-tycoon",
   "expectedGameIds": [
     "junkyard-station",
     "parking-jam"
