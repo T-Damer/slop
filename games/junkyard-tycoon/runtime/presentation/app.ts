@@ -69,7 +69,7 @@ class JunkyardApp {
   private animationFrame = 0;
   private lastFrameAt = 0;
   private disposed = false;
-  private message = junkyardCopy.subtitle;
+  private message: string = junkyardCopy.subtitle;
 
   public constructor(private readonly root: HTMLElement) {}
 
