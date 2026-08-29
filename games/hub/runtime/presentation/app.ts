@@ -3,6 +3,7 @@ import {
   hubCopy,
   hubGameIds,
   hubGames,
+  hubLegacyGameIds,
   hubUiActions,
   hubUiAttributes,
   hubUiIds,
@@ -204,6 +205,9 @@ function renderHub(): string {
 function resolveGameId(search: string): HubGameId {
   const params = new URLSearchParams(search);
   const requested = params.get('game');
+  if (requested === hubLegacyGameIds.junkyardTycoon) {
+    return hubGameIds.junkyardTycoon;
+  }
   if (isPlayableGameId(requested)) {
     return requested;
   }
