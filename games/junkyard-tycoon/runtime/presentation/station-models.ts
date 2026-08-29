@@ -107,7 +107,7 @@ export function createFuelPump(): FuelPumpModel {
 }
 
 export function createCustomerCar(
-  color = junkyardSceneColors.carBody,
+  color: number = junkyardSceneColors.carBody,
 ): CustomerCarModel {
   const root = new THREE.Group();
   const body = shadowMesh(
