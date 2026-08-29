@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           target="${RUNNER_TEMP}/island-assets"
-          mkdir -p "${target}/models" "${target}/audio" "${target}/licenses"
+          mkdir -p "${target}/models/Textures" "${target}/audio" "${target}/licenses"
           curl --fail --location --retry 3 --silent --show-error \
             https://raw.githubusercontent.com/syuhei176/ai-game-assets/main/models/environment/tree_palm.glb \
             --output "${target}/models/tree_palm.glb"
@@ -73,6 +73,9 @@ jobs:
           curl --fail --location --retry 3 --silent --show-error \
             https://raw.githubusercontent.com/masakav3/Agent-Office-Dashboard/main/frontend/vendor/kenney/character-male-a.glb \
             --output "${target}/models/character_male_a.glb"
+          curl --fail --location --retry 3 --silent --show-error \
+            https://raw.githubusercontent.com/masakav3/Agent-Office-Dashboard/main/frontend/vendor/kenney/Textures/colormap.png \
+            --output "${target}/models/Textures/colormap.png"
           curl --fail --location --retry 3 --silent --show-error \
             https://raw.githubusercontent.com/Calinou/kenney-interface-sounds/master/addons/kenney_interface_sounds/click_001.wav \
             --output "${target}/audio/click_001.wav"
@@ -91,7 +94,7 @@ jobs:
           curl --fail --location --retry 3 --silent --show-error \
             https://raw.githubusercontent.com/Calinou/kenney-interface-sounds/master/addons/kenney_interface_sounds/LICENSE.txt \
             --output "${target}/licenses/interface-sounds-license.txt"
-          (cd "${target}" && sha256sum models/* audio/* licenses/* > SHA256SUMS)
+          (cd "${target}" && find models audio licenses -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 
       - name: Upload vetted CC0 island assets
         uses: actions/upload-artifact@v4
