@@ -1,7 +1,9 @@
-# Game hub agent rules
+# Hub agent rules
 
-- The hub owns catalog, routing, and child-game lifecycle only.
-- Game state stays inside each game. The hub may not infer gameplay progress.
-- Preserve direct links and existing query parameters when practical.
-- Game cards use original lightweight artwork and remain at least 44×44 px on every supported viewport.
-- A child game must unmount completely before another game mounts.
+Read the root `AGENTS.md` first.
+
+- The hub router is the only owner of `game` query routing and browser history.
+- The root route mounts `games/island-hub`; it must never regress to a static card-only launcher.
+- Island portals and game-menu entries call the existing router rather than implementing navigation themselves.
+- Direct routes for Parking Jam, Junkyard Station, and external playables remain independently addressable.
+- External playables use a local launch screen and must not embed or copy third-party code or assets.
