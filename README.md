@@ -1,107 +1,85 @@
 # Slop
 
-Slop is an AI-oriented game factory built around small, testable game domains, reusable mechanics, runtime adapters, and machine-enforced generation contracts.
+Slop is an AI-oriented browser-game factory built around small, testable domains, interchangeable presentation adapters, reproducible assets, and machine-enforced quality gates.
 
-The browser build opens a shared game hub with two vertical slices:
+## Live
 
-- **Junkyard Station** — the base for character-driven tycoon worlds: move with keyboard or touch, approach an object or NPC, and let a reusable proximity interaction progress automatically;
-- **Parking Jam** — the existing isometric parking and passenger puzzle with deterministic seeded levels and a solver-backed domain.
+- Personal Island Hub: **https://t-damer.github.io/slop/**
+- Force the first-run guide again: **https://t-damer.github.io/slop/?onboarding=1&resetIsland=1**
+- Parking Jam: **https://t-damer.github.io/slop/?game=parking-jam&level=0&seed=17**
+- Junkyard Station: **https://t-damer.github.io/slop/?game=junkyard-station**
 
-Junkyard Station is an original implementation of the broad junkyard/gas-station tycoon loop. It does not contain third-party source code, branding, levels, models, textures, sounds, or copied assets.
+## Personal Island Hub
 
-## Play
+The root experience is a persistent personal island rather than a card-only launcher.
 
-GitHub Pages: **https://t-damer.github.io/slop/**
+On the first visit the player:
 
-Direct routes:
+1. meets a guide;
+2. chooses typed preferences through emoji chips;
+3. watches the actual island scene reveal in five generation stages;
+4. receives a deterministic island blueprint derived from the normalized profile;
+5. enters an island containing a house, vegetation, rocks, animal life, an animated shore, camera modes, and in-world portals to the existing games.
 
-```text
-https://t-damer.github.io/slop/?game=junkyard-station
-https://t-damer.github.io/slop/?game=parking-jam&level=0&seed=17
-```
-
-The previous `game=junkyard-tycoon` route remains supported as a compatibility alias.
-
-Weak-device QA routes:
-
-```text
-https://t-damer.github.io/slop/?game=junkyard-station&quality=low&qa=1
-https://t-damer.github.io/slop/?game=parking-jam&level=0&seed=17&quality=low&qa=1
-```
-
-Legacy Parking Jam links containing `level`, `seed`, or `viewport` continue to open Parking Jam even without `game=parking-jam`.
-
-## Reusable proximity-world base
-
-`games/shared/proximity-world/domain` is the canonical owner for:
-
-- normalized top-down movement and world bounds;
-- nearest ready interaction selection;
-- sustained proximity progress;
-- locked, ready, cooldown, and completed states;
-- semantic movement and completion events.
-
-A new tycoon-style game should compose this domain, define its own interactions and rewards, and add presentation-specific models and animations. It should not implement a second movement or auto-interaction state machine.
-
-## Quality commands
-
-The full CI toolchain checks out the pinned Modoki revision and installs locked dependencies before running:
-
-```bash
-npm run check
-npm run web:budget
-npm run hub:quality -- http://127.0.0.1:4173/slop/
-npm run ui:quality -- http://127.0.0.1:4173/slop/
-npm run junkyard:quality -- http://127.0.0.1:4173/slop/
-```
-
-`npm run check` includes:
-
-- Parking Jam domain and generator tests;
-- reusable proximity-world tests;
-- the complete Junkyard Station starter-loop test;
-- active change-contract validation;
-- architecture boundaries;
-- code-size, suppression, generic-owner, and duplicate ratchets;
-- GLB recipe, provenance, structure, hash, and budget validation;
-- strict TypeScript checking against the pinned Modoki toolchain.
-
-The browser contracts test the hub, route into each game, move the real Junkyard Station character into an interaction, observe resource changes through a read-only QA bridge, and exercise Parking Jam across the required viewports. Screenshots and JSON reports are retained as workflow artifacts.
-
-## Build with Modoki
-
-The workflows pin Modoki `v0.5.2` by commit. `games/traffic-jam` currently acts as the Modoki shell for the shared game hub:
-
-```bash
-git clone https://github.com/lsgmasa33/modoki-engine.git .modoki-engine
-cd .modoki-engine
-git checkout 145bae5b2dc38ac0561a2b627d726cba69a99c1f
-npm ci
-cd ../games/traffic-jam
-npm ci
-cd ../../.modoki-engine
-MODOKI_PROJECT=/absolute/path/to/slop/games/traffic-jam \
-  npm run build -- --target web
-```
-
-The complete hub artifact is written to `games/traffic-jam/dist` and is deployed directly to GitHub Pages.
+The concrete `IslandSnapshot` is stored behind an `IslandRepository` port. The current adapter uses browser storage; a future HTTP/database adapter can replace it without changing the generator, onboarding, or scene owners.
 
 ## Architecture
 
 ```text
-Shared proximity domain ──→ Junkyard domain ──→ Junkyard presentation ─┐
-                                                                     ├─→ Game hub ─→ Modoki adapter
-Parking domain ───────────────────────→ Parking presentation ─────────┘
-
-Quality contract ─→ code · asset · bundle · browser · performance gates
+PlayerProfile + typed preferences
+        ↓
+stable seed → pure IslandBlueprint generator
+        ↓
+versioned IslandSnapshot → IslandRepository
+        ↓
+application session
+        ↓
+Three.js island scene + onboarding components
+        ↓
+existing hub router
+        ↓
+Parking Jam / Junkyard Station
 ```
 
-See:
+Major owners are intentionally separate:
 
-- `AGENTS.md`;
-- `games/shared/proximity-world/README.md`;
-- `quality/README.md`;
-- `quality/generation-policy.md`;
-- `quality/visual-target.md`;
-- `architecture/current.mmd`;
-- `architecture/target.mmd`.
+- player profile and avatar appearance;
+- preference catalog;
+- deterministic island generator and validation;
+- repository and snapshot migration boundary;
+- guide dialog;
+- preference wizard;
+- generation overlay;
+- terrain, ocean, decor, assets, camera, player input, HUD, and portals;
+- existing game route lifecycle.
+
+## Assets
+
+Island assets come from vetted CC0 sources, including Kenney and Quaternius packs. Shipped third-party files have local provenance, source commit, license, size, and SHA-256 checks. Generated placeholder assets are not silently substituted for accepted external assets.
+
+## Quality
+
+Requires Node.js 24 or newer:
+
+```bash
+npm test
+npm run check
+```
+
+CI additionally performs:
+
+- strict TypeScript and formatting/lint checks;
+- architecture, dependency, code-size, and function-size ratchets;
+- deterministic generator and persistence tests;
+- third-party asset provenance and binary validation;
+- the pinned Modoki production web build;
+- bundle budgets;
+- multi-viewport browser contracts for the hub, personal island, Parking Jam, and Junkyard Station;
+- a real first-run flow through the seven preference steps, five reveal stages, final guide, island movement, camera change, route launch, and persistence after clean navigation.
+
+## Branch policy
+
+- `main`: reviewed code;
+- `stable`: the only automatic Pages publication source;
+- up to three disjoint `feature/*` branches;
+- maximum five branches total and three open PRs.
