@@ -5,18 +5,19 @@ flowchart LR
     Search --> Presentation[Runtime-specific presentation]
     SharedDomain --> GameDomain
     GameDomain --> Tests[Seed sweeps · invariants · replay]
-    Presentation --> Hub[Game hub and lifecycle]
+
+    Profile[Player profile + typed preferences] --> Generator[Deterministic island generator]
+    Generator --> Blueprint[Versioned IslandBlueprint]
+    Blueprint --> Repository[IslandRepository]
+    Blueprint --> IslandScene[Personal 3D island]
+    IslandScene --> Hub[Hub router and lifecycle]
+    Hub --> Games[Parking Jam · Junkyard Station · future games]
     Hub --> Runtime[Modoki / Three.js adapter]
     Runtime --> Build[Compact browser artifact]
 
-    Proximity[Proximity world base] --> Movement[Movement · bounds · interaction selection]
-    Proximity --> Progress[Hold progress · cooldown · completion events]
-    Movement --> Tycoon[Junkyard and future tycoon worlds]
-    Progress --> Tycoon
-
     Quality[Machine quality contract] --> CodeGate[Strict types · ownership · debt ratchet]
     Quality --> AssetGate[Recipe · provenance · GLB validation]
-    Quality --> UiGate[Hub · six viewports · real interactions]
+    Quality --> UiGate[Onboarding · island · six viewports · real interactions]
     Quality --> BudgetGate[Raw · gzip · brotli · JS ratchet]
     CodeGate --> CI[Reviewable reports]
     AssetGate --> CI

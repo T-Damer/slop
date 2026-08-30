@@ -42,6 +42,7 @@ try {
       ui,
       outputRoot,
       runtimeErrors,
+      resetIsland: viewport.id === 'small-phone',
     }));
   }
 
@@ -49,7 +50,7 @@ try {
     report.failures.map((failure) => `${report.id}: ${failure}`),
   );
   const report = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     browserPath: chromium.browserPath,
     baseUrl,
     viewports: viewportReports,
@@ -73,7 +74,14 @@ try {
   }
 }
 
-async function inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors }) {
+async function inspectViewport({
+  cdp,
+  viewport,
+  ui,
+  outputRoot,
+  runtimeErrors,
+  resetIsland,
+}) {
   const directory = path.join(outputRoot, viewport.id);
   await mkdir(directory, { recursive: true });
   await cdp.send('Emulation.setDeviceMetricsOverride', {
@@ -82,26 +90,24 @@ async function inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors })
     deviceScaleFactor: 1,
     mobile: viewport.width <= 768,
   });
-  await cdp.send('Page.navigate', { url: baseUrl });
-  await waitForExpression(
-    cdp,
-    `Boolean(document.querySelector(${JSON.stringify(ui.rootSelector)}))`,
-    15000,
-  );
-  await delay(500);
+  await cdp.send('Page.navigate', {
+    url: createTestUrl(baseUrl, resetIsland),
+  });
+  const onboarding = await ensureIslandReady(cdp, ui);
+  await delay(600);
 
-  const layout = await evaluate(cdp, createHubLayoutExpression(ui));
-  const boot = await captureScreenshot(cdp, path.join(directory, 'hub.png'));
+  const layout = await evaluate(cdp, createIslandLayoutExpression(ui));
+  const screenshot = await captureScreenshot(cdp, path.join(directory, 'island.png'));
   const failures = [...layout.failures];
-  const interactions = {};
+  const interactions = { onboarding };
 
   if (viewport.id === 'phone') {
     interactions.junkyardLaunch = await launchJunkyard(cdp, ui, directory);
     if (!interactions.junkyardLaunch.launched) {
-      failures.push('Junkyard Station card did not launch the game shell.');
+      failures.push('Junkyard Station did not launch from the island game menu.');
     }
     if (!interactions.junkyardLaunch.returned) {
-      failures.push('The game-shell home control did not return to the hub.');
+      failures.push('The home control did not return to the personal island.');
     }
   }
 
@@ -116,7 +122,7 @@ async function inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors })
     interactions,
     runtimeErrors: [...runtimeErrors],
     failures,
-    screenshotSha256: boot.sha256,
+    screenshotSha256: screenshot.sha256,
   };
   await writeFile(
     path.join(directory, 'report.json'),
@@ -125,81 +131,146 @@ async function inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors })
   return report;
 }
 
-async function launchJunkyard(cdp, ui, directory) {
-  const clicked = await evaluate(cdp, `(() => {
-    const button = document.querySelector(${JSON.stringify(ui.junkyardLinkSelector)});
-    if (!(button instanceof HTMLButtonElement)) return false;
-    button.click();
-    return true;
-  })()`);
-  if (!clicked) {
-    return { launched: false, returned: false };
+async function ensureIslandReady(cdp, ui) {
+  await waitForExpression(
+    cdp,
+    `Boolean(document.querySelector(${JSON.stringify(ui.onboardingSelector)}) || document.querySelector(${JSON.stringify(ui.islandSelector)}))`,
+    20000,
+  );
+  const needsOnboarding = await evaluate(
+    cdp,
+    `Boolean(document.querySelector(${JSON.stringify(ui.onboardingSelector)}))`,
+  );
+  if (needsOnboarding) {
+    await completeOnboarding(cdp, ui);
   }
+  await waitForExpression(
+    cdp,
+    `Boolean(document.querySelector(${JSON.stringify(ui.islandSelector)}) && window.__SLOP_ISLAND_QA__?.ready())`,
+    30000,
+  );
+  return needsOnboarding;
+}
+
+async function completeOnboarding(cdp, ui) {
+  await clickSelector(cdp, ui.startSelector);
+  for (let index = 0; index < ui.preferenceStepCount; index += 1) {
+    await waitForExpression(
+      cdp,
+      `document.querySelectorAll(${JSON.stringify(ui.chipSelector)}).length > 0`,
+      10000,
+    );
+    await clickSelector(cdp, `${ui.chipSelector}:first-of-type`);
+    await clickSelector(cdp, ui.nextSelector);
+  }
+}
+
+async function launchJunkyard(cdp, ui, directory) {
+  await clickSelector(cdp, ui.gameMenuButtonSelector);
+  await waitForExpression(
+    cdp,
+    `document.querySelector(${JSON.stringify(ui.gameMenuSelector)})?.classList.contains('is-open') === true`,
+    10000,
+  );
+  const menu = await evaluate(cdp, createGameMenuExpression(ui));
+  await clickSelector(cdp, ui.junkyardLinkSelector);
   await waitForExpression(
     cdp,
     `Boolean(document.querySelector(${JSON.stringify(ui.junkyardRootSelector)}))`,
     20000,
   );
-  await delay(900);
+  await delay(800);
   await captureScreenshot(cdp, path.join(directory, 'junkyard-launch.png'));
   const homeVisible = await evaluate(
     cdp,
     `Boolean(document.querySelector(${JSON.stringify(ui.homeSelector)}))`,
   );
   if (!homeVisible) {
-    return { launched: true, returned: false };
+    return { launched: true, returned: false, menu };
   }
-  await evaluate(cdp, `(() => {
-    const button = document.querySelector(${JSON.stringify(ui.homeSelector)});
-    if (!(button instanceof HTMLButtonElement)) return false;
-    button.click();
-    return true;
-  })()`);
+  await clickSelector(cdp, ui.homeSelector);
   await waitForExpression(
     cdp,
-    `Boolean(document.querySelector(${JSON.stringify(ui.rootSelector)}))`,
+    `Boolean(document.querySelector(${JSON.stringify(ui.islandSelector)}) && window.__SLOP_ISLAND_QA__?.ready())`,
     20000,
   );
-  return { launched: true, returned: true };
+  return { launched: true, returned: true, menu };
 }
 
-function createHubLayoutExpression(ui) {
+async function clickSelector(cdp, selector) {
+  const clicked = await evaluate(cdp, `(() => {
+    const element = document.querySelector(${JSON.stringify(selector)});
+    if (!(element instanceof HTMLButtonElement)) return false;
+    element.click();
+    return true;
+  })()`);
+  if (!clicked) {
+    throw new Error(`Could not click ${selector}.`);
+  }
+  await delay(120);
+}
+
+function createIslandLayoutExpression(ui) {
   return `(() => {
     const failures = [];
     const overflow = Math.max(0, document.documentElement.scrollWidth - innerWidth);
     if (overflow > ${ui.maximumHorizontalOverflowPx}) {
       failures.push('Horizontal overflow: ' + overflow + 'px.');
     }
-    const cards = [...document.querySelectorAll(${JSON.stringify(ui.cardSelector)})]
-      .filter((element) => element instanceof HTMLButtonElement)
-      .map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          id: element.dataset.gameId ?? '',
-          width: rect.width,
-          height: rect.height,
-          visible: element.offsetParent !== null
-        };
-      });
-    if (cards.length < ${ui.minimumCardCount}) {
-      failures.push('Expected at least ${ui.minimumCardCount} visible game cards.');
-    }
-    for (const expectedId of ${JSON.stringify(ui.expectedGameIds)}) {
-      if (!cards.some((card) => card.id === expectedId)) {
-        failures.push('Missing game card: ' + expectedId + '.');
+    const root = document.querySelector(${JSON.stringify(ui.islandSelector)});
+    const canvas = document.querySelector(${JSON.stringify(ui.canvasSelector)});
+    const joystick = document.querySelector(${JSON.stringify(ui.joystickSelector)});
+    const camera = document.querySelector(${JSON.stringify(ui.cameraSelector)});
+    if (!(root instanceof HTMLElement)) failures.push('Personal island root is missing.');
+    if (!(canvas instanceof HTMLCanvasElement)) failures.push('Island canvas is missing.');
+    if (!(joystick instanceof HTMLElement)) failures.push('Touch joystick is missing.');
+    if (!(camera instanceof HTMLButtonElement)) failures.push('Camera control is missing.');
+    if (document.querySelector('.slop-game-grid')) failures.push('Legacy game picker is still rendered.');
+    for (const element of [joystick, camera]) {
+      if (!(element instanceof HTMLElement)) continue;
+      const rect = element.getBoundingClientRect();
+      if (rect.width < ${ui.minimumTouchTargetPx} || rect.height < ${ui.minimumTouchTargetPx}) {
+        failures.push('A primary island control is smaller than the touch target budget.');
       }
     }
-    for (const card of cards) {
-      if (card.width < ${ui.minimumTouchTargetPx} || card.height < ${ui.minimumTouchTargetPx}) {
-        failures.push('Game card is too small: ' + card.id + '.');
-      }
-    }
-    const icons = document.querySelectorAll(${JSON.stringify(ui.iconSelector)}).length;
-    if (icons < cards.length) {
-      failures.push('Every game card must have an original rendered icon.');
-    }
-    return { viewport: { width: innerWidth, height: innerHeight }, overflow, cards, icons, failures };
+    const qa = window.__SLOP_ISLAND_QA__;
+    if (!qa?.hasSnapshot()) failures.push('Island snapshot is not available.');
+    return {
+      viewport: { width: innerWidth, height: innerHeight },
+      overflow,
+      canvas: canvas instanceof HTMLCanvasElement,
+      joystick: joystick instanceof HTMLElement,
+      camera: camera instanceof HTMLButtonElement,
+      scene: qa?.scene() ?? null,
+      failures
+    };
   })()`;
+}
+
+function createGameMenuExpression(ui) {
+  return `(() => {
+    const cards = [...document.querySelectorAll(${JSON.stringify(ui.gameCardSelector)})]
+      .filter((element) => element instanceof HTMLButtonElement)
+      .map((element) => ({
+        id: element.dataset.islandGameId ?? '',
+        width: element.getBoundingClientRect().width,
+        height: element.getBoundingClientRect().height
+      }));
+    return {
+      cards,
+      hasMinimum: cards.length >= ${ui.minimumCardCount},
+      hasExpected: ${JSON.stringify(ui.expectedGameIds)}.every((id) => cards.some((card) => card.id === id))
+    };
+  })()`;
+}
+
+function createTestUrl(value, resetIsland) {
+  const url = new URL(value);
+  url.searchParams.set('qa', '1');
+  if (resetIsland) {
+    url.searchParams.set('resetIsland', '1');
+  }
+  return url.toString();
 }
 
 function collectRuntimeErrors(cdp) {

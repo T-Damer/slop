@@ -1,27 +1,30 @@
 {
   "schemaVersion": 1,
-  "area": "platform.game-hub-and-proximity-world",
-  "problem": "Slop had one hard-wired Parking Jam experience and no reusable character movement or automatic proximity-interaction base for tycoon-style games.",
+  "area": "platform.personal-island-default-route",
+  "problem": "The deployed root route still rendered a two-card game picker. SLOP needs a first-run guide, deterministic personal-island generation, local persistence, a walkable 3D island, and in-world game entry while preserving direct game routes.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
+    "games/hub/runtime/presentation/app.ts",
+    "games/hub/runtime/presentation/registry.ts",
     "games/traffic-jam/runtime/setup.ts",
-    "games/traffic-jam/runtime/presentation/app.ts",
-    "quality/ui-contract.json"
+    "quality/hub-ui-contract.json",
+    "tools/check-hub-quality.mjs"
   ],
-  "reuseDecision": "Keep the validated Modoki build shell and Parking Jam implementation, add one shared pure proximity-world domain, route both games through a lightweight hub, and build an original junkyard-station vertical slice without copying proprietary code or assets.",
-  "stateOwner": "games/shared/proximity-world/domain/rules.ts",
+  "reuseDecision": "Keep the existing Modoki shell and hub router, make the root hub route mount a separate personal-island component, preserve Parking Jam and Junkyard Station as lazy game modules, and store one versioned deterministic island snapshot behind an IslandRepository interface.",
+  "stateOwner": "games/island-hub/runtime/domain/types.ts",
   "nonGoals": [
-    "Copy proprietary MSN, Homa, or StoreRider source code, branding, levels, models, sounds, or textures",
-    "Implement offline income, employees, upgrades, multiple locations, ads, or monetization in the first vertical slice",
+    "Implement a production account service, database, cross-device multiplayer, island editor, inventory, or house interior",
+    "Copy Animal Crossing models, UI, characters, sounds, maps, or proprietary code",
     "Merge PR #1 or replace Modoki and Three.js"
   ],
   "acceptance": [
-    "The default route renders a touch-safe hub with Parking Jam and Junkyard Station cards",
-    "Legacy Parking Jam seed and viewport links still open Parking Jam without requiring a game parameter",
-    "A pure reusable domain owns bounded movement, nearest ready interaction selection, sustained progress, cooldown, and completion events",
-    "Junkyard Station supports keyboard and touch movement plus automatic talk, junk clearing, construction, fueling, and cash collection interactions",
-    "Domain tests cover the reusable proximity base and the complete starter tycoon loop",
-    "Production browser checks enter the hub, launch Junkyard Station, move the real character into a junk interaction, observe domain progress, return home, and launch Parking Jam"
+    "The default root route opens the guide or a saved personal island instead of the old game-card picker",
+    "The onboarding captures seven typed preferences with emoji chips and shows five real generation stages",
+    "The deterministic generator creates a versioned island blueprint containing terrain, house, vegetation, animal, activity zone, player spawn, and both local game portals",
+    "The island snapshot survives a page reload through LocalIslandRepository",
+    "The player can move with keyboard or touch joystick, change camera mode, open the game menu, and enter either game portal",
+    "Direct Parking Jam and Junkyard Station query routes still work, and the home button returns to the personal island",
+    "Domain tests, strict TypeScript, architecture checks, code ratchets, production build, and browser route checks pass"
   ]
 }

@@ -1,4 +1,7 @@
-import { renderHubIcon } from './icons.ts';
+import {
+  mountPersonalIsland,
+  unmountPersonalIsland,
+} from '../../../island-hub/runtime/presentation/app.ts';
 import {
   hubCopy,
   hubGameIds,
@@ -72,10 +75,9 @@ class GameHubController {
     if (!(target instanceof Element)) {
       return;
     }
-    const gameCard = target.closest<HTMLElement>(
+    const gameId = target.closest<HTMLElement>(
       `[${hubUiAttributes.gameId}]`,
-    );
-    const gameId = gameCard?.getAttribute(hubUiAttributes.gameId);
+    )?.getAttribute(hubUiAttributes.gameId);
     if (isPlayableGameId(gameId)) {
       this.navigate(gameId);
       return;
@@ -95,7 +97,7 @@ class GameHubController {
   private navigate(gameId: HubGameId): void {
     const url = new URL(location.href);
     if (gameId === hubGameIds.hub) {
-      url.searchParams.delete('game');
+      clearGameParameters(url);
     } else {
       url.searchParams.set('game', gameId);
     }
@@ -109,38 +111,52 @@ class GameHubController {
     this.activeUnmount?.();
     this.activeUnmount = null;
     this.currentGame = gameId;
-    if (gameId === hubGameIds.hub) {
-      document.title = hubCopy.title;
-      this.root.innerHTML = renderHub();
+    this.root.innerHTML = '';
+    try {
+      if (gameId === hubGameIds.hub) {
+        await this.mountIslandRoute(version);
+        return;
+      }
+      await this.mountGameRoute(gameId, version);
+    } catch (error: unknown) {
+      console.error(error);
+      this.root.innerHTML = `<div class="slop-game-error">${hubCopy.failed}</div>`;
+    }
+  }
+
+  private async mountIslandRoute(version: number): Promise<void> {
+    document.title = hubCopy.islandTitle;
+    await mountPersonalIsland(this.root, {
+      games: hubGames.map((game) => ({
+        id: game.id,
+        name: game.name,
+        description: game.description,
+        emoji: game.emoji,
+      })),
+      onLaunchGame: (gameId) => this.navigate(gameId),
+    });
+    if (this.disposed || version !== this.routeVersion) {
+      unmountPersonalIsland();
       return;
     }
+    this.activeUnmount = unmountPersonalIsland;
+  }
 
-    this.root.innerHTML = `
-      <button
-        class="slop-home-button"
-        type="button"
-        aria-label="${hubCopy.back}"
-        ${hubUiAttributes.action}="${hubUiActions.home}"
-      >⌂</button>
-      <div class="slop-game-host">
-        <div class="slop-game-loading">${hubCopy.loading}</div>
-      </div>
-    `;
+  private async mountGameRoute(
+    gameId: Exclude<HubGameId, 'hub'>,
+    version: number,
+  ): Promise<void> {
+    this.root.innerHTML = renderGameShell();
     const host = this.root.querySelector<HTMLElement>('.slop-game-host');
     if (host === null) {
       return;
     }
-    try {
-      const unmount = await mountSelectedGame(gameId, host);
-      if (this.disposed || version !== this.routeVersion) {
-        unmount();
-        return;
-      }
-      this.activeUnmount = unmount;
-    } catch (error: unknown) {
-      console.error(error);
-      host.innerHTML = `<div class="slop-game-error">${hubCopy.failed}</div>`;
+    const unmount = await mountSelectedGame(gameId, host);
+    if (this.disposed || version !== this.routeVersion) {
+      unmount();
+      return;
     }
+    this.activeUnmount = unmount;
   }
 
   private installQaBridge(): void {
@@ -174,31 +190,17 @@ async function mountSelectedGame(
   return junkyard.unmountJunkyardTycoon;
 }
 
-function renderHub(): string {
+function renderGameShell(): string {
   return `
-    <main class="slop-hub" id="${hubUiIds.hub}">
-      <header class="slop-hub-header">
-        <p class="slop-hub-eyebrow">${hubCopy.eyebrow}</p>
-        <h1>${hubCopy.heading}</h1>
-        <p class="slop-hub-subtitle">${hubCopy.subtitle}</p>
-      </header>
-      <section class="slop-game-grid" aria-label="${hubCopy.heading}">
-        ${hubGames.map((game) => `
-          <button
-            class="slop-game-card"
-            type="button"
-            ${hubUiAttributes.gameId}="${game.id}"
-          >
-            <span class="slop-game-art">
-              <span class="slop-game-badge">${game.badge}</span>
-              ${renderHubIcon(game.icon)}
-            </span>
-            <h2>${game.name}</h2>
-            <p>${game.description}</p>
-          </button>
-        `).join('')}
-      </section>
-    </main>
+    <button
+      class="slop-home-button"
+      type="button"
+      aria-label="${hubCopy.back}"
+      ${hubUiAttributes.action}="${hubUiActions.home}"
+    >⌂</button>
+    <div class="slop-game-host">
+      <div class="slop-game-loading">${hubCopy.loading}</div>
+    </div>
   `;
 }
 
@@ -211,11 +213,7 @@ function resolveGameId(search: string): HubGameId {
   if (isPlayableGameId(requested)) {
     return requested;
   }
-  if (
-    params.has('level')
-    || params.has('seed')
-    || params.has('viewport')
-  ) {
+  if (params.has('level') || params.has('seed') || params.has('viewport')) {
     return hubGameIds.parkingJam;
   }
   return hubGameIds.hub;
@@ -226,6 +224,12 @@ function isPlayableGameId(
 ): value is Exclude<HubGameId, 'hub'> {
   return value === hubGameIds.parkingJam
     || value === hubGameIds.junkyardTycoon;
+}
+
+function clearGameParameters(url: URL): void {
+  for (const key of ['game', 'level', 'seed', 'viewport']) {
+    url.searchParams.delete(key);
+  }
 }
 
 function installStyles(): void {

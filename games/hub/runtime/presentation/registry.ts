@@ -27,6 +27,7 @@ export const hubUiActions = {
 
 export const hubCopy = {
   title: 'Slop Games',
+  islandTitle: 'Мой остров · SLOP',
   eyebrow: 'PLAYGROUND',
   heading: 'Pick a game',
   subtitle: 'Small worlds, one shared runtime.',
@@ -41,6 +42,7 @@ export interface HubGameCard {
   readonly description: string;
   readonly badge: string;
   readonly icon: 'junkyard' | 'parking';
+  readonly emoji: string;
 }
 
 export const hubGames: ReadonlyArray<HubGameCard> = [
@@ -50,6 +52,7 @@ export const hubGames: ReadonlyArray<HubGameCard> = [
     description: 'Run, approach, and auto-interact with a living 3D yard.',
     badge: 'BASE WORLD',
     icon: 'junkyard',
+    emoji: '⛽',
   },
   {
     id: hubGameIds.parkingJam,
@@ -57,5 +60,6 @@ export const hubGames: ReadonlyArray<HubGameCard> = [
     description: 'Untangle cars and move passenger groups through the lot.',
     badge: 'PUZZLE',
     icon: 'parking',
+    emoji: '🚗',
   },
 ];
