@@ -82,7 +82,7 @@ class IslandOnboarding implements IslandOnboardingController {
     }
   };
 
-  private choose(element: HTMLElement | undefined): void {
+  private choose(element: HTMLElement | null): void {
     const key = element?.dataset.preferenceKey;
     const value = element?.dataset.preferenceValue;
     if (!isPreferenceKey(key) || value === undefined) {
