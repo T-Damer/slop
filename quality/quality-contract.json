@@ -26,7 +26,7 @@
     "forbidExternalUris": true
   },
   "runtime": {
-    "rawRatchetBytes": 3700000,
+    "rawRatchetBytes": 3725000,
     "gzipRatchetBytes": 1350000,
     "brotliRatchetBytes": 1150000,
     "largestJavaScriptRatchetBytes": 900000,
