@@ -6,15 +6,12 @@ if (!baseUrl) {
   throw new Error('Usage: node tools/check-all-browser-quality.mjs <url>');
 }
 
-for (const script of [
-  'tools/check-browser-quality.mjs',
-  'tools/check-experience-quality.mjs',
-]) {
-  const status = await run(script, baseUrl);
-  if (status !== 0) {
-    process.exitCode = status;
-    break;
-  }
+// The personal-island route and the cross-game return journey are owned by
+// check-hub-quality.mjs. Keep this aggregate focused on Parking Jam so it does
+// not assert the removed legacy card-picker UI.
+const status = await run('tools/check-browser-quality.mjs', baseUrl);
+if (status !== 0) {
+  process.exitCode = status;
 }
 
 function run(script, url) {
