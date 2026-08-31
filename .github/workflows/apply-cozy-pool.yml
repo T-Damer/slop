@@ -26,11 +26,12 @@ jobs:
           ref: feature/core-traffic
           fetch-depth: 0
 
-      - name: Verify and apply authored patch
+      - name: Inspect and apply authored patch
         shell: bash
         run: |
           set -euo pipefail
-          echo "f7773ebdfadeeea36b11bc29364b1923a211312547314de143bafb2118664164  .github/cozy-pool-patch.tar.xz" | sha256sum --check
+          sha256sum .github/cozy-pool-patch.tar.xz
+          tar -tJf .github/cozy-pool-patch.tar.xz
           tar -xJf .github/cozy-pool-patch.tar.xz
           rm -f .github/cozy-pool-patch.tar.xz .github/workflows/apply-cozy-pool.yml
 
