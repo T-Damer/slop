@@ -1,6 +1,7 @@
 name: Apply Cozy Pool slice
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - feature/core-traffic
