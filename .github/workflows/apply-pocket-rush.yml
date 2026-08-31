@@ -1,0 +1,32 @@
+name: Apply Pocket Rush implementation
+
+on:
+  push:
+    branches:
+      - feature/core-traffic
+    paths:
+      - .github/workflows/apply-pocket-rush.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-pocket-rush
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feature/core-traffic
+          fetch-depth: 0
+
+      - name: Apply local source artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Staging workflow placeholder"
