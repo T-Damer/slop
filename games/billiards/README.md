@@ -1,26 +1,15 @@
-# Pocket Club
+# Billiards — planned game contract
 
-Pocket Club is an original mobile-first 3D billiards vertical slice for SLOP.
+**Status:** design and agent rules only. No billiards runtime is currently registered, built, tested, or deployed.
 
-## Controls
+The intended slice is an original mobile-first 3D billiards game for SLOP. Before it can be exposed through the island or `?game=billiards`, the repository must contain:
 
-- Drag or point across the table to aim.
-- Adjust the power control, then release or press Shoot.
-- Use Auto Aim for a suggested target, pocket, angle, and power.
-- The guide renders the cue-ball route, first impact, target-ball direction, and cushion continuation where applicable.
-
-## Implemented mechanics
-
-- fixed-step planar ball simulation;
-- equal-mass ball collision response;
-- cushion restitution and rolling deceleration;
-- six pockets, scratch handling, scoring, and combo;
-- visible ball rotation driven by travelled distance;
-- glossy Three.js table and ball presentation;
-- synthesized impact, cushion, pocket, scratch, and completion audio;
-- keyboard, pointer, and touch input;
-- deterministic tests and a six-viewport browser contract.
+- a deterministic planar domain for balls, cushions, pockets, scoring, prediction, and assistance;
+- a presentation layer that consumes domain state without owning collision or scoring rules;
+- pointer, touch, and keyboard controls;
+- licensed or project-authored assets with provenance;
+- domain tests, production build evidence, bundle checks, and real browser interactions across required viewports.
 
 ## Intellectual-property boundary
 
-The requested YouTube Playable was treated as a behavioral and presentation reference only. Pocket Club does not contain its code, models, textures, sounds, branding, or authored table. The simulation and visuals in this directory are project-authored.
+Any external playable is a behavioral and presentation reference only. The implementation must not copy its code, models, textures, sounds, branding, authored table, or level composition.

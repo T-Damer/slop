@@ -1,5 +1,13 @@
 flowchart LR
-    Adapter[Thin Modoki adapter] --> Hub[Hub router and lifecycle]
+    ArcadeEntry[Slop arcade entrypoint] --> ArcadeConfig[Arcade runtime config]
+    ArcadeEntry --> Adapter[Thin Modoki hub adapter]
+    Adapter --> Hub[Registry-driven hub router and lifecycle]
+
+    StandaloneEntry[Junkyard standalone entrypoint] --> StandaloneConfig[Junkyard runtime config]
+    StandaloneEntry --> StandaloneAdapter[Thin Junkyard adapter]
+    StandaloneAdapter --> GameShell[Shared return navigation]
+    StandaloneAdapter --> JunkyardPresentation
+
     Hub --> IslandPresentation[Personal Island presentation]
     Hub --> ParkingPresentation[Parking Jam presentation]
     Hub --> JunkyardPresentation[Junkyard Station presentation]
@@ -11,8 +19,16 @@ flowchart LR
     IslandApplication --> IslandDomain
     IslandStorage --> IslandDomain
 
-    ParkingPresentation --> ParkingDomain[Parking pure domain]
+    ParkingPresentation --> ParkingRules[Parking command facade]
+    ParkingRules --> ParkingBoard[Board occupancy and path rules]
+    ParkingRules --> ParkingQueue[Passenger queue and scoring]
+    ParkingQueue --> ParkingEvents[Semantic event factory]
+    ParkingSolver[Deterministic solver] --> ParkingRules
+
     JunkyardPresentation --> JunkyardDomain[Junkyard pure domain]
     JunkyardPresentation --> PlayerInput
     JunkyardDomain --> ProximityDomain[Shared proximity-world domain]
-    Quality[Quality contract] --> Tooling[CI and browser tooling]
+
+    Quality[Quality contract] --> Tooling[Architecture, code, asset and browser gates]
+    Tooling --> Coverage[All game TypeScript has one architecture owner]
+    Tooling --> WorkflowBoundary[Workflows cannot mutate source branches]

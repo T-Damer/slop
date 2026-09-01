@@ -1,30 +1,34 @@
 {
   "schemaVersion": 1,
-  "area": "platform.personal-island-default-route",
-  "problem": "The deployed root route still rendered a two-card game picker. SLOP needs a first-run guide, deterministic personal-island generation, local persistence, a walkable 3D island, and in-world game entry while preserving direct game routes.",
+  "area": "platform.architecture-hardening-and-parking-domain-optimization",
+  "problem": "The feature branch passed its existing gates while leaving runtime files outside the architecture model, ignoring dynamic imports, retaining self-modifying delivery workflows and a duplicate static hub, and keeping avoidable allocations in Parking Jam solver and queue hot paths.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
+    "architecture/current.mmd",
+    "tools/check-architecture.mjs",
+    "tools/check-code-quality.mjs",
     "games/hub/runtime/presentation/app.ts",
-    "games/hub/runtime/presentation/registry.ts",
-    "games/traffic-jam/runtime/setup.ts",
-    "quality/hub-ui-contract.json",
-    "tools/check-hub-quality.mjs"
+    "games/traffic-jam/runtime/domain/rules.ts",
+    "games/traffic-jam/runtime/domain/solver.ts",
+    ".github/workflows/ci.yml",
+    "quality/debt.json"
   ],
-  "reuseDecision": "Keep the existing Modoki shell and hub router, make the root hub route mount a separate personal-island component, preserve Parking Jam and Junkyard Station as lazy game modules, and store one versioned deterministic island snapshot behind an IslandRepository interface.",
-  "stateOwner": "games/island-hub/runtime/domain/types.ts",
+  "reuseDecision": "Keep the existing domain/presentation boundaries, typed hub router, deterministic solver, and quality pipeline; make ownership coverage complete, split the Parking Jam domain by existing concerns, reuse one occupancy index per query, cache solver indexes, and delete obsolete delivery/static-hub paths instead of adding parallel infrastructure.",
+  "stateOwner": "games/traffic-jam/runtime/domain/types.ts",
   "nonGoals": [
-    "Implement a production account service, database, cross-device multiplayer, island editor, inventory, or house interior",
-    "Copy Animal Crossing models, UI, characters, sounds, maps, or proprietary code",
-    "Merge PR #1 or replace Modoki and Three.js"
+    "Implement or expose billiards before its source and tests exist",
+    "Redesign Personal Island, Parking Jam, or Junkyard Station visuals",
+    "Replace Modoki, Three.js, or the existing feature branch and pull request",
+    "Split the remaining presentation debt files in the same change"
   ],
   "acceptance": [
-    "The default root route opens the guide or a saved personal island instead of the old game-card picker",
-    "The onboarding captures seven typed preferences with emoji chips and shows five real generation stages",
-    "The deterministic generator creates a versioned island blueprint containing terrain, house, vegetation, animal, activity zone, player spawn, and both local game portals",
-    "The island snapshot survives a page reload through LocalIslandRepository",
-    "The player can move with keyboard or touch joystick, change camera mode, open the game menu, and enter either game portal",
-    "Direct Parking Jam and Junkyard Station query routes still work, and the home button returns to the personal island",
-    "Domain tests, strict TypeScript, architecture checks, code ratchets, production build, and browser route checks pass"
+    "Every games/**/*.ts file has one architecture owner and all static and dynamic relative imports resolve through declared dependencies",
+    "Architecture validation rejects dependency cycles, source-mutating workflows, and staged archive payloads under .github",
+    "Obsolete one-shot workflows, delivery payloads, marker files, and the duplicate static hub are absent",
+    "Parking Jam board, queue, event, command, and solver concerns have focused owners without changing public domain behavior",
+    "The deterministic Parking Jam test matrix visits the same states and successful or rejected moves do not mutate input state",
+    "Unused island asset download and upload work is removed from pull-request CI",
+    "Source tests, change-contract, architecture, code-quality, and asset checks pass before publication"
   ]
 }

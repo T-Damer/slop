@@ -180,6 +180,7 @@ test('the recommended first car boards a whole group and departs', () => {
   assert.ok(result.events.some((event) => event.type === trafficEvents.carDeparted));
   assert.ok(result.state.score > state.score);
   assert.ok(result.state.coins > state.coins);
+  assert.deepEqual(state, createInitialTrafficState(level));
 });
 
 function requireValue<T>(

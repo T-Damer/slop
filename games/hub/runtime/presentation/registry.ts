@@ -4,16 +4,44 @@ export const hubGameIds = {
   parkingJam: 'parking-jam',
 } as const;
 
+export type HubGameId = typeof hubGameIds[keyof typeof hubGameIds];
+export type PlayableHubGameId = Exclude<HubGameId, typeof hubGameIds.hub>;
+
+export const hubPlayableGameIds = [
+  hubGameIds.junkyardTycoon,
+  hubGameIds.parkingJam,
+] as const satisfies ReadonlyArray<PlayableHubGameId>;
+
+const hubPlayableGameIdSet: ReadonlySet<string> = new Set(hubPlayableGameIds);
+
+export function isPlayableHubGameId(
+  value: string | null | undefined,
+): value is PlayableHubGameId {
+  return value !== null
+    && value !== undefined
+    && hubPlayableGameIdSet.has(value);
+}
+
 export const hubLegacyGameIds = {
   junkyardTycoon: 'junkyard-tycoon',
 } as const;
 
-export type HubGameId = typeof hubGameIds[keyof typeof hubGameIds];
+export const hubRouteParameters = [
+  'game',
+  'level',
+  'seed',
+  'viewport',
+] as const;
+
+export const hubParkingCompatibilityParameters = [
+  'level',
+  'seed',
+  'viewport',
+] as const;
 
 export const hubUiIds = {
   root: 'slop-game-shell',
   style: 'slop-game-shell-style',
-  hub: 'slop-game-hub',
 } as const;
 
 export const hubUiAttributes = {
@@ -26,40 +54,30 @@ export const hubUiActions = {
 } as const;
 
 export const hubCopy = {
-  title: 'Slop Games',
   islandTitle: 'Мой остров · SLOP',
-  eyebrow: 'PLAYGROUND',
-  heading: 'Pick a game',
-  subtitle: 'Small worlds, one shared runtime.',
   back: 'Back to game hub',
   loading: 'Loading game…',
   failed: 'The game could not be loaded.',
 } as const;
 
-export interface HubGameCard {
-  readonly id: Exclude<HubGameId, 'hub'>;
+export interface HubIslandGame {
+  readonly id: PlayableHubGameId;
   readonly name: string;
   readonly description: string;
-  readonly badge: string;
-  readonly icon: 'junkyard' | 'parking';
   readonly emoji: string;
 }
 
-export const hubGames: ReadonlyArray<HubGameCard> = [
+export const hubIslandGames: ReadonlyArray<HubIslandGame> = [
   {
     id: hubGameIds.junkyardTycoon,
     name: 'Junkyard Station',
     description: 'Run, approach, and auto-interact with a living 3D yard.',
-    badge: 'BASE WORLD',
-    icon: 'junkyard',
     emoji: '⛽',
   },
   {
     id: hubGameIds.parkingJam,
     name: 'Parking Jam',
     description: 'Untangle cars and move passenger groups through the lot.',
-    badge: 'PUZZLE',
-    icon: 'parking',
     emoji: '🚗',
   },
 ];

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "modules": [
     {
       "id": "proximity-domain",
@@ -22,6 +22,15 @@
       "owns": [
         "keyboard movement input",
         "touch joystick normalization"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "game-shell-navigation",
+      "kind": "shared-presentation",
+      "path": "games/shared/game-shell",
+      "owns": [
+        "standalone game return navigation"
       ],
       "dependsOn": []
     },
@@ -164,6 +173,27 @@
       ]
     },
     {
+      "id": "arcade-runtime-config",
+      "kind": "runtime-config",
+      "path": "games/traffic-jam/runtime/config.ts",
+      "owns": [
+        "Slop arcade world and scene configuration"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "arcade-entrypoint",
+      "kind": "entrypoint",
+      "path": "games/traffic-jam/game.ts",
+      "owns": [
+        "Slop arcade Modoki game definition and lazy bootstrap"
+      ],
+      "dependsOn": [
+        "arcade-runtime-config",
+        "modoki-adapter"
+      ]
+    },
+    {
       "id": "modoki-adapter",
       "kind": "adapter",
       "path": "games/traffic-jam/runtime/setup.ts",
@@ -172,6 +202,39 @@
       ],
       "dependsOn": [
         "hub-presentation"
+      ]
+    },
+    {
+      "id": "junkyard-runtime-config",
+      "kind": "runtime-config",
+      "path": "games/junkyard-station/runtime/config.ts",
+      "owns": [
+        "standalone Junkyard Station world and scene configuration"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "junkyard-adapter",
+      "kind": "adapter",
+      "path": "games/junkyard-station/runtime/setup.ts",
+      "owns": [
+        "standalone Junkyard Station presentation lifecycle and return navigation"
+      ],
+      "dependsOn": [
+        "junkyard-presentation",
+        "game-shell-navigation"
+      ]
+    },
+    {
+      "id": "junkyard-entrypoint",
+      "kind": "entrypoint",
+      "path": "games/junkyard-station/game.ts",
+      "owns": [
+        "standalone Junkyard Station Modoki game definition and lazy bootstrap"
+      ],
+      "dependsOn": [
+        "junkyard-runtime-config",
+        "junkyard-adapter"
       ]
     },
     {
@@ -239,5 +302,21 @@
       "from": "island-domain",
       "to": "modoki-adapter"
     }
-  ]
+  ],
+  "coverage": {
+    "typescriptRoots": [
+      "games"
+    ]
+  },
+  "workflowPolicy": {
+    "directory": ".github",
+    "allowRepositoryContentWrites": false,
+    "forbiddenPayloadSuffixes": [
+      ".tar",
+      ".tar.gz",
+      ".tar.xz",
+      ".zip"
+    ],
+    "workflowDirectory": ".github/workflows"
+  }
 }

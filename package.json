@@ -20,6 +20,7 @@
     "web:budget": "node tools/check-web-budget.mjs games/traffic-jam/dist",
     "hub:quality": "node tools/check-hub-quality.mjs",
     "junkyard:quality": "node tools/check-junkyard-quality.mjs",
-    "ui:quality": "node tools/check-all-browser-quality.mjs"
+    "ui:quality": "node tools/check-all-browser-quality.mjs",
+    "benchmark:traffic": "node --experimental-strip-types tools/benchmark-traffic-domain.mjs"
   }
 }

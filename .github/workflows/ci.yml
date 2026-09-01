@@ -52,58 +52,6 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - name: Fetch vetted CC0 island assets
-        shell: bash
-        run: |
-          set -euo pipefail
-          target="${RUNNER_TEMP}/island-assets"
-          mkdir -p "${target}/models/Textures" "${target}/audio" "${target}/licenses"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/syuhei176/ai-game-assets/main/models/environment/tree_palm.glb \
-            --output "${target}/models/tree_palm.glb"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/syuhei176/ai-game-assets/main/models/environment/tree_oak.glb \
-            --output "${target}/models/tree_oak.glb"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/syuhei176/ai-game-assets/main/models/environment/rock_large.glb \
-            --output "${target}/models/rock_large.glb"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/syuhei176/ai-game-assets/main/models/environment/building_house.glb \
-            --output "${target}/models/building_house.glb"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/masakav3/Agent-Office-Dashboard/main/frontend/vendor/kenney/character-male-a.glb \
-            --output "${target}/models/character_male_a.glb"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/masakav3/Agent-Office-Dashboard/main/frontend/vendor/kenney/Textures/colormap.png \
-            --output "${target}/models/Textures/colormap.png"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/Calinou/kenney-interface-sounds/master/addons/kenney_interface_sounds/click_001.wav \
-            --output "${target}/audio/click_001.wav"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/Calinou/kenney-interface-sounds/master/addons/kenney_interface_sounds/bong_001.wav \
-            --output "${target}/audio/bong_001.wav"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/Calinou/kenney-interface-sounds/master/addons/kenney_interface_sounds/back_001.wav \
-            --output "${target}/audio/back_001.wav"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/syuhei176/ai-game-assets/main/README.md \
-            --output "${target}/licenses/environment-source-readme.md"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/masakav3/Agent-Office-Dashboard/main/frontend/vendor/kenney/licenses/Mini-Characters-License.txt \
-            --output "${target}/licenses/mini-characters-license.txt"
-          curl --fail --location --retry 3 --silent --show-error \
-            https://raw.githubusercontent.com/Calinou/kenney-interface-sounds/master/addons/kenney_interface_sounds/LICENSE.txt \
-            --output "${target}/licenses/interface-sounds-license.txt"
-          (cd "${target}" && find models audio licenses -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
-
-      - name: Upload vetted CC0 island assets
-        uses: actions/upload-artifact@v4
-        with:
-          name: island-assets-${{ github.sha }}
-          path: ${{ runner.temp }}/island-assets
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Check out pinned Modoki
         uses: actions/checkout@v5
         with:

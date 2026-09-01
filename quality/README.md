@@ -9,5 +9,6 @@
 - `experience-ui-contract.json` describes the shared hub and cross-game Junkyard Station journey.
 - `generation-policy.md` is the detailed AI-generation contract.
 - `visual-target.md` records the human visual direction.
+- `architecture/model.json` owns complete TypeScript module coverage, static and dynamic dependency edges, cycle detection, and workflow source-write policy.
 
-Generated reports are written to `quality-artifacts/` and uploaded by CI. `npm run ui:quality` runs both the Parking Jam interaction suite and the hub/tycoon experience suite.
+Generated reports are written to `quality-artifacts/` and uploaded by CI. `npm run ui:quality` runs the Parking Jam interaction suite; hub and Junkyard Station contracts have dedicated commands in the main CI workflow.

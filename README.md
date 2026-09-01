@@ -1,34 +1,35 @@
 # Slop
 
-Slop is an AI-oriented browser game platform built around small, testable game domains and interchangeable presentation/runtime adapters.
+Slop is an AI-oriented browser game platform built around a personal island, small testable game domains, and interchangeable presentation/runtime adapters.
 
-## Live games
+## Current playable routes
 
-- **Personal Island** — the default root experience, with first-run onboarding, deterministic island generation, movement, camera modes, and physical game portals.
-- **Pocket Club** — an original polished 3D billiards game with aiming, power, trajectory preview, auto-aim assistance, ball rotation, pockets, scoring, and touch controls.
-- **Parking Jam** — a 3D parking and passenger-group puzzle.
-- **Junkyard Station** — a joystick-first proximity-interaction tycoon vertical slice.
+- **Personal Island** — the default experience, with first-run onboarding, deterministic island generation, movement, camera modes, and physical game portals.
+- **Parking Jam** — a 3D parking and passenger-group puzzle at `?game=parking-jam`.
+- **Junkyard Station** — a joystick-first proximity-interaction tycoon slice at `?game=junkyard-station`.
 
 GitHub Pages: **https://t-damer.github.io/slop/**
 
-Direct Pocket Club route: **https://t-damer.github.io/slop/?game=billiards**
+Billiards is currently a design contract under `games/billiards`; it is not registered, built, tested, or deployed yet.
 
 ## Architecture
 
 ```text
-pure game domains
+pure shared and game domains
         ↓
-game-specific presentation adapters
+focused presentation adapters
         ↓
-shared hub router and personal island
+typed lazy game registry + personal island
         ↓
-Modoki web build
+thin Modoki entrypoints
         ↓
-GitHub Pages
+verified browser artifact
 ```
 
-The repository enforces strict TypeScript, architecture boundaries, deterministic domain tests, code-size ratchets, asset provenance, bundle budgets, and multi-viewport browser contracts.
+The repository enforces strict TypeScript, complete architecture ownership (including dynamic imports), deterministic domain tests, code-size debt ratchets, asset provenance, bundle budgets, multi-viewport browser contracts, and read-only source workflows.
+
+See `architecture/review-2026-09.md` for the latest architecture and optimization review.
 
 ## Intellectual-property boundary
 
-External games may be used as behavioral and visual references. Slop does not import proprietary game code, models, textures, audio, branding, or authored levels. Pocket Club uses an original narrow billiards physics implementation and original procedural presentation.
+External games may be used as behavioral and visual references. Slop does not import proprietary game code, models, textures, audio, branding, or authored levels.

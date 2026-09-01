@@ -10,19 +10,23 @@ flowchart LR
     Generator --> Blueprint[Versioned IslandBlueprint]
     Blueprint --> Repository[IslandRepository]
     Blueprint --> IslandScene[Personal 3D island]
-    IslandScene --> Hub[Hub router and lifecycle]
-    Hub --> Games[Parking Jam · Junkyard Station · future games]
-    Hub --> Runtime[Modoki / Three.js adapter]
+    IslandScene --> Hub[Typed registry and lazy game lifecycle]
+    Hub --> Games[Parking Jam · Junkyard Station · future verified games]
+    Hub --> Runtime[Thin Modoki / Three.js adapters]
     Runtime --> Build[Compact browser artifact]
 
-    Quality[Machine quality contract] --> CodeGate[Strict types · ownership · debt ratchet]
+    Quality[Machine quality contract] --> OwnershipGate[Complete module ownership · dynamic imports · cycle detection]
+    Quality --> CodeGate[Strict types · focused owners · debt ratchet]
     Quality --> AssetGate[Recipe · provenance · GLB validation]
     Quality --> UiGate[Onboarding · island · six viewports · real interactions]
     Quality --> BudgetGate[Raw · gzip · brotli · JS ratchet]
-    CodeGate --> CI[Reviewable reports]
+    Quality --> WorkflowGate[Read-only source workflows · no staged delivery payloads]
+    OwnershipGate --> CI[Reviewable reports]
+    CodeGate --> CI
     AssetGate --> CI
     UiGate --> CI
     BudgetGate --> CI
+    WorkflowGate --> CI
     Build --> CI
 
     SharedDomain -. forbidden .-> Three[Three.js · DOM · Modoki]

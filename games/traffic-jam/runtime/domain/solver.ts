@@ -8,10 +8,10 @@ import {
   createInitialTrafficState,
   getAvailableCarIds,
   getOccupiedCells,
-  getTrafficCar,
   releaseTrafficCar,
 } from './rules.ts';
 import type {
+  TrafficCarDefinition,
   TrafficLevelAnalysis,
   TrafficLevelDefinition,
   TrafficState,
@@ -27,9 +27,8 @@ export function solveTrafficState(
   level: TrafficLevelDefinition,
   state: TrafficState,
 ): ReadonlyArray<string> | null {
-  const visited = new Set<string>();
-  const result = solveState(level, state, visited);
-  return result.solution;
+  const context = createSolverContext(level);
+  return solveState(context, state).solution;
 }
 
 export function analyzeTrafficLevel(level: TrafficLevelDefinition): TrafficLevelAnalysis {
@@ -42,8 +41,8 @@ export function analyzeTrafficLevel(level: TrafficLevelDefinition): TrafficLevel
       visitedStates: trafficRules.emptyCollectionSize,
     };
   }
-  const visited = new Set<string>();
-  const result = solveState(level, createInitialTrafficState(level), visited);
+  const context = createSolverContext(level);
+  const result = solveState(context, createInitialTrafficState(level));
   if (result.limitReached) {
     errors.push(trafficErrors.solverLimit);
   } else if (result.solution === null) {
@@ -53,7 +52,7 @@ export function analyzeTrafficLevel(level: TrafficLevelDefinition): TrafficLevel
     valid: errors.length === trafficRules.emptyCollectionSize && result.solution !== null,
     errors,
     solution: result.solution,
-    visitedStates: visited.size,
+    visitedStates: context.visited.size,
   };
 }
 
@@ -108,17 +107,7 @@ export function validateTrafficLevel(level: TrafficLevelDefinition): Array<strin
     }
   }
 
-  for (const [color, passengerCount] of passengerCountByColor) {
-    if (capacityByColor.get(color) !== passengerCount) {
-      errors.push(`passenger-capacity:${color}`);
-    }
-  }
-  for (const [color, capacity] of capacityByColor) {
-    if (passengerCountByColor.get(color) !== capacity) {
-      errors.push(`capacity-passenger:${color}`);
-    }
-  }
-
+  validatePassengerCapacity(passengerCountByColor, capacityByColor, errors);
   if (level.bayCount <= trafficRules.emptyCollectionSize) {
     errors.push('bay-count');
   }
@@ -126,11 +115,18 @@ export function validateTrafficLevel(level: TrafficLevelDefinition): Array<strin
     errors.push('expected-solution-size');
   }
   for (const carId of level.expectedSolution) {
-    if (getTrafficCar(level, carId) === null) {
+    if (!ids.has(carId)) {
       errors.push(`expected-solution-car:${carId}`);
     }
   }
   return errors;
+}
+
+interface SolverContext {
+  readonly level: TrafficLevelDefinition;
+  readonly carById: ReadonlyMap<string, TrafficCarDefinition>;
+  readonly expectedIndexByCarId: ReadonlyMap<string, number>;
+  readonly visited: Set<string>;
 }
 
 interface SolverResult {
@@ -138,10 +134,20 @@ interface SolverResult {
   readonly limitReached: boolean;
 }
 
+function createSolverContext(level: TrafficLevelDefinition): SolverContext {
+  return {
+    level,
+    carById: new Map(level.cars.map((car) => [car.id, car])),
+    expectedIndexByCarId: new Map(
+      level.expectedSolution.map((carId, index) => [carId, index]),
+    ),
+    visited: new Set<string>(),
+  };
+}
+
 function solveState(
-  level: TrafficLevelDefinition,
+  context: SolverContext,
   state: TrafficState,
-  visited: Set<string>,
 ): SolverResult {
   if (state.completed) {
     return { solution: [], limitReached: false };
@@ -149,34 +155,30 @@ function solveState(
   if (state.jammed) {
     return { solution: null, limitReached: false };
   }
-  if (visited.size >= trafficRules.solverMaximumVisitedStates) {
+  if (context.visited.size >= trafficRules.solverMaximumVisitedStates) {
     return { solution: null, limitReached: true };
   }
 
   const key = toStateKey(state);
-  if (visited.has(key)) {
+  if (context.visited.has(key)) {
     return { solution: null, limitReached: false };
   }
-  visited.add(key);
+  context.visited.add(key);
 
-  const nextPassengerColor = state.passengers[trafficRules.firstIndex];
-  const candidates = [...getAvailableCarIds(level, state)].sort((leftId, rightId) => {
-    const leftMatches = getTrafficCar(level, leftId)?.color === nextPassengerColor;
-    const rightMatches = getTrafficCar(level, rightId)?.color === nextPassengerColor;
-    if (leftMatches === rightMatches) {
-      const leftExpectedIndex = level.expectedSolution.indexOf(leftId);
-      const rightExpectedIndex = level.expectedSolution.indexOf(rightId);
-      return leftExpectedIndex - rightExpectedIndex;
-    }
-    return leftMatches ? -trafficRules.cellStep : trafficRules.cellStep;
-  });
+  const candidates = [...getAvailableCarIds(context.level, state)];
+  candidates.sort((leftId, rightId) => compareSolverCandidates(
+    context,
+    state.passengers[trafficRules.firstIndex],
+    leftId,
+    rightId,
+  ));
 
   for (const carId of candidates) {
-    const result = releaseTrafficCar(level, state, carId);
+    const result = releaseTrafficCar(context.level, state, carId);
     if (!result.ok) {
       continue;
     }
-    const suffix = solveState(level, result.state, visited);
+    const suffix = solveState(context, result.state);
     if (suffix.limitReached) {
       return suffix;
     }
@@ -190,11 +192,48 @@ function solveState(
   return { solution: null, limitReached: false };
 }
 
+function compareSolverCandidates(
+  context: SolverContext,
+  nextPassengerColor: TrafficCarDefinition['color'] | undefined,
+  leftId: string,
+  rightId: string,
+): number {
+  const leftMatches = context.carById.get(leftId)?.color === nextPassengerColor;
+  const rightMatches = context.carById.get(rightId)?.color === nextPassengerColor;
+  if (leftMatches !== rightMatches) {
+    return leftMatches ? -trafficRules.cellStep : trafficRules.cellStep;
+  }
+  return getExpectedIndex(context, leftId) - getExpectedIndex(context, rightId);
+}
+
+function getExpectedIndex(context: SolverContext, carId: string): number {
+  return context.expectedIndexByCarId.get(carId) ?? Number.MAX_SAFE_INTEGER;
+}
+
+function validatePassengerCapacity(
+  passengerCountByColor: ReadonlyMap<string, number>,
+  capacityByColor: ReadonlyMap<string, number>,
+  errors: Array<string>,
+): void {
+  for (const [color, passengerCount] of passengerCountByColor) {
+    if (capacityByColor.get(color) !== passengerCount) {
+      errors.push(`passenger-capacity:${color}`);
+    }
+  }
+  for (const [color, capacity] of capacityByColor) {
+    if (passengerCountByColor.get(color) !== capacity) {
+      errors.push(`capacity-passenger:${color}`);
+    }
+  }
+}
+
 function toStateKey(state: TrafficState): string {
-  const cars = state.cars
-    .filter((car) => car.status !== trafficCarStatuses.departed)
-    .map((car) => `${car.id}:${car.status}:${car.bayIndex ?? '-'}:${car.boarded}`)
-    .sort()
-    .join('|');
-  return `${cars}#${state.passengers.join(',')}`;
+  const cars: Array<string> = [];
+  for (const car of state.cars) {
+    if (car.status !== trafficCarStatuses.departed) {
+      cars.push(`${car.id}:${car.status}:${car.bayIndex ?? '-'}:${car.boarded}`);
+    }
+  }
+  cars.sort();
+  return `${cars.join('|')}#${state.passengers.join(',')}`;
 }

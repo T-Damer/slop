@@ -5,19 +5,24 @@ import {
 import {
   hubCopy,
   hubGameIds,
-  hubGames,
+  hubIslandGames,
   hubLegacyGameIds,
+  hubParkingCompatibilityParameters,
+  hubPlayableGameIds,
+  hubRouteParameters,
   hubUiActions,
   hubUiAttributes,
   hubUiIds,
+  isPlayableHubGameId,
   type HubGameId,
+  type PlayableHubGameId,
 } from './registry.ts';
 import { hubStyles } from './styles.ts';
 
 interface HubQaBridge {
   readonly schemaVersion: 1;
   readonly currentGame: () => HubGameId;
-  readonly availableGames: () => ReadonlyArray<string>;
+  readonly availableGames: () => ReadonlyArray<PlayableHubGameId>;
 }
 
 declare global {
@@ -25,6 +30,26 @@ declare global {
     __SLOP_HUB_QA__?: HubQaBridge;
   }
 }
+
+type GameUnmount = () => void;
+type GameLoader = (host: HTMLElement) => Promise<GameUnmount>;
+
+const hubGameLoaders: Readonly<Record<PlayableHubGameId, GameLoader>> = {
+  [hubGameIds.parkingJam]: async (host) => {
+    const parking = await import(
+      '../../../traffic-jam/runtime/presentation/app.ts'
+    );
+    parking.mountParkingJam(host);
+    return parking.unmountParkingJam;
+  },
+  [hubGameIds.junkyardTycoon]: async (host) => {
+    const junkyard = await import(
+      '../../../junkyard-tycoon/runtime/presentation/app.ts'
+    );
+    junkyard.mountJunkyardTycoon(host);
+    return junkyard.unmountJunkyardTycoon;
+  },
+};
 
 let activeController: GameHubController | null = null;
 
@@ -47,7 +72,7 @@ export function unmountGameHub(): void {
 
 class GameHubController {
   private currentGame: HubGameId = hubGameIds.hub;
-  private activeUnmount: (() => void) | null = null;
+  private activeUnmount: GameUnmount | null = null;
   private routeVersion = 0;
   private disposed = false;
 
@@ -78,7 +103,7 @@ class GameHubController {
     const gameId = target.closest<HTMLElement>(
       `[${hubUiAttributes.gameId}]`,
     )?.getAttribute(hubUiAttributes.gameId);
-    if (isPlayableGameId(gameId)) {
+    if (isPlayableHubGameId(gameId)) {
       this.navigate(gameId);
       return;
     }
@@ -127,12 +152,7 @@ class GameHubController {
   private async mountIslandRoute(version: number): Promise<void> {
     document.title = hubCopy.islandTitle;
     await mountPersonalIsland(this.root, {
-      games: hubGames.map((game) => ({
-        id: game.id,
-        name: game.name,
-        description: game.description,
-        emoji: game.emoji,
-      })),
+      games: hubIslandGames,
       onLaunchGame: (gameId) => this.navigate(gameId),
     });
     if (this.disposed || version !== this.routeVersion) {
@@ -143,7 +163,7 @@ class GameHubController {
   }
 
   private async mountGameRoute(
-    gameId: Exclude<HubGameId, 'hub'>,
+    gameId: PlayableHubGameId,
     version: number,
   ): Promise<void> {
     this.root.innerHTML = renderGameShell();
@@ -151,7 +171,7 @@ class GameHubController {
     if (host === null) {
       return;
     }
-    const unmount = await mountSelectedGame(gameId, host);
+    const unmount = await hubGameLoaders[gameId](host);
     if (this.disposed || version !== this.routeVersion) {
       unmount();
       return;
@@ -166,28 +186,9 @@ class GameHubController {
     window.__SLOP_HUB_QA__ = {
       schemaVersion: 1,
       currentGame: () => this.currentGame,
-      availableGames: () => hubGames.map((game) => game.id),
+      availableGames: () => hubPlayableGameIds,
     };
   }
-}
-
-async function mountSelectedGame(
-  gameId: Exclude<HubGameId, 'hub'>,
-  host: HTMLElement,
-): Promise<() => void> {
-  host.innerHTML = '';
-  if (gameId === hubGameIds.parkingJam) {
-    const parking = await import(
-      '../../../traffic-jam/runtime/presentation/app.ts'
-    );
-    parking.mountParkingJam(host);
-    return parking.unmountParkingJam;
-  }
-  const junkyard = await import(
-    '../../../junkyard-tycoon/runtime/presentation/app.ts'
-  );
-  junkyard.mountJunkyardTycoon(host);
-  return junkyard.unmountJunkyardTycoon;
 }
 
 function renderGameShell(): string {
@@ -210,25 +211,18 @@ function resolveGameId(search: string): HubGameId {
   if (requested === hubLegacyGameIds.junkyardTycoon) {
     return hubGameIds.junkyardTycoon;
   }
-  if (isPlayableGameId(requested)) {
+  if (isPlayableHubGameId(requested)) {
     return requested;
   }
-  if (params.has('level') || params.has('seed') || params.has('viewport')) {
+  if (hubParkingCompatibilityParameters.some((parameter) => params.has(parameter))) {
     return hubGameIds.parkingJam;
   }
   return hubGameIds.hub;
 }
 
-function isPlayableGameId(
-  value: string | null | undefined,
-): value is Exclude<HubGameId, 'hub'> {
-  return value === hubGameIds.parkingJam
-    || value === hubGameIds.junkyardTycoon;
-}
-
 function clearGameParameters(url: URL): void {
-  for (const key of ['game', 'level', 'seed', 'viewport']) {
-    url.searchParams.delete(key);
+  for (const parameter of hubRouteParameters) {
+    url.searchParams.delete(parameter);
   }
 }
 

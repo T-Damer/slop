@@ -1,19 +1,36 @@
 import {
+  getBlockingCarIds,
+  getFirstAvailableBayIndex,
+  getReleasableCarIds,
+  getTrafficCar,
+  getTrafficCarProgress,
+} from './board.ts';
+import { createTrafficEvent } from './events.ts';
+import {
+  cloneTrafficCarProgress,
+  resolvePassengerQueue,
+} from './queue.ts';
+import {
   trafficCarStatuses,
-  trafficDirections,
   trafficErrors,
   trafficEvents,
   trafficRules,
 } from './registry.ts';
 import type {
-  TrafficCarDefinition,
-  TrafficCarProgress,
-  TrafficCell,
   TrafficDomainEvent,
   TrafficLevelDefinition,
   TrafficMoveResult,
   TrafficState,
 } from './types.ts';
+
+export {
+  getBlockingCarIds,
+  getExitPathCells,
+  getFirstAvailableBayIndex,
+  getOccupiedCells,
+  getTrafficCar,
+  getTrafficCarProgress,
+} from './board.ts';
 
 export function createInitialTrafficState(level: TrafficLevelDefinition): TrafficState {
   return {
@@ -39,37 +56,18 @@ export function releaseTrafficCar(
   state: TrafficState,
   carId: string,
 ): TrafficMoveResult {
-  if (state.completed) {
-    return reject(trafficErrors.levelCompleted);
-  }
-  if (state.jammed) {
-    return reject(trafficErrors.stateJammed);
+  const rejection = validateRelease(level, state, carId);
+  if (rejection !== null) {
+    return rejection;
   }
 
   const car = getTrafficCar(level, carId);
-  if (car === null) {
-    return reject(trafficErrors.carMissing);
-  }
-  const progress = getTrafficCarProgress(state, carId);
-  if (progress === null || progress.status !== trafficCarStatuses.parked) {
-    return reject(trafficErrors.carUnavailable);
-  }
-
-  const blockingCarIds = getBlockingCarIds(level, state, carId);
-  if (blockingCarIds.length > trafficRules.emptyCollectionSize) {
-    return {
-      ok: false,
-      error: trafficErrors.pathBlocked,
-      blockingCarIds,
-    };
-  }
-
   const bayIndex = getFirstAvailableBayIndex(level, state);
-  if (bayIndex === null) {
-    return reject(trafficErrors.noBayAvailable);
+  if (car === null || bayIndex === null) {
+    return reject(car === null ? trafficErrors.carMissing : trafficErrors.noBayAvailable);
   }
 
-  const mutableCars = state.cars.map((candidate) => ({ ...candidate }));
+  const mutableCars = cloneTrafficCarProgress(state.cars);
   const mutableProgress = mutableCars.find((candidate) => candidate.id === carId);
   if (mutableProgress === undefined) {
     return reject(trafficErrors.carMissing);
@@ -78,7 +76,7 @@ export function releaseTrafficCar(
   mutableProgress.bayIndex = bayIndex;
 
   const events: Array<TrafficDomainEvent> = [
-    createEvent(trafficEvents.carReleased, {
+    createTrafficEvent(trafficEvents.carReleased, {
       carId,
       bayIndex,
       scoreAfter: state.score,
@@ -87,19 +85,13 @@ export function releaseTrafficCar(
       queueRemaining: state.passengers.length,
     }),
   ];
-
   const resolved = resolvePassengerQueue(level, {
-    levelId: state.levelId,
+    ...state,
     cars: mutableCars,
-    passengers: [...state.passengers],
     moveCount: state.moveCount + trafficRules.cellStep,
-    score: state.score,
-    coins: state.coins,
-    combo: state.combo,
     completed: false,
     jammed: false,
-  }, events);
-
+  }, mutableCars, events);
   const completed = resolved.passengers.length === trafficRules.emptyCollectionSize
     && resolved.cars.every((candidate) => candidate.status === trafficCarStatuses.departed);
   const stateBeforeJamCheck: TrafficState = {
@@ -107,14 +99,13 @@ export function releaseTrafficCar(
     completed,
     jammed: false,
   };
-  const jammed = !completed && isTrafficStateJammed(level, stateBeforeJamCheck);
-  const nextState = {
+  const nextState: TrafficState = {
     ...stateBeforeJamCheck,
-    jammed,
+    jammed: !completed && isTrafficStateJammed(level, stateBeforeJamCheck),
   };
 
   if (completed) {
-    events.push(createEvent(trafficEvents.levelCompleted, {
+    events.push(createTrafficEvent(trafficEvents.levelCompleted, {
       scoreAfter: nextState.score,
       coinsAfter: nextState.coins,
       comboAfter: nextState.combo,
@@ -140,144 +131,7 @@ export function getAvailableCarIds(
   ) {
     return [];
   }
-  return state.cars
-    .filter((progress) => progress.status === trafficCarStatuses.parked)
-    .filter(
-      (progress) => getBlockingCarIds(level, state, progress.id).length
-        === trafficRules.emptyCollectionSize,
-    )
-    .map((progress) => progress.id);
-}
-
-export function getBlockingCarIds(
-  level: TrafficLevelDefinition,
-  state: TrafficState,
-  carId: string,
-): ReadonlyArray<string> {
-  const car = getTrafficCar(level, carId);
-  if (car === null) {
-    return [];
-  }
-
-  const occupied = new Map<string, string>();
-  for (const progress of state.cars) {
-    if (progress.id === carId || progress.status !== trafficCarStatuses.parked) {
-      continue;
-    }
-    const candidate = getTrafficCar(level, progress.id);
-    if (candidate === null) {
-      continue;
-    }
-    for (const cell of getOccupiedCells(candidate)) {
-      occupied.set(toCellKey(cell), candidate.id);
-    }
-  }
-
-  const blockers = new Set<string>();
-  for (const cell of getExitPathCells(car)) {
-    const blockingCarId = occupied.get(toCellKey(cell));
-    if (blockingCarId !== undefined) {
-      blockers.add(blockingCarId);
-    }
-  }
-  return [...blockers].sort();
-}
-
-export function getOccupiedCells(
-  car: TrafficCarDefinition,
-): ReadonlyArray<TrafficCell> {
-  const cells: Array<TrafficCell> = [];
-  for (
-    let offset = trafficRules.firstCoordinate;
-    offset < car.length;
-    offset += trafficRules.cellStep
-  ) {
-    cells.push(
-      car.direction === trafficDirections.left || car.direction === trafficDirections.right
-        ? { x: car.x + offset, y: car.y }
-        : { x: car.x, y: car.y + offset },
-    );
-  }
-  return cells;
-}
-
-export function getExitPathCells(
-  car: TrafficCarDefinition,
-): ReadonlyArray<TrafficCell> {
-  const cells: Array<TrafficCell> = [];
-  if (car.direction === trafficDirections.right) {
-    for (
-      let x = car.x + car.length;
-      x < trafficRules.boardColumns;
-      x += trafficRules.cellStep
-    ) {
-      cells.push({ x, y: car.y });
-    }
-    return cells;
-  }
-  if (car.direction === trafficDirections.left) {
-    for (
-      let x = car.x - trafficRules.cellStep;
-      x >= trafficRules.firstCoordinate;
-      x -= trafficRules.cellStep
-    ) {
-      cells.push({ x, y: car.y });
-    }
-    return cells;
-  }
-  if (car.direction === trafficDirections.down) {
-    for (
-      let y = car.y + car.length;
-      y < trafficRules.boardRows;
-      y += trafficRules.cellStep
-    ) {
-      cells.push({ x: car.x, y });
-    }
-    return cells;
-  }
-  for (
-    let y = car.y - trafficRules.cellStep;
-    y >= trafficRules.firstCoordinate;
-    y -= trafficRules.cellStep
-  ) {
-    cells.push({ x: car.x, y });
-  }
-  return cells;
-}
-
-export function getTrafficCar(
-  level: TrafficLevelDefinition,
-  carId: string,
-): TrafficCarDefinition | null {
-  return level.cars.find((car) => car.id === carId) ?? null;
-}
-
-export function getTrafficCarProgress(
-  state: TrafficState,
-  carId: string,
-): TrafficCarProgress | null {
-  return state.cars.find((car) => car.id === carId) ?? null;
-}
-
-export function getFirstAvailableBayIndex(
-  level: TrafficLevelDefinition,
-  state: TrafficState,
-): number | null {
-  const occupiedBays = new Set(
-    state.cars
-      .filter((car) => car.status === trafficCarStatuses.waiting)
-      .flatMap((car) => car.bayIndex === null ? [] : [car.bayIndex]),
-  );
-  for (
-    let bayIndex = trafficRules.firstIndex;
-    bayIndex < level.bayCount;
-    bayIndex += trafficRules.cellStep
-  ) {
-    if (!occupiedBays.has(bayIndex)) {
-      return bayIndex;
-    }
-  }
-  return null;
+  return getReleasableCarIds(level, state);
 }
 
 export function isTrafficStateJammed(
@@ -287,153 +141,40 @@ export function isTrafficStateJammed(
   if (state.completed) {
     return false;
   }
-  return getAvailableCarIds(level, { ...state, jammed: false }).length
-    === trafficRules.emptyCollectionSize;
+  return getFirstAvailableBayIndex(level, state) === null
+    || getReleasableCarIds(level, state).length === trafficRules.emptyCollectionSize;
 }
 
-function resolvePassengerQueue(
+function validateRelease(
   level: TrafficLevelDefinition,
   state: TrafficState,
-  events: Array<TrafficDomainEvent>,
-): TrafficState {
-  const mutableCars = state.cars.map((candidate) => ({ ...candidate }));
-  const passengers = [...state.passengers];
-  let score = state.score;
-  let coins = state.coins;
-  let combo = state.combo;
-  let boardedAnyGroup = false;
-
-  while (passengers.length > trafficRules.emptyCollectionSize) {
-    const nextPassengerColor = passengers[trafficRules.firstIndex];
-    const matchingProgress = mutableCars
-      .filter((candidate) => candidate.status === trafficCarStatuses.waiting)
-      .filter((candidate) => {
-        const car = getTrafficCar(level, candidate.id);
-        return car?.color === nextPassengerColor
-          && candidate.boarded < (car?.capacity ?? trafficRules.emptyCollectionSize);
-      })
-      .sort(
-        (left, right) => (
-          left.bayIndex ?? trafficRules.firstIndex
-        ) - (
-          right.bayIndex ?? trafficRules.firstIndex
-        ),
-      )[trafficRules.firstIndex];
-
-    if (matchingProgress === undefined || nextPassengerColor === undefined) {
-      break;
-    }
-    const matchingCar = getTrafficCar(level, matchingProgress.id);
-    if (matchingCar === null) {
-      break;
-    }
-
-    const remainingCapacity = matchingCar.capacity - matchingProgress.boarded;
-    const passengerCount = countLeadingPassengers(
-      passengers,
-      nextPassengerColor,
-      remainingCapacity,
-    );
-    if (passengerCount === trafficRules.emptyCollectionSize) {
-      break;
-    }
-
-    const firstSeatIndex = matchingProgress.boarded;
-    passengers.splice(trafficRules.firstIndex, passengerCount);
-    matchingProgress.boarded += passengerCount;
-    combo = Math.min(combo + trafficRules.cellStep, trafficRules.maximumCombo);
-    const passengerPoints = trafficRules.passengerPoints * passengerCount * combo;
-    score += passengerPoints;
-    boardedAnyGroup = true;
-    events.push(createEvent(trafficEvents.passengerGroupBoarded, {
-      carId: matchingCar.id,
-      bayIndex: matchingProgress.bayIndex,
-      passengerColor: matchingCar.color,
-      seatIndex: firstSeatIndex,
-      passengerCount,
-      points: passengerPoints,
-      scoreAfter: score,
-      coinsAfter: coins,
-      comboAfter: combo,
-      queueRemaining: passengers.length,
-    }));
-
-    if (matchingProgress.boarded >= matchingCar.capacity) {
-      matchingProgress.status = trafficCarStatuses.departed;
-      const departureBayIndex = matchingProgress.bayIndex;
-      matchingProgress.bayIndex = null;
-      const departurePoints = trafficRules.departurePoints * combo;
-      score += departurePoints;
-      coins += trafficRules.departureCoins;
-      events.push(createEvent(trafficEvents.carDeparted, {
-        carId: matchingCar.id,
-        bayIndex: departureBayIndex,
-        passengerColor: matchingCar.color,
-        passengerCount: matchingCar.capacity,
-        points: departurePoints,
-        coins: trafficRules.departureCoins,
-        scoreAfter: score,
-        coinsAfter: coins,
-        comboAfter: combo,
-        queueRemaining: passengers.length,
-      }));
-    }
+  carId: string,
+): TrafficMoveResult | null {
+  if (state.completed) {
+    return reject(trafficErrors.levelCompleted);
   }
-
-  if (!boardedAnyGroup && combo !== trafficRules.initialCombo) {
-    combo = trafficRules.initialCombo;
-    events.push(createEvent(trafficEvents.comboReset, {
-      scoreAfter: score,
-      coinsAfter: coins,
-      comboAfter: combo,
-      queueRemaining: passengers.length,
-    }));
+  if (state.jammed) {
+    return reject(trafficErrors.stateJammed);
   }
-
-  return {
-    ...state,
-    cars: mutableCars,
-    passengers,
-    score,
-    coins,
-    combo,
-  };
-}
-
-function countLeadingPassengers(
-  passengers: ReadonlyArray<TrafficCarDefinition['color']>,
-  color: TrafficCarDefinition['color'],
-  maximumCount: number,
-): number {
-  let count = trafficRules.emptyCollectionSize;
-  while (
-    count < maximumCount
-    && passengers[count] === color
-  ) {
-    count += trafficRules.cellStep;
+  if (getTrafficCar(level, carId) === null) {
+    return reject(trafficErrors.carMissing);
   }
-  return count;
-}
-
-function createEvent(
-  type: TrafficDomainEvent['type'],
-  overrides: Partial<Omit<TrafficDomainEvent, 'type'>>,
-): TrafficDomainEvent {
-  return {
-    type,
-    carId: null,
-    bayIndex: null,
-    passengerColor: null,
-    seatIndex: null,
-    passengerCount: trafficRules.emptyCollectionSize,
-    points: trafficRules.emptyCollectionSize,
-    coins: trafficRules.emptyCollectionSize,
-    scoreAfter: trafficRules.initialScore,
-    coinsAfter: trafficRules.initialCoins,
-    comboAfter: trafficRules.initialCombo,
-    queueRemaining: trafficRules.emptyCollectionSize,
-    ...overrides,
-  };
+  const progress = getTrafficCarProgress(state, carId);
+  if (progress === null || progress.status !== trafficCarStatuses.parked) {
+    return reject(trafficErrors.carUnavailable);
+  }
+  const blockingCarIds = getBlockingCarIds(level, state, carId);
+  if (blockingCarIds.length > trafficRules.emptyCollectionSize) {
+    return {
+      ok: false,
+      error: trafficErrors.pathBlocked,
+      blockingCarIds,
+    };
+  }
+  if (getFirstAvailableBayIndex(level, state) === null) {
+    return reject(trafficErrors.noBayAvailable);
+  }
+  return null;
 }
 
 function reject(error: typeof trafficErrors[keyof typeof trafficErrors]): TrafficMoveResult {
@@ -442,8 +183,4 @@ function reject(error: typeof trafficErrors[keyof typeof trafficErrors]): Traffi
     error,
     blockingCarIds: [],
   };
-}
-
-function toCellKey(cell: TrafficCell): string {
-  return `${cell.x}:${cell.y}`;
 }

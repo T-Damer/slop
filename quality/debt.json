@@ -32,14 +32,6 @@
       "reason": "The prototype CSS baseline predates component-level style ownership.",
       "splitPlan": "Split shell, HUD, controls, dialogs, and accessibility styles while preserving one visual token registry.",
       "expiresOn": "2026-11-30"
-    },
-    {
-      "path": "games/traffic-jam/runtime/domain/rules.ts",
-      "maximumBytes": 12299,
-      "owner": "parking-domain",
-      "reason": "The first domain module combines command validation, queue resolution, scoring, and projections.",
-      "splitPlan": "Extract queue resolution and scoring as domain-owned modules while keeping one public rules facade.",
-      "expiresOn": "2026-11-30"
     }
   ]
 }

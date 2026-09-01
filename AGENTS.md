@@ -20,6 +20,7 @@ Default order:
 - Gameplay rules are pure TypeScript and never depend on Modoki, Three.js, DOM, storage, network, or wall-clock APIs.
 - Presentation consumes state and semantic events. It does not decide whether a move, reward, interaction, or completion is valid.
 - Cross-game mechanics belong in `games/shared/**`; game folders compose them instead of copy-pasting variants.
+- Every `games/**/*.ts` source file has one owner in `architecture/model.json`; static and dynamic imports must follow declared dependencies.
 - Domain strings and tuning numbers belong to cohesive typed registries/config objects. An orphan local constant is not a valid fix.
 - `const` by default; `let` only for intentional reassignment; never `var`.
 - Do not copy-paste variants. Extend or compose the existing semantic owner.
@@ -27,6 +28,7 @@ Default order:
 - Generated code and assets pass the same types, tests, budgets, provenance, browser interactions, and visual review as human output.
 - Files listed in `quality/debt.json` may not grow. New files obey `quality/quality-contract.json`.
 - Development-only AI, MCP, validation, and asset tooling never ships in the game bundle.
+- GitHub workflows validate and publish; they never unpack staged source payloads, commit generated source, or push back into development branches.
 - A working patch can be rejected for incorrect ownership, duplication, weak game feel, budget regression, or architectural drift.
 - Recreate mechanics and interaction patterns, not proprietary source code, branding, levels, models, sounds, textures, or exact compositions.
 
@@ -35,10 +37,11 @@ Default order:
 - `games/shared/proximity-world/domain/**` owns reusable movement, bounds, nearest interaction selection, progress, cooldown, and completion events.
 - `games/junkyard-tycoon/runtime/domain/**` owns junkyard progression, resources, construction, fueling, payment, and objectives.
 - `games/junkyard-tycoon/runtime/presentation/**` owns the tycoon 3D scene, character input, visual interactions, and HUD.
-- `games/traffic-jam/runtime/domain/**` owns parking rules, passengers, scoring, jam detection, and solver behavior.
+- `games/traffic-jam/runtime/domain/rules.ts` is the parking command facade; `board.ts`, `queue.ts`, `events.ts`, and `solver.ts` own their focused deterministic concerns.
 - `games/traffic-jam/runtime/presentation/**` owns the Parking Jam scene, models, minimal HUD, input, and animation.
 - `games/hub/runtime/presentation/**` owns game catalog, routing, and child-game lifecycle.
-- `games/traffic-jam/runtime/setup.ts` is the thin Modoki lifecycle adapter for the full hub build.
+- `games/traffic-jam/runtime/setup.ts` is the thin Modoki lifecycle adapter for the full hub build; `games/junkyard-station/runtime/setup.ts` is the standalone Junkyard adapter.
+- `games/shared/game-shell/**` owns standalone return navigation; the main hub still owns browser query routing.
 - `quality/quality-contract.json` owns code, asset, runtime, and UI ratchets.
 - `architecture/model.json` owns module boundaries; current and target diagrams show actual versus intended structure.
 
