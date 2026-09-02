@@ -44,6 +44,7 @@ jobs:
           cache-dependency-path: |
             .modoki-engine/package-lock.json
             games/traffic-jam/package-lock.json
+            games/billiards/package-lock.json
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -58,6 +59,10 @@ jobs:
 
       - name: Install locked game-hub runtime
         working-directory: ${{ env.HUB_PROJECT_PATH }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install locked Pocket Club client runtime
+        working-directory: games/billiards
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Install locked asset toolchain
@@ -151,6 +156,11 @@ jobs:
         env:
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
         run: npm run junkyard:quality -- "$PAGE_URL"
+
+      - name: Run deployed Pocket Club contract
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npm run billiards:quality -- "$PAGE_URL"
 
       - name: Upload deployed browser evidence
         if: always()
