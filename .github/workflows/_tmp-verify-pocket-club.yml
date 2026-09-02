@@ -1,0 +1,221 @@
+name: Temporary verify Pocket Club candidate
+
+on:
+  push:
+    branches: ["docs/agent-foundation"]
+    paths: [".github/workflows/_tmp-verify-pocket-club.yml"]
+
+permissions:
+  contents: write
+
+env:
+  BASE_SHA: 7729deb1550620dea69789c75f208a78377503b1
+  MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
+  HUB_PROJECT_PATH: games/traffic-jam
+  QUALITY_REPORT_DIR: quality-artifacts
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out patch carrier
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/tmp-pocket-club/part-* | base64 -d | gunzip > "${RUNNER_TEMP}/pocket-club.patch"
+          echo "e1a42d1410363d8c9470595ff95d58e955b2b4fd820644a740a3f2db3cac8607  ${RUNNER_TEMP}/pocket-club.patch" | sha256sum -c -
+          git fetch origin feature/core-traffic
+          test "$(git rev-parse origin/feature/core-traffic)" = "${BASE_SHA}"
+          git checkout --detach "${BASE_SHA}"
+          git apply --index "${RUNNER_TEMP}/pocket-club.patch"
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" -eq 51
+          git write-tree | tee "${RUNNER_TEMP}/local-tree-sha.txt"
+
+      - name: Check out pinned Modoki
+        uses: actions/checkout@v5
+        with:
+          repository: lsgmasa33/modoki-engine
+          ref: ${{ env.MODOKI_COMMIT }}
+          path: .modoki-engine
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            .modoki-engine/package-lock.json
+            games/traffic-jam/package-lock.json
+            games/billiards/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/requirements-assets.txt
+
+      - name: Install pinned Modoki toolchain
+        working-directory: .modoki-engine
+        run: npm ci --no-audit --no-fund
+
+      - name: Install locked game-hub runtime
+        working-directory: ${{ env.HUB_PROJECT_PATH }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install locked Pocket Club client runtime
+        working-directory: games/billiards
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install locked asset toolchain
+        run: python -m pip install --disable-pip-version-check -r tools/requirements-assets.txt
+
+      - name: Reproduce source assets
+        run: npm run assets:reproduce
+
+      - name: Verify source contracts and strict types
+        run: npm run check
+
+      - name: Build the Slop game hub for web
+        working-directory: .modoki-engine
+        env:
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.HUB_PROJECT_PATH }}
+        run: npm run build -- --target web
+
+      - name: Enforce the hub web bundle ratchet
+        run: npm run web:budget
+
+      - name: Assemble and serve the complete site
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .site "${RUNNER_TEMP}/slop-site"
+          mkdir -p .site "${RUNNER_TEMP}/slop-site/slop"
+          cp -R "${HUB_PROJECT_PATH}/dist/." .site/
+          cp -R .site/. "${RUNNER_TEMP}/slop-site/slop/"
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory "${RUNNER_TEMP}/slop-site" >"${RUNNER_TEMP}/slop-http.log" 2>&1 &
+          echo $! > "${RUNNER_TEMP}/slop-http.pid"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/slop/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "${RUNNER_TEMP}/slop-http.log"
+          exit 1
+
+      - name: Run game hub browser contract
+        run: npm run hub:quality -- http://127.0.0.1:4173/slop/
+
+      - name: Run Parking Jam browser contract
+        run: npm run ui:quality -- http://127.0.0.1:4173/slop/
+
+      - name: Run Junkyard Station browser contract
+        run: npm run junkyard:quality -- http://127.0.0.1:4173/slop/
+
+      - name: Run Pocket Club browser contract
+        run: npm run billiards:quality -- http://127.0.0.1:4173/slop/
+
+      - name: Create verified commit object
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          import urllib.request
+
+          api = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          base = os.environ["BASE_SHA"]
+
+          def request(method, path, payload=None):
+              data = None if payload is None else json.dumps(payload).encode()
+              req = urllib.request.Request(
+                  f"{api}/repos/{repository}{path}",
+                  data=data,
+                  method=method,
+              )
+              req.add_header("Authorization", f"Bearer {token}")
+              req.add_header("Accept", "application/vnd.github+json")
+              req.add_header("X-GitHub-Api-Version", "2022-11-28")
+              if data is not None:
+                  req.add_header("Content-Type", "application/json")
+              with urllib.request.urlopen(req) as response:
+                  return json.load(response)
+
+          base_commit = request("GET", f"/git/commits/{base}")
+          paths = subprocess.check_output(
+              ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMRT", base],
+              text=True,
+          ).splitlines()
+          tree = []
+          for path in paths:
+              with open(path, "rb") as source:
+                  content = base64.b64encode(source.read()).decode()
+              blob = request("POST", "/git/blobs", {"content": content, "encoding": "base64"})
+              mode = subprocess.check_output(
+                  ["git", "ls-files", "-s", "--", path],
+                  text=True,
+              ).split()[0]
+              tree.append({"path": path, "mode": mode, "type": "blob", "sha": blob["sha"]})
+
+          candidate_tree = request("POST", "/git/trees", {
+              "base_tree": base_commit["tree"]["sha"],
+              "tree": tree,
+          })
+          with open(os.environ["RUNNER_TEMP"] + "/local-tree-sha.txt") as source:
+              local_tree = source.read().strip()
+          if candidate_tree["sha"] != local_tree:
+              raise RuntimeError(
+                  f"tree mismatch: local={local_tree} remote={candidate_tree['sha']}"
+              )
+
+          candidate = request("POST", "/git/commits", {
+              "message": "feat: add clean-room Pocket Club billiards",
+              "tree": candidate_tree["sha"],
+              "parents": [base],
+          })
+          os.makedirs("candidate", exist_ok=True)
+          with open("candidate/commit-sha.txt", "w") as output:
+              output.write(candidate["sha"] + "\n")
+          with open("candidate/tree-sha.txt", "w") as output:
+              output.write(candidate_tree["sha"] + "\n")
+          with open("candidate/paths.txt", "w") as output:
+              output.write("\n".join(paths) + "\n")
+          print(candidate["sha"])
+          PY
+
+      - name: Stop production server
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "${RUNNER_TEMP}/slop-http.pid" ]]; then
+            kill "$(cat "${RUNNER_TEMP}/slop-http.pid")" || true
+          fi
+
+      - name: Upload verified candidate and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-club-verified-candidate
+          path: |
+            candidate
+            quality-artifacts
+            .site
+            games/traffic-jam/dist
+          if-no-files-found: warn
+          retention-days: 2
