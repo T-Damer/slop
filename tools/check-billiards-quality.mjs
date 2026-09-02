@@ -268,7 +268,7 @@ function readPerformance(cdp) {
       firstContentfulPaintMs: paints['first-contentful-paint'] ?? null,
       heapBytes: performance.memory?.usedJSHeapSize ?? null
     };
-  })()`;
+  })()`);
 }
 
 function collectRuntimeErrors(cdp) {
