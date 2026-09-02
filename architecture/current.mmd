@@ -11,6 +11,7 @@ flowchart LR
     Hub --> IslandPresentation[Personal Island presentation]
     Hub --> ParkingPresentation[Parking Jam presentation]
     Hub --> JunkyardPresentation[Junkyard Station presentation]
+    Hub --> BilliardsPresentation[Pocket Club SolidJS and Canvas presentation]
 
     IslandPresentation --> IslandApplication[Island session application]
     IslandPresentation --> IslandStorage[Local island repository]
@@ -32,3 +33,7 @@ flowchart LR
     Quality[Quality contract] --> Tooling[Architecture, code, asset and browser gates]
     Tooling --> Coverage[All game TypeScript has one architecture owner]
     Tooling --> WorkflowBoundary[Workflows cannot mutate source branches]
+
+    BilliardsPresentation --> BilliardsDomain[Pocket Club deterministic CCD and rules]
+    BilliardsPresentation --> BilliardsNetwork[Optional Colyseus session seam]
+    BilliardsNetwork --> BilliardsDomain

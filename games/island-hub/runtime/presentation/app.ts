@@ -291,7 +291,9 @@ function consumeOnboardingFlags(): boolean {
 }
 
 function isIslandDestinationId(value: string | undefined): value is IslandDestinationId {
-  return value === 'parking-jam' || value === 'junkyard-station';
+  return value === 'billiards'
+    || value === 'parking-jam'
+    || value === 'junkyard-station';
 }
 
 function cameraLabel(mode: string): string {

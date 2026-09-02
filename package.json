@@ -7,7 +7,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test games/traffic-jam/runtime/domain/rules.test.ts games/traffic-jam/runtime/domain/generation.test.ts games/shared/proximity-world/domain/rules.test.ts games/junkyard-tycoon/runtime/domain/rules.test.ts games/island-hub/runtime/domain/generator.test.ts",
+    "test": "node --experimental-strip-types --test games/traffic-jam/runtime/domain/rules.test.ts games/traffic-jam/runtime/domain/generation.test.ts games/shared/proximity-world/domain/rules.test.ts games/junkyard-tycoon/runtime/domain/rules.test.ts games/island-hub/runtime/domain/generator.test.ts games/billiards/tests/*.test.ts",
     "typecheck": "node .modoki-engine/node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "change:check": "node tools/check-change-contract.mjs",
     "architecture:check": "node tools/check-architecture.mjs",
@@ -21,6 +21,7 @@
     "hub:quality": "node tools/check-hub-quality.mjs",
     "junkyard:quality": "node tools/check-junkyard-quality.mjs",
     "ui:quality": "node tools/check-all-browser-quality.mjs",
-    "benchmark:traffic": "node --experimental-strip-types tools/benchmark-traffic-domain.mjs"
+    "benchmark:traffic": "node --experimental-strip-types tools/benchmark-traffic-domain.mjs",
+    "billiards:quality": "node tools/check-billiards-quality.mjs"
   }
 }

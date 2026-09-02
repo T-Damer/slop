@@ -58,10 +58,10 @@ test('generated placements remain inside the walkable island', () => {
   }
 });
 
-test('every island contains both local game portals', () => {
+test('every island contains every local game portal', () => {
   const blueprint = buildIslandBlueprint('portal-test', calmPreferences);
   assert.deepEqual(
     blueprint.portals.map((portal) => portal.destinationId).sort(),
-    ['junkyard-station', 'parking-jam'],
+    ['billiards', 'junkyard-station', 'parking-jam'],
   );
 });

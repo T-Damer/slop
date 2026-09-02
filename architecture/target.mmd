@@ -11,7 +11,7 @@ flowchart LR
     Blueprint --> Repository[IslandRepository]
     Blueprint --> IslandScene[Personal 3D island]
     IslandScene --> Hub[Typed registry and lazy game lifecycle]
-    Hub --> Games[Parking Jam · Junkyard Station · future verified games]
+    Hub --> Games[Parking Jam · Junkyard Station · Pocket Club]
     Hub --> Runtime[Thin Modoki / Three.js adapters]
     Runtime --> Build[Compact browser artifact]
 
@@ -31,3 +31,9 @@ flowchart LR
 
     SharedDomain -. forbidden .-> Three[Three.js · DOM · Modoki]
     GameDomain -. forbidden .-> Three
+
+    Games --> BilliardsPresentation[Pocket Club SolidJS and Canvas presentation]
+    BilliardsPresentation --> BilliardsDomain[Deterministic fixed-step CCD and 8-ball rules]
+    BilliardsPresentation --> BilliardsNetwork[Optional Colyseus session adapter]
+    BilliardsNetwork --> Proto[Versioned Protobuf contract]
+    BilliardsNetwork --> BilliardsDomain

@@ -156,6 +156,63 @@
       ]
     },
     {
+      "id": "billiards-domain",
+      "kind": "domain",
+      "path": "games/billiards/runtime/domain",
+      "owns": [
+        "8-ball match state",
+        "continuous collision detection",
+        "fixed-step simulation",
+        "shot prediction",
+        "fouls and scoring"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "billiards-network",
+      "kind": "infrastructure",
+      "path": "games/billiards/runtime/network",
+      "owns": [
+        "versioned billiards wire messages",
+        "local session fallback",
+        "lazy Colyseus client transport",
+        "snapshot validation"
+      ],
+      "dependsOn": [
+        "billiards-domain"
+      ]
+    },
+    {
+      "id": "billiards-presentation",
+      "kind": "presentation",
+      "path": "games/billiards/runtime/presentation",
+      "owns": [
+        "SolidJS billiards HUD",
+        "Canvas 2D table renderer",
+        "pointer touch and keyboard controls",
+        "client prediction and reconciliation"
+      ],
+      "dependsOn": [
+        "billiards-domain",
+        "billiards-network"
+      ]
+    },
+    {
+      "id": "billiards-tests",
+      "kind": "test",
+      "path": "games/billiards/tests",
+      "owns": [
+        "billiards collision regression tests",
+        "determinism tests",
+        "8-ball rules tests",
+        "billiards wire contract tests"
+      ],
+      "dependsOn": [
+        "billiards-domain",
+        "billiards-network"
+      ]
+    },
+    {
       "id": "hub-presentation",
       "kind": "presentation",
       "path": "games/hub/runtime/presentation",
@@ -164,12 +221,14 @@
         "game routing",
         "game lifecycle",
         "direct game links",
-        "legacy Parking Jam links"
+        "legacy Parking Jam links",
+        "Pocket Club direct links"
       ],
       "dependsOn": [
         "island-presentation",
         "parking-presentation",
-        "junkyard-presentation"
+        "junkyard-presentation",
+        "billiards-presentation"
       ]
     },
     {
@@ -300,6 +359,22 @@
     },
     {
       "from": "island-domain",
+      "to": "modoki-adapter"
+    },
+    {
+      "from": "billiards-domain",
+      "to": "billiards-network"
+    },
+    {
+      "from": "billiards-domain",
+      "to": "billiards-presentation"
+    },
+    {
+      "from": "billiards-domain",
+      "to": "hub-presentation"
+    },
+    {
+      "from": "billiards-domain",
       "to": "modoki-adapter"
     }
   ],

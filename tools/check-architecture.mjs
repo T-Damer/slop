@@ -3,6 +3,7 @@ import path from 'node:path';
 import process from 'node:process';
 const root = process.cwd();
 const modelPath = 'architecture/model.json';
+const ignoredDirectoryNames = new Set(['node_modules', 'dist', '.modoki-engine']);
 const model = JSON.parse(await readFile(modelPath, 'utf8'));
 const failures = [];
 if (model.schemaVersion !== 4) {
@@ -293,6 +294,7 @@ async function listFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
+    if (entry.isDirectory() && ignoredDirectoryNames.has(entry.name)) continue;
     const nextPath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
       files.push(...await listFiles(nextPath));

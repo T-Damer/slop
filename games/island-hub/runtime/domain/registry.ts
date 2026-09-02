@@ -80,6 +80,7 @@ export const islandGenerationStages = [
 ] as const;
 
 export const islandDestinationIds = {
+  billiards: 'billiards',
   parkingJam: 'parking-jam',
   junkyardStation: 'junkyard-station',
 } as const;

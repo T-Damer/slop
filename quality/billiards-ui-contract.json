@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "stableQuery": "game=billiards&qa=1",
+  "rootSelector": "#slop-billiards-root",
+  "canvasSelector": "[data-billiards-canvas]",
+  "shootSelector": "[data-billiards-shoot]",
+  "restartSelector": "[data-billiards-restart]",
+  "qaExpression": "window.__SLOP_BILLIARDS_QA__?.snapshot()",
+  "minimumCanvasWidthPx": 240,
+  "minimumCanvasHeightPx": 130,
+  "minimumTouchTargetPx": 44,
+  "maximumHorizontalOverflowPx": 0,
+  "shotSettleTimeoutMs": 20000,
+  "minimumCueTravel": 2
+}

@@ -1,5 +1,6 @@
 export const hubGameIds = {
   hub: 'hub',
+  billiards: 'billiards',
   junkyardTycoon: 'junkyard-station',
   parkingJam: 'parking-jam',
 } as const;
@@ -8,6 +9,7 @@ export type HubGameId = typeof hubGameIds[keyof typeof hubGameIds];
 export type PlayableHubGameId = Exclude<HubGameId, typeof hubGameIds.hub>;
 
 export const hubPlayableGameIds = [
+  hubGameIds.billiards,
   hubGameIds.junkyardTycoon,
   hubGameIds.parkingJam,
 ] as const satisfies ReadonlyArray<PlayableHubGameId>;
@@ -68,6 +70,12 @@ export interface HubIslandGame {
 }
 
 export const hubIslandGames: ReadonlyArray<HubIslandGame> = [
+  {
+    id: hubGameIds.billiards,
+    name: 'Pocket Club',
+    description: 'Aim, add spin, and play a deterministic clean-room 8-ball table.',
+    emoji: '🎱',
+  },
   {
     id: hubGameIds.junkyardTycoon,
     name: 'Junkyard Station',

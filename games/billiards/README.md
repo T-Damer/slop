@@ -1,15 +1,24 @@
-# Billiards — planned game contract
+# Pocket Club
 
-**Status:** design and agent rules only. No billiards runtime is currently registered, built, tested, or deployed.
+Pocket Club is SLOP's clean-room, mobile-first 8-ball implementation.
 
-The intended slice is an original mobile-first 3D billiards game for SLOP. Before it can be exposed through the island or `?game=billiards`, the repository must contain:
+## Runtime
 
-- a deterministic planar domain for balls, cushions, pockets, scoring, prediction, and assistance;
-- a presentation layer that consumes domain state without owning collision or scoring rules;
-- pointer, touch, and keyboard controls;
-- licensed or project-authored assets with provenance;
-- domain tests, production build evidence, bundle checks, and real browser interactions across required viewports.
+- `runtime/domain` owns the deterministic table state, continuous collision detection, fixed-step simulation, shot preview, spin, fouls, groups, turn changes, and eight-ball outcomes.
+- `runtime/presentation` mounts a SolidJS interface and draws the table through the Canvas 2D API. The current artwork is entirely procedural and can be replaced through presentation-owned renderers without changing physics.
+- `runtime/network` provides a local fallback and a lazy Colyseus client. Add `?billiardsServer=https://host.example` to attempt an online room connection.
+- `protocol/billiards.proto` is the stable transport-neutral contract. The initial Colyseus adapter mirrors these fields while using Colyseus messages on the wire.
 
-## Intellectual-property boundary
+## Controls
 
-Any external playable is a behavioral and presentation reference only. The implementation must not copy its code, models, textures, sounds, branding, authored table, or level composition.
+Move the pointer over the table to aim, click to place the cue ball after a foul, adjust power and spin with the controls, and press **Space** or the shot button. Keyboard aiming uses **A/D** or the arrow keys; power uses **W/S**.
+
+## Verification
+
+```bash
+node --experimental-strip-types --test games/billiards/tests/*.test.ts
+npm run check
+npm run billiards:quality -- http://127.0.0.1:4173/slop/
+```
+
+The game is available through the Personal Island and directly at `?game=billiards`.

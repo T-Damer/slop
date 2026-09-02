@@ -7,10 +7,11 @@ Slop is an AI-oriented browser game platform built around a personal island, sma
 - **Personal Island** — the default experience, with first-run onboarding, deterministic island generation, movement, camera modes, and physical game portals.
 - **Parking Jam** — a 3D parking and passenger-group puzzle at `?game=parking-jam`.
 - **Junkyard Station** — a joystick-first proximity-interaction tycoon slice at `?game=junkyard-station`.
+- **Pocket Club** — a clean-room 8-ball table with SolidJS controls, procedural Canvas 2D presentation, deterministic event-based physics, and an optional Colyseus session adapter at `?game=billiards`.
 
 GitHub Pages: **https://t-damer.github.io/slop/**
 
-Billiards is currently a design contract under `games/billiards`; it is not registered, built, tested, or deployed yet.
+Pocket Club keeps the browser client playable in local-training mode. A versioned Protobuf schema under `games/billiards/protocol` defines the contract for a future authoritative room service.
 
 ## Architecture
 

@@ -166,12 +166,20 @@ function createReservedPoints(): ReadonlyArray<IslandPoint> {
     { x: 2.9, z: -1.15 },
     { x: -3.1, z: 1.45 },
     { x: -5.25, z: -3.25 },
+    { x: 0, z: -6.15 },
     { x: 5.05, z: -3.3 },
   ];
 }
 
 function createPortals(): ReadonlyArray<IslandPortalPlacement> {
   return [
+    {
+      destinationId: islandDestinationIds.billiards,
+      label: 'Pocket Club',
+      color: 0x40c49a,
+      x: 0,
+      z: -6.15,
+    },
     {
       destinationId: islandDestinationIds.parkingJam,
       label: 'Parking Jam',

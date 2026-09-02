@@ -1,34 +1,36 @@
 {
   "schemaVersion": 1,
-  "area": "platform.architecture-hardening-and-parking-domain-optimization",
-  "problem": "The feature branch passed its existing gates while leaving runtime files outside the architecture model, ignoring dynamic imports, retaining self-modifying delivery workflows and a duplicate static hub, and keeping avoidable allocations in Parking Jam solver and queue hot paths.",
+  "area": "platform.architecture-hardening-parking-optimization-and-pocket-club",
+  "problem": "The branch needed architecture hardening and Parking Jam optimization, while billiards still existed only as a contract. Pocket Club now needs a clean-room deterministic implementation, project-authored presentation, typed routing, and a real multiplayer boundary without weakening the existing quality gates.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
-    "architecture/current.mmd",
-    "tools/check-architecture.mjs",
-    "tools/check-code-quality.mjs",
+    "games/billiards/AGENTS.md",
+    "games/billiards/README.md",
     "games/hub/runtime/presentation/app.ts",
-    "games/traffic-jam/runtime/domain/rules.ts",
+    "games/island-hub/runtime/domain/generator.ts",
     "games/traffic-jam/runtime/domain/solver.ts",
     ".github/workflows/ci.yml",
-    "quality/debt.json"
+    "quality/debt.json",
+    "quality/quality-contract.json",
+    "tools/check-web-budget.mjs"
   ],
-  "reuseDecision": "Keep the existing domain/presentation boundaries, typed hub router, deterministic solver, and quality pipeline; make ownership coverage complete, split the Parking Jam domain by existing concerns, reuse one occupancy index per query, cache solver indexes, and delete obsolete delivery/static-hub paths instead of adding parallel infrastructure.",
-  "stateOwner": "games/traffic-jam/runtime/domain/types.ts",
+  "reuseDecision": "Keep the existing hub, Personal Island, Modoki build, deterministic-domain conventions, and single feature branch. Add Pocket Club as focused domain/network/presentation owners; reuse one event-based planar solver for both preview and execution; keep Colyseus behind a lazy session adapter and preserve Protobuf as the stable cross-language contract.",
+  "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
-    "Implement or expose billiards before its source and tests exist",
-    "Redesign Personal Island, Parking Jam, or Junkyard Station visuals",
-    "Replace Modoki, Three.js, or the existing feature branch and pull request",
-    "Split the remaining presentation debt files in the same change"
+    "Copy Miniclip code, branding, textures, sounds, table artwork, or proprietary assets",
+    "Ship an authoritative Colyseus server in the same browser-client slice",
+    "Replace the existing Personal Island, Parking Jam, Junkyard Station, Modoki, or Three.js foundations",
+    "Turn the billiards presentation into a second physics or scoring implementation"
   ],
   "acceptance": [
     "Every games/**/*.ts file has one architecture owner and all static and dynamic relative imports resolve through declared dependencies",
-    "Architecture validation rejects dependency cycles, source-mutating workflows, and staged archive payloads under .github",
-    "Obsolete one-shot workflows, delivery payloads, marker files, and the duplicate static hub are absent",
-    "Parking Jam board, queue, event, command, and solver concerns have focused owners without changing public domain behavior",
-    "The deterministic Parking Jam test matrix visits the same states and successful or rejected moves do not mutate input state",
-    "Unused island asset download and upload work is removed from pull-request CI",
-    "Source tests, change-contract, architecture, code-quality, and asset checks pass before publication"
+    "Pocket Club collision, deterministic simulation, immutability, foul, group assignment, scratch, and eight-ball tests pass",
+    "The production hub exposes billiards through the Personal Island and ?game=billiards while preserving all existing routes",
+    "SolidJS mounts the billiards interface and Canvas 2D renders project-authored table, balls, guide, cue, and responsive controls",
+    "The browser contract executes a real break shot, observes movement, waits for rest, and captures every required viewport without runtime errors",
+    "The Colyseus adapter remains optional and lazy while billiards.proto preserves a versioned transport-neutral message contract",
+    "Source checks, strict typecheck, production build, bundle ratchet, and all browser contracts pass before publication",
+    "The unchanged base/startup bundle ratchet and explicit Pocket Club lazy-client and Colyseus chunk ratchets all pass"
   ]
 }

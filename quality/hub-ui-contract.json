@@ -15,11 +15,12 @@
   "homeSelector": ".slop-home-button",
   "junkyardRootSelector": "#slop-junkyard-tycoon",
   "expectedGameIds": [
+    "billiards",
     "junkyard-station",
     "parking-jam"
   ],
   "preferenceStepCount": 7,
-  "minimumCardCount": 2,
+  "minimumCardCount": 3,
   "minimumTouchTargetPx": 44,
   "maximumHorizontalOverflowPx": 0
 }

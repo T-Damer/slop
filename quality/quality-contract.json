@@ -30,7 +30,33 @@
     "gzipRatchetBytes": 1350000,
     "brotliRatchetBytes": 1150000,
     "largestJavaScriptRatchetBytes": 900000,
-    "targetBrotliBytes": 700000
+    "targetBrotliBytes": 700000,
+    "optionalBundles": [
+      {
+        "id": "pocket-club-client",
+        "match": {
+          "pathPattern": "^assets/app-[A-Za-z0-9_-]+\\.js$",
+          "contentMarkers": ["slop-billiards-root"]
+        },
+        "minimumMatches": 1,
+        "maximumMatches": 1,
+        "rawRatchetBytes": 56000,
+        "gzipRatchetBytes": 19000,
+        "brotliRatchetBytes": 17000
+      },
+      {
+        "id": "pocket-club-colyseus",
+        "match": {
+          "pathPattern": "^assets/colyseus-session-[A-Za-z0-9_-]+\\.js$",
+          "contentMarkers": []
+        },
+        "minimumMatches": 1,
+        "maximumMatches": 1,
+        "rawRatchetBytes": 230000,
+        "gzipRatchetBytes": 71000,
+        "brotliRatchetBytes": 62000
+      }
+    ]
   },
   "ui": {
     "requiredViewports": [

@@ -35,6 +35,13 @@ type GameUnmount = () => void;
 type GameLoader = (host: HTMLElement) => Promise<GameUnmount>;
 
 const hubGameLoaders: Readonly<Record<PlayableHubGameId, GameLoader>> = {
+  [hubGameIds.billiards]: async (host) => {
+    const billiards = await import(
+      '../../../billiards/runtime/presentation/app.ts'
+    );
+    billiards.mountBilliards(host);
+    return billiards.unmountBilliards;
+  },
   [hubGameIds.parkingJam]: async (host) => {
     const parking = await import(
       '../../../traffic-jam/runtime/presentation/app.ts'
