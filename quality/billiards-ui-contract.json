@@ -11,5 +11,6 @@
   "minimumTouchTargetPx": 44,
   "maximumHorizontalOverflowPx": 0,
   "shotSettleTimeoutMs": 20000,
-  "minimumCueTravel": 2
+  "minimumCueTravel": 2,
+  "maximumControlViewportOverflowPx": 1
 }

@@ -14,12 +14,25 @@ export const billiardsStyles = `
 #slop-billiards-root * { box-sizing: border-box; }
 
 .billiards-shell {
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(240px, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
-  padding: max(16px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(72px, env(safe-area-inset-left));
+  padding: max(16px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  overflow: auto;
 }
+
+#slop-game-shell:has(#slop-billiards-root) .slop-home-button {
+  top: max(14px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  transform: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.billiards-brand { padding-left: 54px; }
 
 .billiards-header,
 .billiards-scoreboard,
@@ -120,6 +133,7 @@ export const billiardsStyles = `
 
 .billiards-table-wrap {
   width: min(1280px, 100%);
+  height: 100%;
   min-height: 0;
   margin: 0 auto;
   display: grid;
@@ -129,7 +143,9 @@ export const billiardsStyles = `
 
 #slop-billiards-canvas {
   display: block;
-  width: 100%;
+  width: min(100%, calc((100dvh - 280px) * 16 / 9));
+  height: auto;
+  max-width: 100%;
   max-height: 100%;
   aspect-ratio: 16 / 9;
   border-radius: 24px;
@@ -228,8 +244,8 @@ export const billiardsStyles = `
 
 @media (max-width: 820px) {
   .billiards-shell {
-    grid-template-rows: auto auto minmax(210px, 1fr) auto;
-    padding-left: max(66px, env(safe-area-inset-left));
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    padding-left: max(10px, env(safe-area-inset-left));
     gap: 8px;
   }
   .billiards-brand p, .billiards-controls-copy { display: none; }

@@ -216,6 +216,16 @@ function createLayoutExpression(ui) {
       if (rect.width < ${ui.minimumTouchTargetPx} || rect.height < ${ui.minimumTouchTargetPx}) {
         failures.push('A primary billiards control is smaller than the touch target budget.');
       }
+      const viewportOverflow = Math.max(
+        0,
+        -rect.left,
+        -rect.top,
+        rect.right - innerWidth,
+        rect.bottom - innerHeight,
+      );
+      if (viewportOverflow > ${ui.maximumControlViewportOverflowPx}) {
+        failures.push('A primary billiards control is outside the initial viewport.');
+      }
     }
     return {
       viewport: { width: innerWidth, height: innerHeight },
@@ -258,7 +268,7 @@ function readPerformance(cdp) {
       firstContentfulPaintMs: paints['first-contentful-paint'] ?? null,
       heapBytes: performance.memory?.usedJSHeapSize ?? null
     };
-  })()`);
+  })()`;
 }
 
 function collectRuntimeErrors(cdp) {
