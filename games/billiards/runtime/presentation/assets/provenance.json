@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "pocket-club-room",
+      "path": "games/billiards/runtime/presentation/assets/pocket-club-room.svg",
+      "license": "project-authored",
+      "source": "Original vector artwork authored for SLOP from the user's billiards-room direction; no third-party game artwork embedded.",
+      "runtimeUse": "Decorative room backdrop behind the deterministic table canvas.",
+      "bytes": 4156,
+      "maximumBytes": 6000,
+      "sha256": "0501581106fdfcb78f350c25752402bca5d8c0417fc2012bc4e2d21b13e6c5c0",
+      "promptSummary": "Warm top-down billiards lounge with dark herringbone wood, amber lamps, cue rack, leather seating, plants, and a clear central gameplay area."
+    },
+    {
+      "id": "pocket-club-scoreboard",
+      "path": "games/billiards/runtime/presentation/assets/pocket-club-scoreboard.svg",
+      "license": "project-authored",
+      "source": "Original vector artwork authored for SLOP from the user's billiards-room direction; no third-party game artwork embedded.",
+      "runtimeUse": "Decorative frame beneath the live player names and potted-ball slots.",
+      "bytes": 2412,
+      "maximumBytes": 4000,
+      "sha256": "7841c95a38d19714465d419d592501564bbac4ada0a12b94acea063062157e1a",
+      "promptSummary": "Original blue-versus-red luxury pool scoreboard frame with dark metal, wood, gold trim, avatar medallions, and seven ball slots per player."
+    }
+  ]
+}
