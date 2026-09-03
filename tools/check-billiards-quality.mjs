@@ -1,7 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-
 import {
   captureScreenshot,
   delay,
@@ -9,13 +8,11 @@ import {
   waitForExpression,
 } from './browser-quality/cdp-client.mjs';
 import { openChromium } from './browser-quality/chromium-host.mjs';
-
 const root = process.cwd();
 const baseUrl = process.argv[2] ?? process.env.BILLIARDS_PAGE_URL;
 if (!baseUrl) {
   throw new Error('Usage: node tools/check-billiards-quality.mjs <url>');
 }
-
 const quality = JSON.parse(await readFile('quality/quality-contract.json', 'utf8'));
 const ui = JSON.parse(await readFile('quality/billiards-ui-contract.json', 'utf8'));
 const outputRoot = path.resolve(
@@ -24,7 +21,6 @@ const outputRoot = path.resolve(
   'billiards-ui',
 );
 await mkdir(outputRoot, { recursive: true });
-
 const chromium = await openChromium();
 const { cdp } = chromium;
 try {
@@ -33,7 +29,6 @@ try {
   await cdp.send('Log.enable');
   const runtimeErrors = collectRuntimeErrors(cdp);
   const viewportReports = [];
-
   for (const viewport of quality.ui.requiredViewports) {
     runtimeErrors.length = 0;
     viewportReports.push(await inspectViewport({
@@ -45,7 +40,6 @@ try {
       exerciseShot: viewport.id === 'phone',
     }));
   }
-
   const failures = viewportReports.flatMap((report) =>
     report.failures.map((failure) => `${report.id}: ${failure}`),
   );
@@ -73,7 +67,6 @@ try {
     }
   }
 }
-
 async function inspectViewport({
   cdp,
   viewport,
@@ -99,7 +92,6 @@ async function inspectViewport({
   );
   await waitForExpression(cdp, `Boolean(${ui.qaExpression})`, 20000);
   await delay(700);
-
   const layout = await evaluate(cdp, createLayoutExpression(ui));
   const screenshot = await captureScreenshot(cdp, path.join(directory, 'boot.png'));
   const failures = [...layout.failures];
@@ -114,6 +106,9 @@ async function inspectViewport({
     }
     if (!interactions.breakShot.revisionAdvanced) {
       failures.push('The match revision did not advance through the shot.');
+    }
+    if (!interactions.breakShot.audioReady) {
+      failures.push('Web Audio did not unlock for the shot.');
     }
   }
   for (const runtimeError of runtimeErrors) {
@@ -137,7 +132,6 @@ async function inspectViewport({
   );
   return report;
 }
-
 async function runBreakShot(cdp, ui, directory) {
   const baseline = await evaluate(cdp, ui.qaExpression);
   const started = await evaluate(cdp, `(() => {
@@ -184,13 +178,13 @@ async function runBreakShot(cdp, ui, directory) {
     completed: current?.match?.activeShot === null,
     cueMoved: cueTravel >= ui.minimumCueTravel,
     revisionAdvanced: Number(current?.match?.revision ?? 0) >= minimumRevision,
+    audioReady: await evaluate(cdp, "document.querySelector('#slop-billiards-root')?.getAttribute('data-audio-state') === 'ready'"),
     cueTravel,
     baselineRevision: baseline?.match?.revision ?? null,
     currentRevision: current?.match?.revision ?? null,
     tableSteps: current?.match?.table?.step ?? null,
   };
 }
-
 function createLayoutExpression(ui) {
   return `(() => {
     const failures = [];
@@ -202,10 +196,36 @@ function createLayoutExpression(ui) {
     const canvas = document.querySelector(${JSON.stringify(ui.canvasSelector)});
     const shoot = document.querySelector(${JSON.stringify(ui.shootSelector)});
     const restart = document.querySelector(${JSON.stringify(ui.restartSelector)});
+    const power = document.querySelector(${JSON.stringify(ui.powerSelector)});
+    const angle = document.querySelector(${JSON.stringify(ui.angleSelector)});
+    const spin = document.querySelector(${JSON.stringify(ui.spinSelector)});
+    const sound = document.querySelector(${JSON.stringify(ui.soundSelector)});
+    const room = document.querySelector(${JSON.stringify(ui.roomBackdropSelector)});
+    const smokeWisps = document.querySelectorAll(${JSON.stringify(ui.smokeSelector)});
+    const slotRows = [...document.querySelectorAll(${JSON.stringify(ui.playerSlotsSelector)})];
     if (!(root instanceof HTMLElement)) failures.push('Billiards root is missing.');
     if (!(canvas instanceof HTMLCanvasElement)) failures.push('Billiards canvas is missing.');
     if (!(shoot instanceof HTMLButtonElement)) failures.push('Shot control is missing.');
     if (!(restart instanceof HTMLButtonElement)) failures.push('Restart control is missing.');
+    if (!(room instanceof HTMLElement) || getComputedStyle(room).backgroundImage === 'none') failures.push('The authored billiards-room backdrop is missing.');
+    if (smokeWisps.length !== ${ui.expectedSmokeWisps}) failures.push('The restrained smoke layer is incomplete.');
+    for (const [label, element] of [['power', power], ['angle', angle], ['spin', spin], ['sound', sound]]) {
+      if (!(element instanceof HTMLElement)) {
+        failures.push('The ' + label + ' control is missing.');
+        continue;
+      }
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0 || rect.right <= 0 || rect.left >= innerWidth) {
+        failures.push('The ' + label + ' control is not visibly rendered.');
+      }
+    }
+    if (slotRows.length !== ${ui.expectedPlayerSlotRows}) failures.push('Player ball-slot rows are incomplete.');
+    if (slotRows.some((row) => row.querySelectorAll(${JSON.stringify(ui.ballSlotSelector)}).length !== ${ui.expectedSlotsPerPlayer})) {
+      failures.push('A player ball-slot row has the wrong number of slots.');
+    }
+    if (root?.getAttribute('data-ball-render-mode') !== ${JSON.stringify(ui.expectedBallRenderMode)}) {
+      failures.push('Spherical rolling renderer is not active.');
+    }
     const canvasRect = canvas instanceof HTMLElement ? canvas.getBoundingClientRect() : null;
     if (canvasRect && (canvasRect.width < ${ui.minimumCanvasWidthPx} || canvasRect.height < ${ui.minimumCanvasHeightPx})) {
       failures.push('The table canvas is below the minimum usable size.');
@@ -233,11 +253,14 @@ function createLayoutExpression(ui) {
       canvas: canvasRect ? { width: canvasRect.width, height: canvasRect.height } : null,
       connection: root?.getAttribute('data-connection-state') ?? null,
       revision: root?.getAttribute('data-match-revision') ?? null,
+      ballRenderMode: root?.getAttribute('data-ball-render-mode') ?? null,
+      audioState: root?.getAttribute('data-audio-state') ?? null,
+      playerSlotRows: slotRows.length,
+      smokeWisps: smokeWisps.length,
       failures
     };
   })()`;
 }
-
 function readCuePosition(snapshot) {
   const cue = snapshot?.match?.table?.balls?.find((ball) => ball.id === 0);
   return {
@@ -245,7 +268,6 @@ function readCuePosition(snapshot) {
     y: Number(cue?.position?.y ?? 0),
   };
 }
-
 function withQuery(base, query, viewportId) {
   const url = new URL(base);
   for (const [key, value] of new URLSearchParams(query)) {
@@ -254,7 +276,6 @@ function withQuery(base, query, viewportId) {
   url.searchParams.set('viewport', viewportId);
   return url.toString();
 }
-
 function readPerformance(cdp) {
   return evaluate(cdp, `(() => {
     const navigation = performance.getEntriesByType('navigation')[0];
@@ -270,7 +291,6 @@ function readPerformance(cdp) {
     };
   })()`);
 }
-
 function collectRuntimeErrors(cdp) {
   const errors = [];
   cdp.on('Runtime.exceptionThrown', (params) => {

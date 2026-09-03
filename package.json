@@ -12,7 +12,7 @@
     "change:check": "node tools/check-change-contract.mjs",
     "architecture:check": "node tools/check-architecture.mjs",
     "code:check": "node tools/check-code-quality.mjs",
-    "assets:check": "node tools/check-assets.mjs",
+    "assets:check": "node tools/check-assets.mjs && node tools/check-billiards-assets.mjs",
     "assets:generate": "python3 tools/generate-traffic-assets.py",
     "assets:reproduce": "npm run assets:generate && git diff --exit-code -- games/traffic-jam/runtime/assets/models games/traffic-jam/runtime/assets/provenance.json",
     "check:source": "npm run test && npm run change:check && npm run architecture:check && npm run code:check && npm run assets:check",

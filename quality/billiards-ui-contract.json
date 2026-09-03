@@ -12,5 +12,17 @@
   "maximumHorizontalOverflowPx": 0,
   "shotSettleTimeoutMs": 20000,
   "minimumCueTravel": 2,
-  "maximumControlViewportOverflowPx": 1
+  "maximumControlViewportOverflowPx": 1,
+  "powerSelector": ".billiards-power-control",
+  "angleSelector": ".billiards-angle-control",
+  "spinSelector": ".billiards-spin-pad",
+  "soundSelector": "[data-billiards-sound]",
+  "playerSlotsSelector": ".billiards-pocketed-balls",
+  "ballSlotSelector": ".billiards-ball-slot",
+  "expectedPlayerSlotRows": 2,
+  "expectedSlotsPerPlayer": 7,
+  "expectedBallRenderMode": "spherical-roll",
+  "roomBackdropSelector": ".billiards-room-backdrop",
+  "smokeSelector": ".billiards-smoke-wisp",
+  "expectedSmokeWisps": 5
 }

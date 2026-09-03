@@ -5,6 +5,7 @@ import {
 } from '../domain/registry.ts';
 import type { BilliardsMatchState } from '../domain/types.ts';
 import { billiardsConnectionStates } from '../network/registry.ts';
+import type { BilliardsAudioState } from './audio.ts';
 import type { BilliardsControllerSnapshot } from './controller.ts';
 import {
   ballColor,
@@ -13,22 +14,41 @@ import {
 } from './registry.ts';
 import type { BilliardsViewElements } from './view-elements.ts';
 
+const radiansToDegrees = 180 / Math.PI;
+
 export function updateBilliardsView(
   view: BilliardsViewElements,
   snapshot: BilliardsControllerSnapshot,
-  soundEnabled: boolean,
+  audioState: BilliardsAudioState,
 ): void {
   const match = snapshot.match;
   view.root.setAttribute(billiardsUiAttributes.revision, String(match.revision));
-  view.root.setAttribute(billiardsUiAttributes.shotActive, String(match.activeShot !== null));
+  view.root.setAttribute(
+    billiardsUiAttributes.shotActive,
+    String(match.activeShot !== null),
+  );
   view.root.setAttribute(billiardsUiAttributes.connection, snapshot.connection.state);
-  view.root.setAttribute('data-audio-enabled', String(soundEnabled));
+  view.root.setAttribute(billiardsUiAttributes.ballRenderMode, 'spherical-roll');
+  view.root.setAttribute(billiardsUiAttributes.audio, audioState);
   view.status.textContent = match.status;
   view.hint.textContent = match.ballInHand ? billiardsCopy.ballInHand : billiardsCopy.aim;
   updateConnection(view, snapshot);
   updatePlayers(view, match);
   updateControls(view, snapshot);
-  updateSoundButton(view, soundEnabled);
+  updateSoundButton(view, audioState);
+}
+
+export function updateSoundButton(
+  view: BilliardsViewElements,
+  state: BilliardsAudioState,
+): void {
+  const muted = state === 'muted';
+  const locked = state === 'locked';
+  view.sound.textContent = muted ? '🔇' : locked ? '🔈' : '🔊';
+  view.sound.setAttribute('aria-pressed', String(muted));
+  const label = muted || locked ? billiardsCopy.soundOn : billiardsCopy.soundOff;
+  view.sound.setAttribute('aria-label', label);
+  view.sound.title = label;
 }
 
 function updateConnection(
@@ -56,38 +76,35 @@ function updatePlayers(
     view.players[index].classList.toggle('is-winner', match.winnerIndex === index);
     view.playerNames[index].textContent = player.name;
     view.playerGroups[index].textContent = playerGroupLabel(player.group, match, index);
-    updatePocketSlots(view.pocketSlots[index], player.group, match);
+    updatePocketedBallSlots(view.playerBallSlots[index], match, player.group);
   }
 }
 
-function updatePocketSlots(
-  slots: ReadonlyArray<HTMLElement>,
-  group: BilliardsMatchState['players'][number]['group'],
+function updatePocketedBallSlots(
+  container: HTMLElement,
   match: BilliardsMatchState,
+  group: BilliardsMatchState['players'][number]['group'],
 ): void {
   const ids = group === billiardsPlayerGroups.solids
     ? billiardsBallIds.solids
     : group === billiardsPlayerGroups.stripes
       ? billiardsBallIds.stripes
       : [];
+  const slots = container.querySelectorAll<HTMLElement>('.billiards-ball-slot');
   for (let index = 0; index < slots.length; index += 1) {
-    const slot = slots[index];
+    const slot = slots.item(index);
     const id = ids[index];
     const pocketed = id !== undefined
       && match.table.balls.find((ball) => ball.id === id)?.pocketed === true;
-    slot.className = 'billiards-pocket-slot';
-    slot.textContent = '';
-    slot.removeAttribute('data-ball-id');
-    slot.style.removeProperty('--pocket-ball-color');
-    if (id === undefined) {
-      continue;
-    }
-    slot.setAttribute('data-ball-id', String(id));
-    slot.style.setProperty('--pocket-ball-color', ballColor(id));
-    slot.classList.toggle('is-stripe', group === billiardsPlayerGroups.stripes);
+    slot.classList.toggle('is-assigned', id !== undefined);
     slot.classList.toggle('is-pocketed', pocketed);
-    if (pocketed) {
-      slot.textContent = String(id);
+    slot.textContent = pocketed && id !== undefined ? String(id) : '';
+    if (id === undefined) {
+      slot.removeAttribute('data-ball-id');
+      slot.style.removeProperty('--slot-color');
+    } else {
+      slot.dataset.ballId = String(id);
+      slot.style.setProperty('--slot-color', ballColor(id));
     }
   }
 }
@@ -98,8 +115,8 @@ function playerGroupLabel(
   index: 0 | 1,
 ): string {
   if (match.winnerIndex === index) return 'Победитель';
-  if (group === billiardsPlayerGroups.solids) return 'Сплошные 1–7';
-  if (group === billiardsPlayerGroups.stripes) return 'Полосатые 9–15';
+  if (group === billiardsPlayerGroups.solids) return 'Сплошные';
+  if (group === billiardsPlayerGroups.stripes) return 'Полосатые';
   return match.phase === billiardsMatchPhases.break ? 'Разбой' : 'Стол открыт';
 }
 
@@ -109,42 +126,41 @@ function updateControls(
 ): void {
   const active = snapshot.match.activeShot !== null;
   const finished = snapshot.match.phase === billiardsMatchPhases.finished;
-  const powerPercent = Math.round(snapshot.power * 100);
-  const angleDegrees = normalizeDegrees(snapshot.angleRadians * 180 / Math.PI);
-  const anglePosition = (
-    Math.PI - normalizeRadians(snapshot.angleRadians)
-  ) / (Math.PI * 2) * 100;
-  view.power.value = String(powerPercent);
+  const angleDegrees = normalizeDegrees(snapshot.angleRadians * radiansToDegrees);
+  view.power.value = String(Math.round(snapshot.power * 100));
+  view.angle.value = String(Math.round(angleDegrees));
   view.sideSpin.value = String(Math.round(snapshot.sideSpin * 100));
   view.followSpin.value = String(Math.round(snapshot.followSpin * 100));
-  view.powerOutput.value = `${powerPercent}%`;
+  view.powerOutput.value = `${Math.round(snapshot.power * 100)}%`;
+  view.angleOutput.value = `${Math.round(angleDegrees)}°`;
   view.sideSpinOutput.value = signedPercent(snapshot.sideSpin);
   view.followSpinOutput.value = signedPercent(snapshot.followSpin);
-  view.angleOutput.value = `${Math.round(angleDegrees)}°`;
-  view.powerFill.style.height = `${powerPercent}%`;
-  view.powerCue.style.setProperty('--power-cue-position', `${8 + snapshot.power * 76}%`);
-  view.angleIndicator.style.top = `${anglePosition}%`;
-  view.spinDot.style.left = `${50 + snapshot.sideSpin * 40}%`;
-  view.spinDot.style.top = `${50 - snapshot.followSpin * 40}%`;
-  view.powerRail.setAttribute('aria-valuenow', String(powerPercent));
-  view.angleRail.setAttribute('aria-valuenow', String(Math.round(angleDegrees)));
+  view.root.style.setProperty(
+    '--billiards-power-percent',
+    `${snapshot.power * 100}%`,
+  );
+  view.root.style.setProperty(
+    '--billiards-angle-position',
+    `${100 - angleDegrees / 359 * 100}%`,
+  );
+  view.root.style.setProperty(
+    '--billiards-spin-left',
+    `${50 + snapshot.sideSpin * 38}%`,
+  );
+  view.root.style.setProperty(
+    '--billiards-spin-top',
+    `${50 - snapshot.followSpin * 38}%`,
+  );
   view.spinPad.setAttribute(
     'aria-valuetext',
-    `${billiardsCopy.sideSpin} ${signedPercent(snapshot.sideSpin)}, ${billiardsCopy.followSpin} ${signedPercent(snapshot.followSpin)}`,
+    `Боковое ${signedPercent(snapshot.sideSpin)}, накат ${signedPercent(snapshot.followSpin)}`,
   );
-  for (const element of [view.power, view.sideSpin, view.followSpin, view.shoot]) {
-    element.toggleAttribute('disabled', active || finished);
-  }
-  view.powerRail.setAttribute('aria-disabled', String(active || finished));
-  view.angleRail.setAttribute('aria-disabled', String(active || finished));
-  view.spinPad.disabled = active || finished;
-}
-
-function updateSoundButton(view: BilliardsViewElements, enabled: boolean): void {
-  view.sound.setAttribute('aria-pressed', String(enabled));
-  view.sound.setAttribute('aria-label', enabled ? billiardsCopy.soundOn : billiardsCopy.soundOff);
-  view.sound.classList.toggle('is-muted', !enabled);
-  view.sound.firstElementChild?.replaceChildren(document.createTextNode(enabled ? '♪' : '×'));
+  view.power.disabled = active || finished;
+  view.angle.disabled = active || finished;
+  view.sideSpin.disabled = active || finished;
+  view.followSpin.disabled = active || finished;
+  view.spinPad.setAttribute('aria-disabled', String(active || finished));
+  view.shoot.disabled = active || finished;
 }
 
 function signedPercent(value: number): string {
@@ -154,9 +170,4 @@ function signedPercent(value: number): string {
 
 function normalizeDegrees(value: number): number {
   return ((value % 360) + 360) % 360;
-}
-
-function normalizeRadians(value: number): number {
-  const fullCircle = Math.PI * 2;
-  return ((value + Math.PI) % fullCircle + fullCircle) % fullCircle - Math.PI;
 }

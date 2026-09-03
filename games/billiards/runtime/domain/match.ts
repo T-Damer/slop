@@ -19,6 +19,7 @@ import {
 import { resolveCompletedShot } from './rules.ts';
 import { appendShotEvents, createShotTrace } from './trace.ts';
 import type {
+  BilliardsCollisionEvent,
   BilliardsCommandResult,
   BilliardsMatchState,
   BilliardsShotCommand,
@@ -26,6 +27,11 @@ import type {
 } from './types.ts';
 
 export { createInitialMatch } from './rack.ts';
+
+export interface BilliardsMatchAdvance {
+  readonly match: BilliardsMatchState;
+  readonly events: ReadonlyArray<BilliardsCollisionEvent>;
+}
 
 export function startMatchShot(
   match: BilliardsMatchState,
@@ -49,8 +55,14 @@ export function startMatchShot(
 }
 
 export function advanceMatchShot(match: BilliardsMatchState): BilliardsMatchState {
+  return advanceMatchShotWithEvents(match).match;
+}
+
+export function advanceMatchShotWithEvents(
+  match: BilliardsMatchState,
+): BilliardsMatchAdvance {
   if (match.activeShot === null) {
-    return match;
+    return { match, events: [] };
   }
   const simulation = simulateFixedStep(match.table);
   const trace = appendShotEvents(match.activeShot, simulation.events);
@@ -60,13 +72,16 @@ export function advanceMatchShot(match: BilliardsMatchState): BilliardsMatchStat
     activeShot: trace,
   };
   if (!isTableAtRest(simulation.table)) {
-    return movingMatch;
+    return { match: movingMatch, events: simulation.events };
   }
-  return resolveCompletedShot(
-    movingMatch,
-    settleStoppedBalls(simulation.table),
-    trace,
-  );
+  return {
+    match: resolveCompletedShot(
+      movingMatch,
+      settleStoppedBalls(simulation.table),
+      trace,
+    ),
+    events: simulation.events,
+  };
 }
 
 export function runMatchShotToCompletion(

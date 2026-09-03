@@ -1,302 +1,214 @@
-import type {
-  BilliardsFeedbackBatch,
-  BilliardsFeedbackEvent,
-} from './feedback.ts';
 import {
-  billiardsAudioTuning,
-  billiardsFeedbackKinds,
-} from './registry.ts';
+  billiardsCollisionKinds,
+  billiardsPhysics,
+} from '../domain/registry.ts';
+import type {
+  BilliardsCollisionEvent,
+  BilliardsTableState,
+} from '../domain/types.ts';
+import type { BilliardsControllerSnapshot } from './controller.ts';
 
-export interface BilliardsAudioDebugSnapshot {
-  readonly enabled: boolean;
-  readonly unlocked: boolean;
-  readonly contextState: AudioContextState | 'unavailable';
-  readonly cueEvents: number;
-  readonly ballEvents: number;
-  readonly cushionEvents: number;
-  readonly pocketEvents: number;
-  readonly queuedEvents: number;
-  readonly activeVoices: number;
+export type BilliardsAudioState = 'locked' | 'ready' | 'muted';
+
+interface BilliardsImpactSound {
+  readonly level: number;
+  readonly pan: number;
 }
 
-export class BilliardsAudioEngine {
+export class BilliardsAudio {
   private context: AudioContext | null = null;
-  private master: GainNode | null = null;
   private noiseBuffer: AudioBuffer | null = null;
-  private consumedRevision = -1;
-  private enabled = true;
-  private unlocked = false;
-  private pendingEvents: BilliardsFeedbackEvent[] = [];
-  private activeVoices = 0;
-  private cueEvents = 0;
-  private ballEvents = 0;
-  private cushionEvents = 0;
-  private pocketEvents = 0;
+  private muted = false;
+  private previousShotActive = false;
 
-  public async unlock(): Promise<void> {
+  public state(): BilliardsAudioState {
+    if (this.muted) return 'muted';
+    return this.context === null ? 'locked' : 'ready';
+  }
+
+  public unlock(): void {
     if (this.context === null) {
-      this.createGraph();
+      this.context = new AudioContext({ latencyHint: 'interactive' });
+      this.noiseBuffer = createNoiseBuffer(this.context);
     }
-    const context = this.context;
-    if (context === null) {
-      return;
-    }
-    try {
-      if (context.state === 'suspended') {
-        await context.resume();
-      }
-      this.unlocked = context.state === 'running';
-      if (this.unlocked) {
-        this.flushPending();
-      }
-    } catch {
-      this.unlocked = false;
-    }
+    if (this.context.state === 'suspended') void this.context.resume();
   }
 
-  public consume(batch: BilliardsFeedbackBatch): void {
-    if (batch.revision === this.consumedRevision) {
-      return;
+  public toggleMuted(): BilliardsAudioState {
+    if (this.context === null && !this.muted) {
+      this.unlock();
+      this.playTone(760, 0.045, 0.07, 'sine', 0, 0);
+      return this.state();
     }
-    this.consumedRevision = batch.revision;
-    if (!this.enabled || batch.events.length === 0) {
-      return;
+    this.muted = !this.muted;
+    if (!this.muted) {
+      this.unlock();
+      this.playTone(760, 0.045, 0.07, 'sine', 0, 0);
     }
-    if (!this.unlocked || this.context?.state !== 'running') {
-      this.pendingEvents.push(...batch.events);
-      this.pendingEvents = this.pendingEvents.slice(-billiardsAudioTuning.maximumVoices);
-      return;
-    }
-    for (const event of batch.events) {
-      this.playEvent(event);
-    }
+    return this.state();
   }
 
-  public toggle(): boolean {
-    this.enabled = !this.enabled;
-    if (this.master !== null && this.context !== null) {
-      this.master.gain.setTargetAtTime(
-        this.enabled ? billiardsAudioTuning.masterGain : 0,
-        this.context.currentTime,
-        0.012,
-      );
+  public update(snapshot: BilliardsControllerSnapshot): void {
+    const shotActive = snapshot.match.activeShot !== null;
+    if (!this.previousShotActive && shotActive) this.playCueStrike(snapshot.power);
+    this.previousShotActive = shotActive;
+    if (snapshot.recentEvents.length > 0) {
+      this.playCollisionEvents(snapshot.recentEvents, snapshot.match.table);
     }
-    if (!this.enabled) {
-      this.pendingEvents = [];
-    }
-    return this.enabled;
-  }
-
-  public isEnabled(): boolean {
-    return this.enabled;
-  }
-
-  public debugSnapshot(): BilliardsAudioDebugSnapshot {
-    return {
-      enabled: this.enabled,
-      unlocked: this.unlocked,
-      contextState: this.context?.state ?? 'unavailable',
-      cueEvents: this.cueEvents,
-      ballEvents: this.ballEvents,
-      cushionEvents: this.cushionEvents,
-      pocketEvents: this.pocketEvents,
-      queuedEvents: this.pendingEvents.length,
-      activeVoices: this.activeVoices,
-    };
   }
 
   public async dispose(): Promise<void> {
     const context = this.context;
     this.context = null;
-    this.master = null;
     this.noiseBuffer = null;
-    this.pendingEvents = [];
-    this.unlocked = false;
-    if (context !== null && context.state !== 'closed') {
-      await context.close();
+    if (context !== null && context.state !== 'closed') await context.close();
+  }
+
+  private playCueStrike(power: number): void {
+    if (!this.canPlay()) return;
+    const intensity = 0.18 + Math.min(1, Math.max(0, power)) * 0.28;
+    this.playTone(145, 0.08, intensity, 'sine', 0, -0.42);
+    this.playTone(520, 0.035, intensity * 0.3, 'triangle', 0.002, -0.42);
+    this.playNoise(0.026, intensity * 0.24, 1900, 0, -0.42);
+  }
+
+  private playCollisionEvents(
+    events: ReadonlyArray<BilliardsCollisionEvent>,
+    table: BilliardsTableState,
+  ): void {
+    if (!this.canPlay()) return;
+    let scheduled = 0;
+    for (const event of events) {
+      if (scheduled >= 7) break;
+      const impact = readImpactSound(event, table);
+      const delay = scheduled * 0.005;
+      if (event.kind === billiardsCollisionKinds.ball) {
+        this.playBallClick(impact, delay);
+      } else if (
+        event.kind === billiardsCollisionKinds.cushion
+        || event.kind === billiardsCollisionKinds.jaw
+      ) {
+        this.playCushionHit(impact, delay);
+      } else if (event.kind === billiardsCollisionKinds.pocket) {
+        this.playPocketDrop(impact.pan, delay);
+      }
+      scheduled += 1;
     }
   }
 
-  private createGraph(): void {
-    try {
-      const context = new AudioContext({ latencyHint: 'interactive' });
-      const master = context.createGain();
-      const compressor = context.createDynamicsCompressor();
-      master.gain.value = this.enabled ? billiardsAudioTuning.masterGain : 0;
-      compressor.threshold.value = -18;
-      compressor.knee.value = 12;
-      compressor.ratio.value = 4;
-      compressor.attack.value = 0.002;
-      compressor.release.value = 0.11;
-      master.connect(compressor);
-      compressor.connect(context.destination);
-      this.context = context;
-      this.master = master;
-      this.noiseBuffer = createNoiseBuffer(context);
-    } catch {
-      this.context = null;
-      this.master = null;
-      this.noiseBuffer = null;
-    }
+  private playBallClick(impact: BilliardsImpactSound, delay: number): void {
+    const volume = 0.038 + impact.level * 0.13;
+    const pitch = 1180 + impact.level * 360;
+    this.playTone(pitch, 0.052, volume, 'sine', delay, impact.pan);
+    this.playTone(pitch * 1.86, 0.025, volume * 0.38, 'triangle', delay + 0.001, impact.pan);
+    this.playNoise(0.018, volume * 0.24, 3300, delay, impact.pan);
   }
 
-  private flushPending(): void {
-    const queued = this.pendingEvents;
-    this.pendingEvents = [];
-    for (const event of queued) {
-      this.playEvent(event);
-    }
+  private playCushionHit(impact: BilliardsImpactSound, delay: number): void {
+    const volume = 0.035 + impact.level * 0.09;
+    this.playTone(205 + impact.level * 90, 0.085, volume, 'sine', delay, impact.pan);
+    this.playTone(620, 0.04, volume * 0.3, 'triangle', delay + 0.002, impact.pan);
+    this.playNoise(0.036, volume * 0.28, 720, delay, impact.pan);
   }
 
-  private playEvent(event: BilliardsFeedbackEvent): void {
-    if (this.activeVoices >= billiardsAudioTuning.maximumVoices) {
-      return;
-    }
-    if (event.kind === billiardsFeedbackKinds.cue) {
-      this.cueEvents += 1;
-      this.playCue(event);
-    } else if (event.kind === billiardsFeedbackKinds.ball) {
-      this.ballEvents += 1;
-      this.playBallImpact(event);
-    } else if (
-      event.kind === billiardsFeedbackKinds.cushion
-      || event.kind === billiardsFeedbackKinds.jaw
-    ) {
-      this.cushionEvents += 1;
-      this.playCushion(event);
-    } else {
-      this.pocketEvents += 1;
-      this.playPocket(event);
-    }
-  }
-
-  private playCue(event: BilliardsFeedbackEvent): void {
-    const intensity = event.intensity;
-    this.playTone(
-      billiardsAudioTuning.cueFrequency + intensity * 170,
-      0.055,
-      0.22 + intensity * 0.32,
-      'triangle',
-    );
-    this.playTone(145 + intensity * 80, 0.09, 0.12 + intensity * 0.18, 'sine');
-    this.playNoise(1100, 0.038, 0.08 + intensity * 0.14, 'bandpass');
-  }
-
-  private playBallImpact(event: BilliardsFeedbackEvent): void {
-    const seed = event.ballIds.reduce((sum, id) => sum + id * 17, 0);
-    const frequency = billiardsAudioTuning.ballMinimumFrequency
-      + seed % billiardsAudioTuning.ballFrequencyRange;
-    const gain = 0.08 + event.intensity * 0.3;
-    this.playTone(frequency, 0.075, gain, 'sine');
-    this.playTone(frequency * 1.71, 0.048, gain * 0.42, 'triangle');
-  }
-
-  private playCushion(event: BilliardsFeedbackEvent): void {
-    const gain = 0.06 + event.intensity * 0.2;
-    this.playTone(
-      billiardsAudioTuning.cushionFrequency + event.intensity * 85,
-      0.105,
-      gain,
-      'triangle',
-    );
-    this.playNoise(420, 0.07, gain * 0.5, 'lowpass');
-  }
-
-  private playPocket(event: BilliardsFeedbackEvent): void {
-    const gain = 0.09 + event.intensity * 0.24;
-    this.playTone(billiardsAudioTuning.pocketFrequency, 0.18, gain, 'sine');
-    this.playNoise(260, 0.14, gain * 0.8, 'lowpass');
+  private playPocketDrop(pan: number, delay: number): void {
+    this.playTone(86, 0.24, 0.13, 'sine', delay, pan);
+    this.playTone(172, 0.15, 0.05, 'triangle', delay + 0.014, pan);
+    this.playNoise(0.15, 0.075, 410, delay + 0.012, pan);
   }
 
   private playTone(
     frequency: number,
     duration: number,
-    gainValue: number,
+    volume: number,
     type: OscillatorType,
+    delay: number,
+    pan: number,
   ): void {
     const context = this.context;
-    const master = this.master;
-    if (context === null || master === null || context.state !== 'running') {
-      return;
-    }
+    if (context === null) return;
+    const start = context.currentTime + delay;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
-    const now = context.currentTime;
+    const panner = context.createStereoPanner();
     oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, now);
+    oscillator.frequency.setValueAtTime(frequency, start);
     oscillator.frequency.exponentialRampToValueAtTime(
-      Math.max(40, frequency * 0.72),
-      now + duration,
+      Math.max(40, frequency * 0.78),
+      start + duration,
     );
-    shapeVoice(gain.gain, now, duration, gainValue);
-    oscillator.connect(gain);
-    gain.connect(master);
-    this.startVoice(oscillator, gain, now, duration);
+    gain.gain.setValueAtTime(Math.max(0.0001, volume), start);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    panner.pan.setValueAtTime(pan, start);
+    oscillator.connect(gain).connect(panner).connect(context.destination);
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.01);
   }
 
   private playNoise(
-    frequency: number,
     duration: number,
-    gainValue: number,
-    filterType: BiquadFilterType,
+    volume: number,
+    cutoff: number,
+    delay: number,
+    pan: number,
   ): void {
     const context = this.context;
-    const master = this.master;
     const buffer = this.noiseBuffer;
-    if (context === null || master === null || buffer === null || context.state !== 'running') {
-      return;
-    }
+    if (context === null || buffer === null) return;
+    const start = context.currentTime + delay;
     const source = context.createBufferSource();
     const filter = context.createBiquadFilter();
     const gain = context.createGain();
-    const now = context.currentTime;
+    const panner = context.createStereoPanner();
     source.buffer = buffer;
-    filter.type = filterType;
-    filter.frequency.value = frequency;
-    filter.Q.value = filterType === 'bandpass' ? 7 : 1.2;
-    shapeVoice(gain.gain, now, duration, gainValue);
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(master);
-    this.startVoice(source, gain, now, duration);
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(cutoff, start);
+    filter.Q.setValueAtTime(1.2, start);
+    gain.gain.setValueAtTime(Math.max(0.0001, volume), start);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    panner.pan.setValueAtTime(pan, start);
+    source.connect(filter).connect(gain).connect(panner).connect(context.destination);
+    source.start(start, 0, duration);
   }
 
-  private startVoice(
-    source: AudioScheduledSourceNode,
-    gain: GainNode,
-    now: number,
-    duration: number,
-  ): void {
-    this.activeVoices += 1;
-    source.addEventListener('ended', () => {
-      this.activeVoices = Math.max(0, this.activeVoices - 1);
-      source.disconnect();
-      gain.disconnect();
-    }, { once: true });
-    source.start(now);
-    source.stop(now + duration + billiardsAudioTuning.voiceReleaseSeconds);
+  private canPlay(): boolean {
+    return !this.muted && this.context !== null;
   }
 }
 
-function shapeVoice(
-  gain: AudioParam,
-  now: number,
-  duration: number,
-  peak: number,
-): void {
-  gain.setValueAtTime(0.0001, now);
-  gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), now + 0.003);
-  gain.exponentialRampToValueAtTime(0.0001, now + duration);
+function readImpactSound(
+  event: BilliardsCollisionEvent,
+  table: BilliardsTableState,
+): BilliardsImpactSound {
+  const ids = event.kind === billiardsCollisionKinds.ball
+    ? [event.leftBallId, event.rightBallId]
+    : [event.ballId];
+  const balls = ids.flatMap((id) => {
+    const ball = table.balls.find((candidate) => candidate.id === id);
+    return ball === undefined ? [] : [ball];
+  });
+  const speed = balls.reduce(
+    (total, ball) => total + Math.hypot(ball.velocity.x, ball.velocity.y),
+    0,
+  );
+  const x = balls.length === 0
+    ? billiardsPhysics.tableWidth / 2
+    : balls.reduce((total, ball) => total + ball.position.x, 0) / balls.length;
+  return {
+    level: Math.min(1, speed / (billiardsPhysics.maximumShotSpeed * 0.62)),
+    pan: Math.max(-0.85, Math.min(0.85, x / billiardsPhysics.tableWidth * 1.7 - 0.85)),
+  };
 }
 
 function createNoiseBuffer(context: AudioContext): AudioBuffer {
   const length = Math.ceil(context.sampleRate * 0.25);
   const buffer = context.createBuffer(1, length, context.sampleRate);
   const data = buffer.getChannelData(0);
-  let state = 0x51f15e;
+  let previous = 0;
   for (let index = 0; index < data.length; index += 1) {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    data[index] = state / 0xffffffff * 2 - 1;
+    const white = Math.random() * 2 - 1;
+    previous = previous * 0.72 + white * 0.28;
+    data[index] = previous;
   }
   return buffer;
 }

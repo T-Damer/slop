@@ -15,6 +15,8 @@ export const billiardsUiAttributes = {
   revision: 'data-match-revision',
   shotActive: 'data-shot-active',
   connection: 'data-connection-state',
+  ballRenderMode: 'data-ball-render-mode',
+  audio: 'data-audio-state',
 } as const;
 
 export const billiardsView = {
@@ -85,6 +87,11 @@ export const billiardsCopy = {
   power: 'Сила',
   sideSpin: 'Боковое вращение',
   followSpin: 'Накат / оттяжка',
+  angle: 'Направление',
+  spin: 'Вращение битка',
+  spinHint: 'Перетащи точку по шару',
+  soundOn: 'Включить звук',
+  soundOff: 'Выключить звук',
   controls: 'Мышь / касание: прицел · Space: удар · A/D: угол · W/S: сила',
   localBadge: 'LOCAL',
   onlineBadge: 'ONLINE',

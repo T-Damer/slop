@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "area": "platform.architecture-hardening-parking-optimization-and-pocket-club",
-  "problem": "The branch needed architecture hardening and Parking Jam optimization, while billiards still existed only as a contract. Pocket Club now needs a clean-room deterministic implementation, project-authored presentation, typed routing, and a real multiplayer boundary without weakening the existing quality gates.",
+  "problem": "The branch needed architecture hardening and Parking Jam optimization, while billiards still existed only as a contract. Pocket Club now needs a clean-room deterministic implementation, project-authored billiard-room presentation with visible shot controls, spatial rolling, audio feedback, typed routing, and a real multiplayer boundary without weakening the existing quality gates.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
@@ -15,7 +15,7 @@
     "quality/quality-contract.json",
     "tools/check-web-budget.mjs"
   ],
-  "reuseDecision": "Keep the existing hub, Personal Island, Modoki build, deterministic-domain conventions, and single feature branch. Add Pocket Club as focused domain/network/presentation owners; reuse one event-based planar solver for both preview and execution; keep Colyseus behind a lazy session adapter and preserve Protobuf as the stable cross-language contract.",
+  "reuseDecision": "Keep the existing hub, Personal Island, Modoki build, deterministic-domain conventions, and single feature branch. Add Pocket Club as focused domain/network/presentation owners; render rolling spheres through a presentation-only software sphere mapper; synthesize short collision sounds with Web Audio; reuse one event-based planar solver for both preview and execution; keep Colyseus behind a lazy session adapter and preserve Protobuf as the stable cross-language contract.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
     "Copy Miniclip code, branding, textures, sounds, table artwork, or proprietary assets",
@@ -30,6 +30,9 @@
     "SolidJS mounts the billiards interface and Canvas 2D renders project-authored table, balls, guide, cue, and responsive controls",
     "The browser contract executes a real break shot, observes movement, waits for rest, and captures every required viewport without runtime errors",
     "The Colyseus adapter remains optional and lazy while billiards.proto preserves a versioned transport-neutral message contract",
+    "Pocket Club visibly renders seven potted-ball slots per player, a left vertical cue/power control, a right vertical direction control, and a circular spin control at every required viewport",
+    "Ball markings roll over a lit spherical surface according to table displacement rather than rotating as flat discs",
+    "A first user gesture unlocks project-authored Web Audio cues for cue strikes, ball contacts, cushion contacts, and pocket drops without external sound files",
     "Source checks, strict typecheck, production build, bundle ratchet, and all browser contracts pass before publication",
     "The unchanged base/startup bundle ratchet and explicit Pocket Club lazy-client and Colyseus chunk ratchets all pass"
   ]

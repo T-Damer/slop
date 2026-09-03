@@ -1,5 +1,5 @@
 import {
-  advanceMatchShot,
+  advanceMatchShotWithEvents,
   createInitialMatch,
   positionCueBall,
   restartMatch,
@@ -9,6 +9,7 @@ import { billiardsMatchPhases, billiardsPhysics, billiardsRules } from '../domai
 import { previewShot } from '../domain/shot.ts';
 import { isTableAtRest } from '../domain/simulator.ts';
 import type {
+  BilliardsCollisionEvent,
   BilliardsMatchState,
   BilliardsShotCommand,
   BilliardsShotPreview,
@@ -33,6 +34,7 @@ export interface BilliardsControllerSnapshot {
   readonly sideSpin: number;
   readonly followSpin: number;
   readonly connection: BilliardsSessionStatus;
+  readonly recentEvents: ReadonlyArray<BilliardsCollisionEvent>;
 }
 
 type SnapshotListener = (snapshot: BilliardsControllerSnapshot) => void;
@@ -47,6 +49,7 @@ export class BilliardsGameController {
     state: billiardsConnectionStates.local,
     detail: 'Локальная тренировка',
   };
+  private recentEvents: ReadonlyArray<BilliardsCollisionEvent> = [];
   private clientSequence = 0;
   private session: BilliardsSession = createLocalBilliardsSession();
   private readonly listeners = new Set<SnapshotListener>();
@@ -65,6 +68,7 @@ export class BilliardsGameController {
       sideSpin: this.sideSpin,
       followSpin: this.followSpin,
       connection: this.connection,
+      recentEvents: this.recentEvents,
     };
   }
 
@@ -94,7 +98,7 @@ export class BilliardsGameController {
         state: billiardsConnectionStates.unavailable,
         detail: 'Сервер недоступен · локальная тренировка',
       };
-      this.emit();
+      this.emitWithoutEvents();
     }
   }
 
@@ -117,38 +121,53 @@ export class BilliardsGameController {
     if (Math.hypot(delta.x, delta.y) < billiardsPhysics.ballRadius) {
       return;
     }
-    this.angleRadians = Math.atan2(delta.y, delta.x);
-    this.emit();
+    this.setAngleRadians(Math.atan2(delta.y, delta.x));
+  }
+
+  public setAngleRadians(value: number): void {
+    if (!this.canAdjustShot() || !Number.isFinite(value)) {
+      return;
+    }
+    this.angleRadians = normalizeAngle(value);
+    this.emitWithoutEvents();
   }
 
   public adjustAngle(deltaRadians: number): void {
-    if (!this.canAdjustShot()) {
-      return;
-    }
-    this.angleRadians = normalizeAngle(this.angleRadians + deltaRadians);
-    this.emit();
+    this.setAngleRadians(this.angleRadians + deltaRadians);
   }
 
   public setPower(value: number): void {
     this.power = clamp(value, billiardsRules.minimumPower, billiardsRules.maximumPower);
-    this.emit();
+    this.emitWithoutEvents();
   }
 
   public setSideSpin(value: number): void {
-    this.sideSpin = clamp(value, -billiardsRules.maximumSpin, billiardsRules.maximumSpin);
-    this.emit();
+    this.setSpin(value, this.followSpin);
   }
 
   public setFollowSpin(value: number): void {
-    this.followSpin = clamp(value, -billiardsRules.maximumSpin, billiardsRules.maximumSpin);
-    this.emit();
+    this.setSpin(this.sideSpin, value);
+  }
+
+  public setSpin(sideSpin: number, followSpin: number): void {
+    this.sideSpin = clamp(
+      sideSpin,
+      -billiardsRules.maximumSpin,
+      billiardsRules.maximumSpin,
+    );
+    this.followSpin = clamp(
+      followSpin,
+      -billiardsRules.maximumSpin,
+      billiardsRules.maximumSpin,
+    );
+    this.emitWithoutEvents();
   }
 
   public placeCue(point: Vec2): boolean {
     const result = positionCueBall(this.match, point);
     if (!result.accepted) {
       this.match = { ...this.match, status: result.reason };
-      this.emit();
+      this.emitWithoutEvents();
       return false;
     }
     const sequence = this.nextSequence();
@@ -158,7 +177,7 @@ export class BilliardsGameController {
       sequence,
       result.match.revision - 1,
     ));
-    this.emit();
+    this.emitWithoutEvents();
     return true;
   }
 
@@ -169,12 +188,12 @@ export class BilliardsGameController {
     const result = startMatchShot(this.match, command);
     if (!result.accepted) {
       this.match = { ...this.match, status: result.reason };
-      this.emit();
+      this.emitWithoutEvents();
       return false;
     }
     this.match = result.match;
     this.session.sendShot(createShotWireCommand(command, expectedRevision));
-    this.emit();
+    this.emitWithoutEvents();
     return true;
   }
 
@@ -187,7 +206,7 @@ export class BilliardsGameController {
     this.followSpin = 0;
     this.accumulatorSeconds = 0;
     this.session.sendRestart(createRestartWireCommand(sequence, expectedRevision));
-    this.emit();
+    this.emitWithoutEvents();
   }
 
   private readonly tick = (nowMs: number): void => {
@@ -197,6 +216,7 @@ export class BilliardsGameController {
     const elapsed = Math.min(0.1, Math.max(0, (nowMs - this.lastFrameMs) / 1000));
     this.lastFrameMs = nowMs;
     this.accumulatorSeconds += elapsed;
+    const events: BilliardsCollisionEvent[] = [];
     let changed = false;
     for (
       let step = 0;
@@ -205,7 +225,9 @@ export class BilliardsGameController {
         && this.match.activeShot !== null;
       step += 1
     ) {
-      this.match = advanceMatchShot(this.match);
+      const advanced = advanceMatchShotWithEvents(this.match);
+      this.match = advanced.match;
+      events.push(...advanced.events);
       this.accumulatorSeconds -= billiardsPhysics.fixedStepSeconds;
       changed = true;
     }
@@ -213,7 +235,9 @@ export class BilliardsGameController {
       this.accumulatorSeconds = 0;
     }
     if (changed) {
+      this.recentEvents = events;
       this.emit();
+      this.recentEvents = [];
     }
     this.animationFrame = requestAnimationFrame(this.tick);
   };
@@ -223,16 +247,16 @@ export class BilliardsGameController {
       onSnapshot: (snapshot: BilliardsMatchState): void => {
         if (snapshot.revision >= this.match.revision) {
           this.match = snapshot;
-          this.emit();
+          this.emitWithoutEvents();
         }
       },
       onRejected: (reason: string, snapshot: BilliardsMatchState): void => {
         this.match = { ...snapshot, status: reason };
-        this.emit();
+        this.emitWithoutEvents();
       },
       onStatus: (status: BilliardsSessionStatus): void => {
         this.connection = status;
-        this.emit();
+        this.emitWithoutEvents();
       },
     };
   }
@@ -257,6 +281,11 @@ export class BilliardsGameController {
   private nextSequence(): number {
     this.clientSequence += 1;
     return this.clientSequence;
+  }
+
+  private emitWithoutEvents(): void {
+    this.recentEvents = [];
+    this.emit();
   }
 
   private emit(): void {

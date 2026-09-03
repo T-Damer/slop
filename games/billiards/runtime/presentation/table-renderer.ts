@@ -3,29 +3,33 @@ import { worldLengthToCanvas, worldToCanvas } from './coordinates.ts';
 import { drawDiamond, roundedRect } from './drawing.ts';
 import { billiardsPalette, billiardsView } from './registry.ts';
 
+const fullCircle = Math.PI * 2;
+
 export function drawBilliardsBackdrop(context: CanvasRenderingContext2D): void {
-  const gradient = context.createRadialGradient(640, 335, 80, 640, 360, 650);
-  gradient.addColorStop(0, '#294c63');
-  gradient.addColorStop(0.62, billiardsPalette.pageTop);
-  gradient.addColorStop(1, billiardsPalette.pageBottom);
-  context.fillStyle = gradient;
+  const room = context.createRadialGradient(640, 320, 90, 640, 360, 760);
+  room.addColorStop(0, '#5b351d');
+  room.addColorStop(0.42, '#2c1b15');
+  room.addColorStop(1, '#0e0a0a');
+  context.fillStyle = room;
   context.fillRect(0, 0, billiardsView.canvasWidth, billiardsView.canvasHeight);
-  for (let x = -200; x < billiardsView.canvasWidth + 200; x += 80) {
-    context.beginPath();
-    context.moveTo(x, 0);
-    context.lineTo(x + 360, billiardsView.canvasHeight);
-    context.lineWidth = 1;
-    context.strokeStyle = 'rgba(255, 255, 255, 0.025)';
-    context.stroke();
-  }
+  drawHerringboneFloor(context);
+  drawLampGlow(context, 78, 62, 152);
+  drawLampGlow(context, 1202, 66, 150);
+  drawCueRack(context);
+  drawLoungeFurniture(context);
+  const vignette = context.createRadialGradient(640, 350, 260, 640, 350, 760);
+  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.58)');
+  context.fillStyle = vignette;
+  context.fillRect(0, 0, billiardsView.canvasWidth, billiardsView.canvasHeight);
 }
 
 export function drawBilliardsTable(context: CanvasRenderingContext2D): void {
   const table = billiardsView.table;
   context.save();
-  context.shadowColor = 'rgba(0, 0, 0, 0.52)';
-  context.shadowBlur = 34;
-  context.shadowOffsetY = 20;
+  context.shadowColor = 'rgba(0, 0, 0, 0.76)';
+  context.shadowBlur = 42;
+  context.shadowOffsetY = 24;
   roundedRect(
     context,
     table.left - table.railWidth,
@@ -34,25 +38,23 @@ export function drawBilliardsTable(context: CanvasRenderingContext2D): void {
     table.height + table.railWidth * 2,
     table.cornerRadius + table.railWidth / 2,
   );
-  const railGradient = context.createLinearGradient(0, table.top, 0, table.top + table.height);
-  railGradient.addColorStop(0, '#8c6040');
-  railGradient.addColorStop(0.5, billiardsPalette.rail);
-  railGradient.addColorStop(1, billiardsPalette.railDark);
-  context.fillStyle = railGradient;
+  context.fillStyle = createRailGradient(context, table.top, table.top + table.height);
   context.fill();
   context.restore();
-
-  roundedRect(context, table.left - 12, table.top - 12, table.width + 24, table.height + 24, 28);
-  context.fillStyle = '#17261f';
+  drawRailHighlights(context);
+  roundedRect(context, table.left - 16, table.top - 16, table.width + 32, table.height + 32, 30);
+  context.fillStyle = '#111815';
   context.fill();
-
   roundedRect(context, table.left, table.top, table.width, table.height, 22);
-  const feltGradient = context.createRadialGradient(640, 350, 40, 640, 350, 630);
-  feltGradient.addColorStop(0, '#21866f');
-  feltGradient.addColorStop(1, billiardsPalette.feltDark);
-  context.fillStyle = feltGradient;
+  const felt = context.createRadialGradient(610, 310, 35, 640, 350, 630);
+  felt.addColorStop(0, '#159560');
+  felt.addColorStop(0.48, '#087448');
+  felt.addColorStop(1, '#033c2a');
+  context.fillStyle = felt;
   context.fill();
+  drawFeltLighting(context);
   drawFeltGrain(context);
+  drawCushionBevels(context);
   drawPockets(context);
   drawRailSights(context);
 }
@@ -60,14 +62,153 @@ export function drawBilliardsTable(context: CanvasRenderingContext2D): void {
 export function drawTableMarkings(context: CanvasRenderingContext2D): void {
   const table = billiardsView.table;
   context.save();
-  context.globalAlpha = 0.18;
+  context.globalAlpha = 0.12;
   context.strokeStyle = '#ffffff';
   context.lineWidth = 1;
   const headX = table.left + table.width * 0.24;
   context.beginPath();
-  context.moveTo(headX, table.top + 18);
-  context.lineTo(headX, table.top + table.height - 18);
+  context.moveTo(headX, table.top + 20);
+  context.lineTo(headX, table.top + table.height - 20);
   context.stroke();
+  context.restore();
+}
+
+function drawHerringboneFloor(context: CanvasRenderingContext2D): void {
+  context.save();
+  context.globalAlpha = 0.34;
+  for (let row = -1; row < 12; row += 1) {
+    for (let column = -3; column < 18; column += 1) {
+      const x = column * 82 + (row % 2) * 42;
+      const y = row * 72;
+      context.save();
+      context.translate(x, y);
+      context.rotate((column + row) % 2 === 0 ? 0.62 : -0.62);
+      const plank = context.createLinearGradient(-46, 0, 46, 0);
+      plank.addColorStop(0, 'rgba(25, 10, 6, 0.84)');
+      plank.addColorStop(0.5, 'rgba(126, 65, 31, 0.56)');
+      plank.addColorStop(1, 'rgba(30, 12, 7, 0.86)');
+      context.fillStyle = plank;
+      context.fillRect(-48, -12, 96, 24);
+      context.strokeStyle = 'rgba(5, 2, 2, 0.72)';
+      context.strokeRect(-48, -12, 96, 24);
+      context.restore();
+    }
+  }
+  context.restore();
+}
+
+function drawLampGlow(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+): void {
+  const glow = context.createRadialGradient(x, y, 2, x, y, radius);
+  glow.addColorStop(0, 'rgba(255, 218, 137, 0.88)');
+  glow.addColorStop(0.18, 'rgba(255, 158, 64, 0.28)');
+  glow.addColorStop(1, 'rgba(255, 122, 31, 0)');
+  context.fillStyle = glow;
+  context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  context.beginPath();
+  context.arc(x, y, 11, 0, fullCircle);
+  context.fillStyle = '#ffd98a';
+  context.fill();
+  context.strokeStyle = '#59351f';
+  context.lineWidth = 5;
+  context.stroke();
+}
+
+function drawCueRack(context: CanvasRenderingContext2D): void {
+  context.save();
+  roundedRect(context, 34, 190, 70, 336, 18);
+  context.fillStyle = 'rgba(18, 10, 8, 0.82)';
+  context.fill();
+  context.strokeStyle = '#a66731';
+  context.lineWidth = 4;
+  context.stroke();
+  for (let index = 0; index < 5; index += 1) {
+    const x = 48 + index * 11;
+    const cue = context.createLinearGradient(x, 210, x, 506);
+    cue.addColorStop(0, '#e8c491');
+    cue.addColorStop(0.72, '#9a5428');
+    cue.addColorStop(1, '#2b1712');
+    context.strokeStyle = cue;
+    context.lineWidth = 5;
+    context.beginPath();
+    context.moveTo(x, 214 + index * 4);
+    context.lineTo(x + 14, 500 - index * 5);
+    context.stroke();
+  }
+  context.restore();
+}
+
+function drawLoungeFurniture(context: CanvasRenderingContext2D): void {
+  context.save();
+  context.globalAlpha = 0.62;
+  roundedRect(context, 1174, 156, 150, 142, 30);
+  context.fillStyle = '#321b16';
+  context.fill();
+  context.strokeStyle = '#7b472c';
+  context.lineWidth = 5;
+  context.stroke();
+  for (const y of [190, 236]) {
+    for (const x of [1204, 1250, 1296]) {
+      context.beginPath();
+      context.arc(x, y, 5, 0, fullCircle);
+      context.fillStyle = '#8b5131';
+      context.fill();
+    }
+  }
+  context.beginPath();
+  context.arc(1218, 612, 54, 0, fullCircle);
+  context.fillStyle = '#20120e';
+  context.fill();
+  context.strokeStyle = '#8d5934';
+  context.lineWidth = 6;
+  context.stroke();
+  context.restore();
+}
+
+function createRailGradient(
+  context: CanvasRenderingContext2D,
+  top: number,
+  bottom: number,
+): CanvasGradient {
+  const rail = context.createLinearGradient(0, top - 60, 0, bottom + 60);
+  rail.addColorStop(0, '#d09155');
+  rail.addColorStop(0.12, '#7a3d1c');
+  rail.addColorStop(0.5, '#4b2414');
+  rail.addColorStop(0.86, '#8b4d25');
+  rail.addColorStop(1, '#2a130d');
+  return rail;
+}
+
+function drawRailHighlights(context: CanvasRenderingContext2D): void {
+  const table = billiardsView.table;
+  roundedRect(
+    context,
+    table.left - table.railWidth + 7,
+    table.top - table.railWidth + 7,
+    table.width + (table.railWidth - 7) * 2,
+    table.height + (table.railWidth - 7) * 2,
+    table.cornerRadius + 16,
+  );
+  context.strokeStyle = 'rgba(255, 214, 145, 0.34)';
+  context.lineWidth = 3;
+  context.stroke();
+}
+
+function drawFeltLighting(context: CanvasRenderingContext2D): void {
+  const table = billiardsView.table;
+  context.save();
+  roundedRect(context, table.left, table.top, table.width, table.height, 22);
+  context.clip();
+  const lamp = context.createRadialGradient(600, 290, 8, 640, 350, 450);
+  lamp.addColorStop(0, 'rgba(170, 255, 184, 0.12)');
+  lamp.addColorStop(0.66, 'rgba(21, 90, 52, 0.03)');
+  lamp.addColorStop(1, 'rgba(0, 20, 12, 0.34)');
+  context.fillStyle = lamp;
+  context.fillRect(table.left, table.top, table.width, table.height);
   context.restore();
 }
 
@@ -77,7 +218,7 @@ function drawFeltGrain(context: CanvasRenderingContext2D): void {
   roundedRect(context, table.left, table.top, table.width, table.height, 22);
   context.clip();
   context.globalAlpha = 0.045;
-  for (let index = 0; index < 260; index += 1) {
+  for (let index = 0; index < 320; index += 1) {
     const x = table.left + (index * 67 % table.width);
     const y = table.top + (index * 113 % table.height);
     context.fillStyle = index % 3 === 0 ? '#ffffff' : '#00150f';
@@ -86,17 +227,32 @@ function drawFeltGrain(context: CanvasRenderingContext2D): void {
   context.restore();
 }
 
+function drawCushionBevels(context: CanvasRenderingContext2D): void {
+  const table = billiardsView.table;
+  context.save();
+  context.strokeStyle = 'rgba(98, 255, 155, 0.2)';
+  context.lineWidth = 7;
+  roundedRect(context, table.left + 8, table.top + 8, table.width - 16, table.height - 16, 17);
+  context.stroke();
+  context.strokeStyle = 'rgba(0, 17, 10, 0.58)';
+  context.lineWidth = 5;
+  roundedRect(context, table.left + 15, table.top + 15, table.width - 30, table.height - 30, 13);
+  context.stroke();
+  context.restore();
+}
+
 function drawPockets(context: CanvasRenderingContext2D): void {
   for (const pocket of billiardsTableModel.pockets) {
     const center = worldToCanvas(pocket.center);
     const radius = worldLengthToCanvas(pocket.radius) * 1.04;
-    const glow = context.createRadialGradient(center.x, center.y, 1, center.x, center.y, radius * 1.3);
-    glow.addColorStop(0, '#000000');
-    glow.addColorStop(0.62, billiardsPalette.pocket);
-    glow.addColorStop(1, 'rgba(0, 0, 0, 0.28)');
-    context.fillStyle = glow;
+    const rim = context.createRadialGradient(center.x, center.y, radius * 0.4, center.x, center.y, radius * 1.5);
+    rim.addColorStop(0, '#000000');
+    rim.addColorStop(0.62, billiardsPalette.pocket);
+    rim.addColorStop(0.78, '#5c5d5a');
+    rim.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
+    context.fillStyle = rim;
     context.beginPath();
-    context.arc(center.x, center.y, radius * 1.28, 0, Math.PI * 2);
+    context.arc(center.x, center.y, radius * 1.42, 0, fullCircle);
     context.fill();
   }
 }

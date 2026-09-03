@@ -25,6 +25,14 @@ User-supplied references are direction and quality bars, not sources of reusable
 - The weak-device profile may reduce shadows and decoration, but not interaction readability or the core route through the scene.
 - Review hub card, yard boot, movement, interaction-in-progress, junk completion, pump construction, fueling, payment, small phone, and desktop.
 
+## Pocket Club
+
+- The table sits in a warm billiard-room composition rather than on a generic app background.
+- Ball lighting stays fixed to the room while stripes, number patches, and cue-ball marks roll according to travel direction and distance.
+- The left cue/power meter, right direction meter, top player ball slots, spin control, shot action, and sound state remain immediately visible.
+- Collision feedback combines short spatially local flashes with distinct cue, ball, cushion, and pocket sounds.
+- Review initial rack, high-power break in motion, settled break, potted-ball HUD, small phone, and desktop.
+
 ## Rejection criteria
 
 Reject a technically working result when decoration hides gameplay, colors do not match across world and HUD, controls overlap, touch targets are too small, generated assets have inconsistent scale or pivots, interaction progress is unclear, or the composition looks like an AI-generated dashboard rather than a game.

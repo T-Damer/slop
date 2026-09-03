@@ -1,9 +1,11 @@
 import type {
+  BilliardsCollisionEvent,
   BilliardsMatchState,
   BilliardsShotPreview,
 } from '../domain/types.ts';
 import { drawBilliardsAim } from './aim-renderer.ts';
-import { drawBilliardsBalls } from './ball-renderer.ts';
+import { BilliardsBallRenderer } from './ball-renderer.ts';
+import { BilliardsImpactRenderer } from './impact-renderer.ts';
 import {
   drawBilliardsBackdrop,
   drawBilliardsTable,
@@ -16,11 +18,14 @@ export interface BilliardsRenderState {
   readonly preview: BilliardsShotPreview;
   readonly angleRadians: number;
   readonly power: number;
+  readonly recentEvents: ReadonlyArray<BilliardsCollisionEvent>;
   readonly reducedMotion: boolean;
 }
 
 export class BilliardsCanvasRenderer {
   private readonly context: CanvasRenderingContext2D;
+  private readonly balls = new BilliardsBallRenderer();
+  private readonly impacts = new BilliardsImpactRenderer();
 
   public constructor(private readonly canvas: HTMLCanvasElement) {
     const context = canvas.getContext('2d');
@@ -44,7 +49,8 @@ export class BilliardsCanvasRenderer {
       state.angleRadians,
       state.power,
     );
-    drawBilliardsBalls(context, state.match.table.balls, state.reducedMotion);
+    this.balls.draw(context, state.match.table, state.reducedMotion);
+    this.impacts.draw(context, state.match, state.recentEvents);
     drawTableMarkings(context);
   }
 }
