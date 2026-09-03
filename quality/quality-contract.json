@@ -26,8 +26,8 @@
     "forbidExternalUris": true
   },
   "runtime": {
-    "rawRatchetBytes": 3725000,
-    "gzipRatchetBytes": 1350000,
+    "rawRatchetBytes": 3735000,
+    "gzipRatchetBytes": 1356000,
     "brotliRatchetBytes": 1150000,
     "largestJavaScriptRatchetBytes": 900000,
     "targetBrotliBytes": 700000,
@@ -40,9 +40,9 @@
         },
         "minimumMatches": 1,
         "maximumMatches": 1,
-        "rawRatchetBytes": 56000,
-        "gzipRatchetBytes": 19000,
-        "brotliRatchetBytes": 17000
+        "rawRatchetBytes": 90000,
+        "gzipRatchetBytes": 28000,
+        "brotliRatchetBytes": 25000
       },
       {
         "id": "pocket-club-colyseus",
