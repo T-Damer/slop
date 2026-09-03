@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 151">
+  <defs>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#5c2a13"/><stop offset=".5" stop-color="#a25a29"/><stop offset="1" stop-color="#4b210f"/></linearGradient>
+    <linearGradient id="blue"><stop stop-color="#143f61"/><stop offset="1" stop-color="#061723"/></linearGradient>
+    <linearGradient id="red"><stop stop-color="#5c1325"/><stop offset="1" stop-color="#210811"/></linearGradient>
+    <linearGradient id="metal"><stop stop-color="#91979a"/><stop offset=".18" stop-color="#16191b"/><stop offset=".5" stop-color="#60676b"/><stop offset=".8" stop-color="#090b0c"/><stop offset="1" stop-color="#999ea0"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000" flood-opacity=".75"/></filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="9" y="14" width="1182" height="124" rx="58" fill="url(#metal)"/>
+    <rect x="18" y="22" width="1164" height="108" rx="50" fill="#080a0b" stroke="#e1a94d" stroke-width="3"/>
+    <path d="M73 29h467l34 22v50l-34 22H73Z" fill="url(#blue)" stroke="#9f732f" stroke-width="2"/>
+    <path d="M1127 29H660l-34 22v50l34 22h467Z" fill="url(#red)" stroke="#9f732f" stroke-width="2"/>
+    <rect x="30" y="30" width="1140" height="16" rx="8" fill="url(#wood)" opacity=".92"/>
+    <rect x="474" y="25" width="252" height="101" rx="28" fill="#0b0d0e" stroke="#e0a54b" stroke-width="4"/>
+    <rect x="486" y="36" width="228" height="79" rx="20" fill="#15191b" stroke="#6f4b22" stroke-width="2"/>
+    <g fill="none" stroke="#d8a24b" stroke-width="3" opacity=".9">
+      <circle cx="60" cy="76" r="40"/><circle cx="1140" cy="76" r="40"/>
+    </g>
+    <g fill="#050607" stroke="#d7a24d" stroke-width="2">
+      <circle cx="145" cy="76" r="15"/><circle cx="181" cy="76" r="15"/><circle cx="217" cy="76" r="15"/><circle cx="253" cy="76" r="15"/><circle cx="289" cy="76" r="15"/><circle cx="325" cy="76" r="15"/><circle cx="361" cy="76" r="15"/>
+      <circle cx="839" cy="76" r="15"/><circle cx="875" cy="76" r="15"/><circle cx="911" cy="76" r="15"/><circle cx="947" cy="76" r="15"/><circle cx="983" cy="76" r="15"/><circle cx="1019" cy="76" r="15"/><circle cx="1055" cy="76" r="15"/>
+    </g>
+    <circle cx="600" cy="27" r="22" fill="#111" stroke="#b8babc" stroke-width="5"/><circle cx="600" cy="27" r="10" fill="#f5f2e9"/>
+  </g>
+</svg>
