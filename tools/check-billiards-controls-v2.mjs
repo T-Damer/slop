@@ -2,10 +2,8 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
-const presentationRoot = path.join(
-  root,
-  'games/billiards/runtime/presentation',
-);
+const presentationRoot = path.join(root, 'games/billiards/runtime/presentation');
+const excludedDirectories = new Set(['node_modules', 'dist', '.git']);
 const requiredFiles = [
   'adaptive-quality-v2.ts',
   'app-v2.ts',
@@ -51,7 +49,7 @@ expectIncludes(pointer, 'beginManualStroke', 'pointer input must support manual 
 expectIncludes(pointer, 'ManualCueStroke', 'manual stroke must use pointer velocity');
 expectIncludes(renderer, 'placementPreview', 'renderer must draw placement preview');
 expectIncludes(renderer, 'if (!placing', 'cue and guide must be hidden while placing');
-expectIncludes(styles, "rotate(90deg)", 'portrait layout must rotate the table');
+expectIncludes(styles, 'rotate(90deg)', 'portrait layout must rotate the table');
 expectIncludes(styles, "data-interaction-mode='aim-locked'", 'locked aim needs visible feedback');
 
 const allSourceFiles = await collectFiles(path.join(root, 'games/billiards'));
@@ -88,6 +86,7 @@ async function collectFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
+    if (entry.isDirectory() && excludedDirectories.has(entry.name)) continue;
     const child = path.join(directory, entry.name);
     if (entry.isDirectory()) files.push(...await collectFiles(child));
     else if (entry.isFile()) files.push(child);
