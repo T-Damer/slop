@@ -28,13 +28,14 @@ export class BilliardsBallRendererV2 {
     table: BilliardsTableState,
     skin: BilliardsTableSkinV2,
     quality: BilliardsQualityMode,
+    hideCue = false,
   ): void {
     this.updateRolling(table);
     this.rollingBallCount = 0;
     this.litBallCount = 0;
     const radius = worldLengthToCanvas(billiardsPhysics.ballRadius);
     for (const ball of table.balls) {
-      if (ball.pocketed) continue;
+      if (ball.pocketed || (hideCue && ball.id === 0)) continue;
       const state = this.rolling.get(ball.id);
       this.drawBall(context, ball, state, radius, skin, quality, 1);
       if (Math.hypot(ball.velocity.x, ball.velocity.y) > 0.05) {
@@ -161,7 +162,7 @@ function drawContactShadow(
   alpha: number,
 ): void {
   context.save();
-  context.globalAlpha = alpha * (quality === billiardsQualityModes.low ? 0.28 : 0.46);
+  context.globalAlpha *= alpha * (quality === billiardsQualityModes.low ? 0.28 : 0.46);
   context.fillStyle = '#000';
   context.beginPath();
   context.ellipse(

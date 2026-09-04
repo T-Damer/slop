@@ -10,7 +10,9 @@ export interface BilliardsViewElements {
   readonly players: readonly [HTMLElement, HTMLElement];
   readonly playerNames: readonly [HTMLElement, HTMLElement];
   readonly playerGroups: readonly [HTMLElement, HTMLElement];
-  readonly playerBallSlots: readonly [HTMLElement, HTMLElement];
+  readonly pocketSlots: readonly [ReadonlyArray<HTMLElement>, ReadonlyArray<HTMLElement>];
+  readonly powerRail: HTMLElement;
+  readonly angleRail: HTMLElement;
   readonly power: HTMLInputElement;
   readonly angle: HTMLInputElement;
   readonly sideSpin: HTMLInputElement;
@@ -73,7 +75,6 @@ export function createBilliardsViewElements(): BilliardsViewElements {
           ></canvas>
           ${powerControl()}
           ${angleControl()}
-          <div class="billiards-table-hint"></div>
         </div>
       </section>
       <section class="billiards-controls" aria-label="Настройки удара">
@@ -90,7 +91,7 @@ export function createBilliardsViewElements(): BilliardsViewElements {
             ${billiardsUiAttributes.restart}
           >↻</button>
         </div>
-        <p class="billiards-controls-copy">${billiardsCopy.controls}</p>
+        <p class="billiards-controls-copy billiards-table-hint" aria-live="polite">${billiardsCopy.controls}</p>
       </section>
     </div>
   `;
@@ -133,10 +134,10 @@ function powerControl(): string {
       <input
         data-control="power"
         type="range"
-        min="4"
-        max="100"
-        value="68"
-        step="1"
+        min="0.04"
+        max="1"
+        value="0.68"
+        step="0.01"
         aria-label="${billiardsCopy.power}"
       />
     </label>
@@ -187,8 +188,8 @@ function spinControl(): string {
         <span>↔ <output data-output-for="side-spin">0%</output></span>
         <span>↕ <output data-output-for="follow-spin">0%</output></span>
       </div>
-      <input class="billiards-hidden-control" data-control="side-spin" type="range" min="-100" max="100" value="0" step="1" />
-      <input class="billiards-hidden-control" data-control="follow-spin" type="range" min="-100" max="100" value="0" step="1" />
+      <input class="billiards-hidden-control" data-control="side-spin" type="range" min="-1" max="1" value="0" step="0.01" />
+      <input class="billiards-hidden-control" data-control="follow-spin" type="range" min="-1" max="1" value="0" step="0.01" />
     </div>
   `;
 }
@@ -226,7 +227,10 @@ function collectElements(root: HTMLElement): BilliardsViewElements {
     players: [requiredIndex(players, 0), requiredIndex(players, 1)],
     playerNames: [requiredIndex(names, 0), requiredIndex(names, 1)],
     playerGroups: [requiredIndex(groups, 0), requiredIndex(groups, 1)],
-    playerBallSlots: [requiredIndex(slots, 0), requiredIndex(slots, 1)],
+    pocketSlots: [Array.from(requiredIndex(slots, 0).querySelectorAll<HTMLElement>('[data-billiards-pocket-slot]')),
+      Array.from(requiredIndex(slots, 1).querySelectorAll<HTMLElement>('[data-billiards-pocket-slot]'))],
+    powerRail: required(root, '[data-billiards-power-rail]', HTMLElement),
+    angleRail: required(root, '[data-billiards-angle-rail]', HTMLElement),
     power: control(root, 'power'),
     angle: control(root, 'angle'),
     sideSpin: control(root, 'side-spin'),

@@ -96,6 +96,7 @@ export const billiardsRules = {
 } as const;
 
 export const billiardsMessages = {
+  placementRequired: 'Сначала подтвердите установку битка',
   break: 'Разбей пирамиду',
   openTable: 'Стол открыт',
   solids: 'Сплошные',

@@ -13,14 +13,18 @@ export function updateBilliardsViewV2(
 ): void {
   updateBilliardsView(
     view,
-    { ...snapshot, recentEvents: [] },
+    snapshot,
     soundEnabled,
   );
   const interaction = snapshot.interaction;
   view.root.dataset.interactionMode = interaction.mode;
   view.root.dataset.quality = quality;
   view.root.dataset.billiardsPortrait = String(portrait);
-  view.root.dataset.billiardsBuild = 'controls-performance-v2';
+  view.root.dataset.billiardsBuild = 'controls-authority-v3';
+  view.root.dataset.canInteract = String(snapshot.canInteract);
+  view.power.disabled = view.sideSpin.disabled = view.followSpin.disabled = !snapshot.canInteract;
+  view.spinPad.setAttribute('aria-disabled', String(!snapshot.canInteract));
+  view.angle.disabled = !snapshot.canInteract;
   view.root.dataset.placementValid = String(
     interaction.placementPreview?.valid === true,
   );
@@ -34,7 +38,7 @@ export function updateBilliardsViewV2(
 
   if (snapshot.match.ballInHand) {
     view.shoot.textContent = 'Поставить биток';
-    view.shoot.disabled = interaction.placementPreview?.valid !== true;
+    view.shoot.disabled = !snapshot.canInteract || interaction.placementPreview?.valid !== true;
     view.hint.textContent = interaction.placementPreview === null
       ? 'Выберите место для полупрозрачного битка'
       : interaction.placementPreview.valid
@@ -44,11 +48,15 @@ export function updateBilliardsViewV2(
   }
 
   view.shoot.textContent = 'Удар';
-  view.shoot.disabled = snapshot.match.activeShot !== null;
+  view.shoot.disabled = !snapshot.canInteract;
+  if (!snapshot.canInteract) {
+    view.hint.textContent = snapshot.match.status;
+    return;
+  }
   if (interaction.mode === billiardsInteractionModes.aiming) {
     view.hint.textContent = 'Наведитесь и кликните по столу, чтобы зафиксировать прицел';
   } else if (interaction.mode === billiardsInteractionModes.aimLocked) {
-    view.hint.textContent = 'Зажмите стол и проведите вдоль кия либо нажмите «Удар»';
+    view.hint.textContent = 'Отведите кий и ударьте вперёд; короткое касание — сменить прицел';
   } else if (interaction.mode === billiardsInteractionModes.manualStroke) {
     view.hint.textContent = 'Отведите кий назад и резко проведите вперёд';
   }

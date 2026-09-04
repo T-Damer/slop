@@ -1,10 +1,7 @@
 import type { Accessor } from 'solid-js';
-
 import type { BilliardsAudioEngine } from './audio.ts';
-import type {
-  BilliardsControllerSnapshotV2,
-  BilliardsGameControllerV2,
-} from './controller-v2.ts';
+import type { BilliardsControllerSnapshotV2, BilliardsGameControllerV2 } from './controller-v2.ts';
+import { billiardsInputTuning as tuning } from './registry.ts';
 import type { BilliardsViewElements } from './view-elements.ts';
 
 export interface BilliardsRailInputOptions {
@@ -14,143 +11,115 @@ export interface BilliardsRailInputOptions {
   readonly audio: BilliardsAudioEngine;
 }
 
-export function bindBilliardsRailInputV2(
-  options: BilliardsRailInputOptions,
-): () => void {
-  const removers = [
-    bindPowerRail(options),
-    bindAngleRail(options),
-    bindSpinPad(options),
-    bindRangeInputs(options),
-  ];
-  return () => {
-    for (const remove of removers) remove();
-  };
-}
-
-function bindPowerRail(options: BilliardsRailInputOptions): () => void {
-  let pointerId: number | null = null;
-  const update = (event: PointerEvent): void => {
-    if (pointerId !== event.pointerId) return;
+export function bindBilliardsRailInputV2(options: BilliardsRailInputOptions): () => void {
+  let angleCoordinate = 0;
+  const power = (event: PointerEvent): void => {
     const rect = options.view.powerRail.getBoundingClientRect();
-    const portrait = options.view.root.dataset.billiardsPortrait === 'true';
-    const ratio = portrait
-      ? (event.clientX - rect.left) / Math.max(1, rect.width)
-      : 1 - (event.clientY - rect.top) / Math.max(1, rect.height);
-    options.controller.setPower(clamp01(ratio));
+    options.controller.setPower(clamp(1 - (event.clientY - rect.top) / Math.max(1, rect.height), 0));
   };
-  const down = (event: PointerEvent): void => {
-    if (event.button !== 0 || !event.isPrimary) return;
-    pointerId = event.pointerId;
-    options.view.powerRail.setPointerCapture(event.pointerId);
-    void options.audio.unlock();
-    update(event);
+  const angle = (event: PointerEvent, beginning: boolean): void => {
+    if (!beginning) options.controller.adjustAngle((event.clientY - angleCoordinate) * tuning.angleRadiansPerPixel);
+    angleCoordinate = event.clientY;
   };
-  const finish = (event: PointerEvent): void => {
-    if (pointerId !== event.pointerId) return;
-    update(event);
-    if (options.view.powerRail.hasPointerCapture(event.pointerId)) {
-      options.view.powerRail.releasePointerCapture(event.pointerId);
-    }
-    pointerId = null;
-  };
-  options.view.powerRail.addEventListener('pointerdown', down);
-  options.view.powerRail.addEventListener('pointermove', update);
-  options.view.powerRail.addEventListener('pointerup', finish);
-  options.view.powerRail.addEventListener('pointercancel', finish);
-  return () => {
-    options.view.powerRail.removeEventListener('pointerdown', down);
-    options.view.powerRail.removeEventListener('pointermove', update);
-    options.view.powerRail.removeEventListener('pointerup', finish);
-    options.view.powerRail.removeEventListener('pointercancel', finish);
-  };
-}
-
-function bindAngleRail(options: BilliardsRailInputOptions): () => void {
-  let pointerId: number | null = null;
-  let previousCoordinate = 0;
-  const coordinate = (event: PointerEvent): number =>
-    options.view.root.dataset.billiardsPortrait === 'true'
-      ? event.clientX
-      : event.clientY;
-  const down = (event: PointerEvent): void => {
-    if (event.button !== 0 || !event.isPrimary) return;
-    pointerId = event.pointerId;
-    previousCoordinate = coordinate(event);
-    options.view.angleRail.setPointerCapture(event.pointerId);
-    void options.audio.unlock();
-  };
-  const move = (event: PointerEvent): void => {
-    if (pointerId !== event.pointerId) return;
-    event.preventDefault();
-    const nextCoordinate = coordinate(event);
-    const delta = nextCoordinate - previousCoordinate;
-    previousCoordinate = nextCoordinate;
-    options.controller.adjustAngle(delta * 0.012);
-  };
-  const finish = (event: PointerEvent): void => {
-    if (pointerId !== event.pointerId) return;
-    if (options.view.angleRail.hasPointerCapture(event.pointerId)) {
-      options.view.angleRail.releasePointerCapture(event.pointerId);
-    }
-    pointerId = null;
-  };
-  options.view.angleRail.addEventListener('pointerdown', down);
-  options.view.angleRail.addEventListener('pointermove', move);
-  options.view.angleRail.addEventListener('pointerup', finish);
-  options.view.angleRail.addEventListener('pointercancel', finish);
-  return () => {
-    options.view.angleRail.removeEventListener('pointerdown', down);
-    options.view.angleRail.removeEventListener('pointermove', move);
-    options.view.angleRail.removeEventListener('pointerup', finish);
-    options.view.angleRail.removeEventListener('pointercancel', finish);
-  };
-}
-
-function bindSpinPad(options: BilliardsRailInputOptions): () => void {
-  const update = (event: PointerEvent): void => {
+  const spin = (event: PointerEvent): void => {
     const rect = options.view.spinPad.getBoundingClientRect();
-    const x = clampSigned((event.clientX - rect.left) / Math.max(1, rect.width) * 2 - 1);
-    const y = clampSigned(1 - (event.clientY - rect.top) / Math.max(1, rect.height) * 2);
-    options.controller.setSpin(x, y);
+    options.controller.setSpin(
+      clamp((event.clientX - rect.left) / Math.max(1, rect.width) * 2 - 1, -1),
+      clamp(1 - (event.clientY - rect.top) / Math.max(1, rect.height) * 2, -1),
+    );
+  };
+  const removers = [
+    bindCapturedControl(options.view.powerRail, options, power),
+    bindCapturedControl(options.view.angleRail, options, angle),
+    bindCapturedControl(options.view.spinPad, options, spin),
+    bindRangeInputs(options), bindSpinKeyboard(options),
+  ];
+  return () => removers.forEach((remove) => remove());
+}
+
+/** One captured pointer per control, with the same cancellation policy in both orientations. */
+function bindCapturedControl(
+  element: HTMLElement,
+  options: BilliardsRailInputOptions,
+  update: (event: PointerEvent, beginning: boolean) => void,
+): () => void {
+  let pointerId: number | null = null;
+  const cancel = (): void => {
+    const id = pointerId;
+    pointerId = null;
+    if (id !== null && element.hasPointerCapture(id)) element.releasePointerCapture(id);
   };
   const down = (event: PointerEvent): void => {
-    if (event.button !== 0 || !event.isPrimary) return;
-    options.view.spinPad.setPointerCapture(event.pointerId);
+    if (!event.isPrimary || event.button !== 0 || pointerId !== null || !options.snapshot().canInteract) return;
+    event.preventDefault();
+    pointerId = event.pointerId;
+    element.setPointerCapture(pointerId);
     void options.audio.unlock();
-    update(event);
+    update(event, true);
   };
   const move = (event: PointerEvent): void => {
-    if (!options.view.spinPad.hasPointerCapture(event.pointerId)) return;
+    if (pointerId !== event.pointerId) return;
     event.preventDefault();
-    update(event);
+    update(event, false);
   };
-  options.view.spinPad.addEventListener('pointerdown', down);
-  options.view.spinPad.addEventListener('pointermove', move);
+  const up = (event: PointerEvent): void => {
+    if (pointerId !== event.pointerId) return;
+    update(event, false);
+    cancel();
+  };
+  element.addEventListener('pointerdown', down);
+  element.addEventListener('pointermove', move);
+  element.addEventListener('pointerup', up);
+  element.addEventListener('pointercancel', cancel);
+  element.addEventListener('lostpointercapture', cancel);
+  window.addEventListener('blur', cancel);
+  window.addEventListener('resize', cancel);
   return () => {
-    options.view.spinPad.removeEventListener('pointerdown', down);
-    options.view.spinPad.removeEventListener('pointermove', move);
+    cancel();
+    element.removeEventListener('pointerdown', down);
+    element.removeEventListener('pointermove', move);
+    element.removeEventListener('pointerup', up);
+    element.removeEventListener('pointercancel', cancel);
+    element.removeEventListener('lostpointercapture', cancel);
+    window.removeEventListener('blur', cancel);
+    window.removeEventListener('resize', cancel);
   };
 }
 
 function bindRangeInputs(options: BilliardsRailInputOptions): () => void {
-  const onPower = (): void => options.controller.setPower(Number(options.view.power.value));
-  const onSide = (): void => options.controller.setSideSpin(Number(options.view.sideSpin.value));
-  const onFollow = (): void => options.controller.setFollowSpin(Number(options.view.followSpin.value));
-  options.view.power.addEventListener('input', onPower);
-  options.view.sideSpin.addEventListener('input', onSide);
-  options.view.followSpin.addEventListener('input', onFollow);
-  return () => {
-    options.view.power.removeEventListener('input', onPower);
-    options.view.sideSpin.removeEventListener('input', onSide);
-    options.view.followSpin.removeEventListener('input', onFollow);
+  const bindings: ReadonlyArray<readonly [HTMLInputElement, (value: number) => void]> = [
+    [options.view.power, (value) => options.controller.setPower(value)],
+    [options.view.angle, (value) => options.controller.setAngleRadians(value * tuning.degreesToRadians)],
+    [options.view.sideSpin, (value) => options.controller.setSideSpin(value)],
+    [options.view.followSpin, (value) => options.controller.setFollowSpin(value)],
+  ];
+  const removers = bindings.map(([element, update]) => {
+    const onInput = (): void => update(Number(element.value));
+    element.addEventListener('input', onInput);
+    return () => element.removeEventListener('input', onInput);
+  });
+  return () => removers.forEach((remove) => remove());
+}
+
+function bindSpinKeyboard(options: BilliardsRailInputOptions): () => void {
+  const key = (event: KeyboardEvent): void => {
+    const { sideSpin, followSpin } = options.snapshot();
+    const step = tuning.spinKeyStep;
+    switch (event.code) {
+      case 'ArrowLeft': options.controller.setSideSpin(sideSpin - step); break;
+      case 'ArrowRight': options.controller.setSideSpin(sideSpin + step); break;
+      case 'ArrowUp': options.controller.setFollowSpin(followSpin + step); break;
+      case 'ArrowDown': options.controller.setFollowSpin(followSpin - step); break;
+      case 'Home': options.controller.setSpin(0, 0); break;
+      default: return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
   };
+  options.view.spinPad.addEventListener('keydown', key);
+  return () => options.view.spinPad.removeEventListener('keydown', key);
 }
 
-function clamp01(value: number): number {
-  return Math.min(1, Math.max(0, value));
-}
-
-function clampSigned(value: number): number {
-  return Math.min(1, Math.max(-1, value));
+function clamp(value: number, minimum: number): number {
+  return Math.min(1, Math.max(minimum, value));
 }

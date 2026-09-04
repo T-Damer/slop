@@ -6,7 +6,10 @@ export const billiardsProtocol = {
     playerName: 'billiardsName',
     matchmakingKey: 'billiardsMatch',
   },
+  interactionIntervalMs: 50,
   messages: {
+    ready: 'ready',
+    welcome: 'welcome',
     snapshot: 'snapshot',
     shot: 'shot',
     placeCue: 'place-cue',

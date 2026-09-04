@@ -38,6 +38,11 @@ export const billiardsManualStrokeTuning = {
   minimumPower: 0.08,
   maximumPower: 1,
   pointerSampleWindowMs: 90,
+  minimumSampleIntervalMs: 1,
+  millisecondsPerSecond: 1000,
+  maximumCueOffsetPixels: 220,
+  contactOffsetPixels: 0,
+  tapSlopPixels: 6,
 } as const;
 
 export function createBilliardsInteractionState(

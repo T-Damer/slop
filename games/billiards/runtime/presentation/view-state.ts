@@ -1,5 +1,5 @@
 import type { BilliardsBallState } from '../domain/types.ts';
-import type { BilliardsControllerSnapshot } from './controller.ts';
+import type { BilliardsControllerSnapshotV2 } from './controller-v2.ts';
 import {
   ballColor,
   ballDisplayKind,
@@ -13,7 +13,7 @@ const radiansToDegrees = 180 / Math.PI;
 
 export function updateBilliardsView(
   view: BilliardsViewElements,
-  snapshot: BilliardsControllerSnapshot,
+  snapshot: BilliardsControllerSnapshotV2,
   soundEnabled: boolean,
 ): void {
   const { match } = snapshot;
@@ -24,10 +24,11 @@ export function updateBilliardsView(
   );
   view.root.setAttribute(billiardsUiAttributes.connection, snapshot.connection.state);
   view.root.setAttribute(billiardsUiAttributes.ballRenderMode, 'spherical-roll');
-  view.root.setAttribute(billiardsUiAttributes.audio, soundEnabled ? 'ready' : 'muted');
 
   view.status.textContent = match.status;
-  view.connection.textContent = connectionBadge(snapshot.connection.state);
+  const build = document.querySelector<HTMLMetaElement>('meta[name="slop-build-sha"]')?.content;
+  view.connection.textContent = `${connectionBadge(snapshot.connection.state)} · ${build?.slice(0, 7) ?? 'dev'}`;
+  view.connection.title = `${snapshot.connection.detail} · ${build ?? 'development build'}`;
   view.hint.textContent = match.ballInHand ? billiardsCopy.ballInHand : billiardsCopy.aim;
 
   const winnerIndex = match.winnerIndex;
@@ -53,25 +54,18 @@ export function updateBilliardsView(
   view.followSpinOutput.value = formatSignedPercent(snapshot.followSpin);
   view.angleOutput.value = `${normalizeDegrees(snapshot.angleRadians * radiansToDegrees)}°`;
 
-  view.powerFill.style.setProperty('--billiards-power', String(snapshot.power));
-  view.powerRail.style.setProperty('--billiards-power', String(snapshot.power));
-  view.powerCue.style.setProperty('--billiards-power', String(snapshot.power));
-  view.angleRail.style.setProperty(
-    '--billiards-angle-turn',
-    String(normalizeDegrees(snapshot.angleRadians * radiansToDegrees) / fullCircleDegrees),
-  );
-  view.angleIndicator.style.setProperty(
-    '--billiards-angle-turn',
-    String(normalizeDegrees(snapshot.angleRadians * radiansToDegrees) / fullCircleDegrees),
-  );
-  view.spinDot.style.setProperty('--billiards-side-spin', String(snapshot.sideSpin));
-  view.spinDot.style.setProperty('--billiards-follow-spin', String(snapshot.followSpin));
+  view.root.style.setProperty('--billiards-power-percent', `${snapshot.power * 100}%`);
+  view.root.style.setProperty('--billiards-angle-position', `${normalizeDegrees(snapshot.angleRadians * radiansToDegrees) / fullCircleDegrees * 100}%`);
+  view.root.style.setProperty('--billiards-spin-left', `${(snapshot.sideSpin + 1) * 50}%`);
+  view.root.style.setProperty('--billiards-spin-top', `${(1 - snapshot.followSpin) * 50}%`);
+  view.spinPad.setAttribute('aria-valuetext', `${formatSignedPercent(snapshot.sideSpin)} / ${formatSignedPercent(snapshot.followSpin)}`);
+  setRangeValue(view.angle, normalizeDegrees(snapshot.angleRadians * radiansToDegrees));
 
   const controlsDisabled = match.activeShot !== null || winnerIndex !== null;
   view.power.disabled = controlsDisabled;
   view.sideSpin.disabled = controlsDisabled;
   view.followSpin.disabled = controlsDisabled;
-  view.spinPad.disabled = controlsDisabled;
+  view.spinPad.setAttribute('aria-disabled', String(controlsDisabled));
   view.shoot.disabled = controlsDisabled;
   view.sound.setAttribute('aria-pressed', String(soundEnabled));
   view.sound.setAttribute(
@@ -92,7 +86,7 @@ function updatePocketSlots(
   const groupValue = typeof group === 'string' ? group : null;
   const pocketed = balls
     .filter((ball) => ball.pocketed && ball.id !== 0 && ball.id !== 8)
-    .filter((ball) => groupValue === null || String(ball.kind) === groupValue)
+    .filter((ball) => groupValue === null || (groupValue === 'solids' ? ball.kind === 'solid' : groupValue === 'stripes' ? ball.kind === 'stripe' : true))
     .sort((left, right) => left.id - right.id);
 
   slots.forEach((slot, index) => {
@@ -104,9 +98,9 @@ function updatePocketSlots(
     );
     slot.textContent = ball === undefined ? '' : String(ball.id);
     if (ball === undefined) {
-      slot.style.removeProperty('--pocket-ball-color');
+      slot.style.removeProperty('--slot-color');
     } else {
-      slot.style.setProperty('--pocket-ball-color', ballColor(ball.id));
+      slot.style.setProperty('--slot-color', ballColor(ball.id));
     }
   });
 }

@@ -24,6 +24,9 @@ export interface BilliardsAimInteraction extends BilliardsInteractionBase {
     | typeof billiardsInteractionKinds.aimPreview
     | typeof billiardsInteractionKinds.aimLocked;
   readonly angleRadians: number;
+  readonly power?: number;
+  readonly sideSpin?: number;
+  readonly followSpin?: number;
 }
 
 export interface BilliardsAimUnlockedInteraction extends BilliardsInteractionBase {
@@ -73,7 +76,10 @@ export function isBilliardsInteractionMessage(
     value.kind === billiardsInteractionKinds.aimPreview
     || value.kind === billiardsInteractionKinds.aimLocked
   ) {
-    return isFiniteNumber(value.angleRadians);
+    return isFiniteNumber(value.angleRadians)
+      && (value.power === undefined || isUnitNumber(value.power))
+      && (value.sideSpin === undefined || isSpin(value.sideSpin))
+      && (value.followSpin === undefined || isSpin(value.followSpin));
   }
   if (value.kind === billiardsInteractionKinds.cuePlacementPreview) {
     return isVec2(value.position) && typeof value.valid === 'boolean';
@@ -127,11 +133,15 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 function isFiniteInteger(value: unknown): value is number {
-  return isFiniteNumber(value) && Number.isInteger(value) && value >= 0;
+  return isFiniteNumber(value) && Number.isSafeInteger(value) && value >= 0;
 }
 
 function isUnitNumber(value: unknown): value is number {
   return isFiniteNumber(value) && value >= 0 && value <= 1;
+}
+
+function isSpin(value: unknown): value is number {
+  return isFiniteNumber(value) && Math.abs(value) <= 1;
 }
 
 function isVec2(value: unknown): value is Vec2 {

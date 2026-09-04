@@ -1,0 +1,13 @@
+{
+  "name": "@slop-service/billiards",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": { "start": "node server.mjs", "test": "node --test network.test.mjs" },
+  "dependencies": {
+    "@colyseus/core": "0.18.10",
+    "@colyseus/ws-transport": "0.18.2",
+    "@colyseus/schema": "5.0.8"
+  }
+}

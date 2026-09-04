@@ -19,15 +19,6 @@
   <circle cx="86" cy="68" r="180" fill="url(#lamp)"/><circle cx="1192" cy="70" r="180" fill="url(#lamp)"/>
   <circle cx="82" cy="656" r="150" fill="url(#lamp)" opacity=".55"/><circle cx="1200" cy="652" r="150" fill="url(#lamp)" opacity=".45"/>
   <g filter="url(#shadow)">
-    <g transform="translate(24 180)">
-      <rect width="74" height="332" rx="18" fill="#120b08" stroke="#8b5a2c" stroke-width="4"/>
-      <rect x="12" y="14" width="50" height="304" rx="12" fill="#24160f" stroke="#c08a4a" stroke-opacity=".55"/>
-      <g stroke-linecap="round" stroke-width="6">
-        <path d="M22 38l28 230" stroke="#ddb172"/><path d="M34 30l20 245" stroke="#a85b2e"/>
-        <path d="M46 34l8 238" stroke="#e9c68f"/><path d="M18 46l36 234" stroke="#7d321b"/>
-      </g>
-      <rect x="8" y="282" width="58" height="22" rx="7" fill="#0b0706" stroke="#7a4827"/>
-    </g>
     <g transform="translate(1120 116)">
       <path d="M14 42Q14 4 52 4h92q38 0 38 38v106q0 30-30 30H44q-30 0-30-30Z" fill="url(#leather)" stroke="#9b5b31" stroke-width="4"/>
       <path d="M28 55h140M30 99h136M72 18v146M119 18v146" stroke="#bd7441" stroke-opacity=".28" stroke-width="3"/>

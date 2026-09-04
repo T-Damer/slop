@@ -1,12 +1,6 @@
-import {
-  billiardsCollisionKinds,
-  billiardsPhysics,
-} from '../domain/registry.ts';
-import type {
-  BilliardsCollisionEvent,
-  BilliardsTableState,
-} from '../domain/types.ts';
-import type { BilliardsControllerSnapshot } from './controller.ts';
+import { billiardsPhysics } from '../domain/registry.ts';
+import type { BilliardsFeedbackBatch } from './feedback.ts';
+import { billiardsFeedbackKinds as kinds, billiardsFeedbackTuning as tuning } from './registry.ts';
 
 export type BilliardsAudioState = 'locked' | 'ready' | 'muted';
 
@@ -15,49 +9,55 @@ interface BilliardsImpactSound {
   readonly pan: number;
 }
 
-export class BilliardsAudio {
+export class BilliardsAudioEngine {
   private context: AudioContext | null = null;
   private noiseBuffer: AudioBuffer | null = null;
   private muted = false;
-  private previousShotActive = false;
+  private consumedRevision = -1;
+  private disposed = false;
 
   public state(): BilliardsAudioState {
     if (this.muted) return 'muted';
-    return this.context === null ? 'locked' : 'ready';
+    return this.context?.state === 'running' ? 'ready' : 'locked';
   }
 
-  public unlock(): void {
-    if (this.context === null) {
-      this.context = new AudioContext({ latencyHint: 'interactive' });
-      this.noiseBuffer = createNoiseBuffer(this.context);
+  public isEnabled(): boolean { return !this.muted; }
+
+  public async unlock(): Promise<void> {
+    if (this.disposed) return;
+    try {
+      if (this.context === null) {
+        this.context = new AudioContext({ latencyHint: 'interactive' });
+        this.noiseBuffer = createNoiseBuffer(this.context);
+      }
+      if (this.context.state === 'suspended') await this.context.resume();
+    } catch {
+      // Audio can be unavailable or denied; input and rendering must keep working.
     }
-    if (this.context.state === 'suspended') void this.context.resume();
   }
 
-  public toggleMuted(): BilliardsAudioState {
-    if (this.context === null && !this.muted) {
-      this.unlock();
-      this.playTone(760, 0.045, 0.07, 'sine', 0, 0);
-      return this.state();
-    }
+  public toggle(): boolean {
     this.muted = !this.muted;
-    if (!this.muted) {
-      this.unlock();
-      this.playTone(760, 0.045, 0.07, 'sine', 0, 0);
-    }
-    return this.state();
+    return this.isEnabled();
   }
 
-  public update(snapshot: BilliardsControllerSnapshot): void {
-    const shotActive = snapshot.match.activeShot !== null;
-    if (!this.previousShotActive && shotActive) this.playCueStrike(snapshot.power);
-    this.previousShotActive = shotActive;
-    if (snapshot.recentEvents.length > 0) {
-      this.playCollisionEvents(snapshot.recentEvents, snapshot.match.table);
-    }
+  public consume(batch: BilliardsFeedbackBatch): void {
+    if (batch.revision <= this.consumedRevision) return;
+    this.consumedRevision = batch.revision;
+    if (!this.canPlay()) return;
+    batch.events.slice(0, tuning.maximumSoundsPerBatch).forEach((event, index) => {
+      const delay = index * tuning.soundSpacingSeconds;
+      const impact = { level: event.intensity, pan: Math.max(-tuning.maximumStereoPan,
+        Math.min(tuning.maximumStereoPan, event.position.x / (billiardsPhysics.tableWidth / 2))) };
+      if (event.kind === kinds.cue) this.playCueStrike(event.power ?? event.intensity);
+      else if (event.kind === kinds.ball) this.playBallClick(impact, delay);
+      else if (event.kind === kinds.pocket) this.playPocketDrop(impact.pan, delay);
+      else this.playCushionHit(impact, delay);
+    });
   }
 
   public async dispose(): Promise<void> {
+    this.disposed = true;
     const context = this.context;
     this.context = null;
     this.noiseBuffer = null;
@@ -70,30 +70,6 @@ export class BilliardsAudio {
     this.playTone(145, 0.08, intensity, 'sine', 0, -0.42);
     this.playTone(520, 0.035, intensity * 0.3, 'triangle', 0.002, -0.42);
     this.playNoise(0.026, intensity * 0.24, 1900, 0, -0.42);
-  }
-
-  private playCollisionEvents(
-    events: ReadonlyArray<BilliardsCollisionEvent>,
-    table: BilliardsTableState,
-  ): void {
-    if (!this.canPlay()) return;
-    let scheduled = 0;
-    for (const event of events) {
-      if (scheduled >= 7) break;
-      const impact = readImpactSound(event, table);
-      const delay = scheduled * 0.005;
-      if (event.kind === billiardsCollisionKinds.ball) {
-        this.playBallClick(impact, delay);
-      } else if (
-        event.kind === billiardsCollisionKinds.cushion
-        || event.kind === billiardsCollisionKinds.jaw
-      ) {
-        this.playCushionHit(impact, delay);
-      } else if (event.kind === billiardsCollisionKinds.pocket) {
-        this.playPocketDrop(impact.pan, delay);
-      }
-      scheduled += 1;
-    }
   }
 
   private playBallClick(impact: BilliardsImpactSound, delay: number): void {
@@ -172,32 +148,8 @@ export class BilliardsAudio {
   }
 
   private canPlay(): boolean {
-    return !this.muted && this.context !== null;
+    return !this.muted && this.context?.state === 'running';
   }
-}
-
-function readImpactSound(
-  event: BilliardsCollisionEvent,
-  table: BilliardsTableState,
-): BilliardsImpactSound {
-  const ids = event.kind === billiardsCollisionKinds.ball
-    ? [event.leftBallId, event.rightBallId]
-    : [event.ballId];
-  const balls = ids.flatMap((id) => {
-    const ball = table.balls.find((candidate) => candidate.id === id);
-    return ball === undefined ? [] : [ball];
-  });
-  const speed = balls.reduce(
-    (total, ball) => total + Math.hypot(ball.velocity.x, ball.velocity.y),
-    0,
-  );
-  const x = balls.length === 0
-    ? billiardsPhysics.tableWidth / 2
-    : balls.reduce((total, ball) => total + ball.position.x, 0) / balls.length;
-  return {
-    level: Math.min(1, speed / (billiardsPhysics.maximumShotSpeed * 0.62)),
-    pan: Math.max(-0.85, Math.min(0.85, x / billiardsPhysics.tableWidth * 1.7 - 0.85)),
-  };
 }
 
 function createNoiseBuffer(context: AudioContext): AudioBuffer {

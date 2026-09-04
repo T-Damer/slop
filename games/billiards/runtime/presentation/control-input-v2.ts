@@ -5,6 +5,7 @@ import type {
   BilliardsControllerSnapshotV2,
   BilliardsGameControllerV2,
 } from './controller-v2.ts';
+import { billiardsInputTuning as tuning } from './registry.ts';
 import { bindBilliardsPointerInputV2 } from './pointer-input-v2.ts';
 import { bindBilliardsRailInputV2 } from './rail-input-v2.ts';
 import type { BilliardsViewElements } from './view-elements.ts';
@@ -41,8 +42,10 @@ export function bindBilliardsControlsV2(
 
 function bindKeyboard(options: BilliardsControlInputOptionsV2): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
-    if (isEditableTarget(event.target)) return;
-    const fine = event.shiftKey ? 0.0025 : 0.009;
+    if (isEditableTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
+    const active = document.activeElement;
+    if (active !== document.body && !options.view.root.contains(active)) return;
+    const fine = event.shiftKey ? tuning.fineAngleStep : tuning.angleStep;
     const direction = keyboardAngleDirection(event.code);
     if (direction !== 0) {
       event.preventDefault();
@@ -50,8 +53,10 @@ function bindKeyboard(options: BilliardsControlInputOptionsV2): () => void {
       return;
     }
     if (event.code === 'Space' || event.code === 'Enter') {
+      if (active instanceof HTMLButtonElement && active !== options.view.shoot) return;
       event.preventDefault();
-      void options.audio.unlock();
+      if (event.repeat) return;
+      void options.audio.unlock().then(() => { options.view.root.dataset.audioState = options.audio.state(); });
       options.controller.primaryAction();
     } else if (event.code === 'Escape') {
       event.preventDefault();
@@ -64,9 +69,11 @@ function bindKeyboard(options: BilliardsControlInputOptionsV2): () => void {
 
 function bindWheel(options: BilliardsControlInputOptionsV2): () => void {
   const onWheel = (event: WheelEvent): void => {
-    if (!options.view.root.contains(event.target as Node | null)) return;
+    if (event.ctrlKey || event.metaKey || event.deltaY === 0) return;
     event.preventDefault();
-    const magnitude = Math.min(0.12, Math.abs(event.deltaY) / 700);
+    const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? tuning.wheelLinePixels
+      : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? innerHeight : 1;
+    const magnitude = Math.min(tuning.maximumWheelStep, Math.abs(event.deltaY) * unit / tuning.wheelPixelsPerPower);
     options.controller.adjustPower(event.deltaY < 0 ? magnitude : -magnitude);
   };
   options.view.root.addEventListener('wheel', onWheel, { passive: false });
@@ -75,13 +82,14 @@ function bindWheel(options: BilliardsControlInputOptionsV2): () => void {
 
 function bindActions(options: BilliardsControlInputOptionsV2): () => void {
   const shoot = (): void => {
-    void options.audio.unlock();
+    void options.audio.unlock().then(() => { options.view.root.dataset.audioState = options.audio.state(); });
     options.controller.primaryAction();
   };
   const restart = (): void => options.controller.restart();
   const sound = (): void => {
-    void options.audio.unlock();
+    void options.audio.unlock().then(() => { options.view.root.dataset.audioState = options.audio.state(); });
     options.setSoundEnabled(options.audio.toggle());
+    options.view.root.dataset.audioState = options.audio.state();
   };
   options.view.shoot.addEventListener('click', shoot);
   options.view.restart.addEventListener('click', restart);
@@ -95,7 +103,9 @@ function bindActions(options: BilliardsControlInputOptionsV2): () => void {
 
 function bindAudioUnlock(options: BilliardsControlInputOptionsV2): () => void {
   const unlock = (): void => {
-    void options.audio.unlock();
+    void options.audio.unlock().then(() => {
+      options.view.root.dataset.audioState = options.audio.state();
+    });
   };
   options.view.root.addEventListener('pointerdown', unlock, { capture: true });
   return () => options.view.root.removeEventListener('pointerdown', unlock, true);

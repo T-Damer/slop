@@ -26,14 +26,34 @@ export function worldLengthToCanvas(length: number): number {
   return length * tableScale;
 }
 
+export interface BilliardsPointerBounds {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export function clientToCanvas(
+  bounds: BilliardsPointerBounds,
+  point: Vec2,
+  portrait: boolean,
+): Vec2 | null {
+  if (bounds.width <= 0 || bounds.height <= 0
+    || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+  const x = (point.x - bounds.left) / bounds.width;
+  const y = (point.y - bounds.top) / bounds.height;
+  // Do not clamp: a captured cue gesture must keep moving outside the table.
+  return portrait
+    ? { x: y * billiardsView.canvasWidth, y: (1 - x) * billiardsView.canvasHeight }
+    : { x: x * billiardsView.canvasWidth, y: y * billiardsView.canvasHeight };
+}
+
 export function pointerToCanvas(
   canvas: HTMLCanvasElement,
   clientX: number,
   clientY: number,
+  portrait = false,
 ): Vec2 {
-  const bounds = canvas.getBoundingClientRect();
-  return {
-    x: (clientX - bounds.left) * billiardsView.canvasWidth / Math.max(1, bounds.width),
-    y: (clientY - bounds.top) * billiardsView.canvasHeight / Math.max(1, bounds.height),
-  };
+  return clientToCanvas(canvas.getBoundingClientRect(),
+    { x: clientX, y: clientY }, portrait) ?? tableCenter;
 }

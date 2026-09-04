@@ -7,6 +7,7 @@ import {
   evaluate,
   waitForExpression,
 } from './browser-quality/cdp-client.mjs';
+import { clickAt, aimPoint, verifyAimControls } from './browser-quality/billiards-controls.mjs';
 import { openChromium } from './browser-quality/chromium-host.mjs';
 const root = process.cwd();
 const baseUrl = process.argv[2] ?? process.env.BILLIARDS_PAGE_URL;
@@ -37,7 +38,7 @@ try {
       ui,
       outputRoot,
       runtimeErrors,
-      exerciseShot: viewport.id === 'phone',
+      exerciseShot: true,
     }));
   }
   const failures = viewportReports.flatMap((report) =>
@@ -95,7 +96,8 @@ async function inspectViewport({
   const layout = await evaluate(cdp, createLayoutExpression(ui));
   const screenshot = await captureScreenshot(cdp, path.join(directory, 'boot.png'));
   const failures = [...layout.failures];
-  const interactions = {};
+  const interactions = { controls: await verifyAimControls(cdp, ui) };
+  failures.push(...interactions.controls.failures);
   if (exerciseShot) {
     interactions.breakShot = await runBreakShot(cdp, ui, directory);
     if (!interactions.breakShot.completed) {
@@ -134,22 +136,12 @@ async function inspectViewport({
 }
 async function runBreakShot(cdp, ui, directory) {
   const baseline = await evaluate(cdp, ui.qaExpression);
-  const started = await evaluate(cdp, `(() => {
-    const qa = window.__SLOP_BILLIARDS_QA__;
-    if (!qa) return false;
-    qa.setAim(0);
-    qa.setPower(0.82);
-    return qa.shoot();
+  await clickAt(cdp, await aimPoint(cdp, ui, 950, 360));
+  const action = await evaluate(cdp, `(() => {
+    const rect = document.querySelector(${JSON.stringify(ui.shootSelector)}).getBoundingClientRect();
+    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
   })()`);
-  if (!started) {
-    return {
-      completed: false,
-      cueMoved: false,
-      revisionAdvanced: false,
-      baseline,
-      current: null,
-    };
-  }
+  await clickAt(cdp, action);
   await waitForExpression(
     cdp,
     `document.querySelector(${JSON.stringify(ui.rootSelector)})?.getAttribute('data-shot-active') === 'true'`,
@@ -159,7 +151,7 @@ async function runBreakShot(cdp, ui, directory) {
   await waitForExpression(
     cdp,
     `(() => {
-      const snapshot = window.__SLOP_BILLIARDS_QA__?.snapshot();
+      const snapshot = window.__SLOP_BILLIARDS_QA_V2__?.snapshot().controller;
       return snapshot?.match?.activeShot === null
         && Number(snapshot?.match?.revision ?? 0) >= ${minimumRevision};
     })()`,
@@ -188,6 +180,8 @@ async function runBreakShot(cdp, ui, directory) {
 function createLayoutExpression(ui) {
   return `(() => {
     const failures = [];
+    const expectedBuild = ${JSON.stringify(process.env.EXPECTED_DEPLOYMENT_SHA ?? '')};
+    if (expectedBuild && document.querySelector('meta[name="slop-build-sha"]')?.content !== expectedBuild) failures.push('HTML build identity is stale.');
     const overflow = Math.max(0, document.documentElement.scrollWidth - innerWidth);
     if (overflow > ${ui.maximumHorizontalOverflowPx}) {
       failures.push('Horizontal overflow: ' + overflow + 'px.');
@@ -227,6 +221,7 @@ function createLayoutExpression(ui) {
       failures.push('Spherical rolling renderer is not active.');
     }
     const canvasRect = canvas instanceof HTMLElement ? canvas.getBoundingClientRect() : null;
+    if (canvasRect && ((innerHeight > innerWidth) !== (canvasRect.height > canvasRect.width))) failures.push('Table orientation does not follow viewport.');
     if (canvasRect && (canvasRect.width < ${ui.minimumCanvasWidthPx} || canvasRect.height < ${ui.minimumCanvasHeightPx})) {
       failures.push('The table canvas is below the minimum usable size.');
     }

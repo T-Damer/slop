@@ -10,6 +10,7 @@ export function createLocalBilliardsSession(): BilliardsSession {
         detail: 'Локальная тренировка',
       });
     },
+    sendInteraction(): void {},
     sendShot(): void {},
     sendCuePlacement(): void {},
     sendRestart(): void {},

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "area": "platform.architecture-hardening-parking-optimization-and-pocket-club",
-  "problem": "The branch needed architecture hardening and Parking Jam optimization, while billiards still existed only as a contract. Pocket Club now needs a clean-room deterministic implementation, project-authored billiard-room presentation with visible shot controls, spatial rolling, audio feedback, typed routing, and a real multiplayer boundary without weakening the existing quality gates.",
+  "area": "pocket-club-controls-authority-and-publication",
+  "problem": "Unfinished interaction migration leaves cue placement stuck, transient Colyseus messages unsent, stale pointer velocity capable of accidental shots, and CI blocked before build. Complete the existing PR without bypassing its quality or publication gates.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
@@ -13,15 +13,18 @@
     ".github/workflows/ci.yml",
     "quality/debt.json",
     "quality/quality-contract.json",
-    "tools/check-web-budget.mjs"
+    "tools/check-web-budget.mjs",
+    "games/billiards/runtime/presentation/controller-v2.ts",
+    "games/billiards/runtime/network/colyseus-session.ts",
+    "games/billiards/runtime/domain/match.ts"
   ],
-  "reuseDecision": "Keep the existing hub, Personal Island, Modoki build, deterministic-domain conventions, and single feature branch. Add Pocket Club as focused domain/network/presentation owners; render rolling spheres through a presentation-only software sphere mapper; synthesize short collision sounds with Web Audio; reuse one event-based planar solver for both preview and execution; keep Colyseus behind a lazy session adapter and preserve Protobuf as the stable cross-language contract.",
+  "reuseDecision": "Extend the existing deterministic match, canonical coordinates, shot interaction owner, Colyseus room adapter and browser harness. Keep one pointer sampler with injected event timestamps; no gesture dependency, copied game code, prototype interception, second physics implementation or new feature branch. Remove unreachable migration implementations. Keep an authoritative server boundary isolated from browser presentation.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
     "Copy Miniclip code, branding, textures, sounds, table artwork, or proprietary assets",
-    "Ship an authoritative Colyseus server in the same browser-client slice",
     "Replace the existing Personal Island, Parking Jam, Junkyard Station, Modoki, or Three.js foundations",
-    "Turn the billiards presentation into a second physics or scoring implementation"
+    "Turn the billiards presentation into a second physics or scoring implementation",
+    "Provision or claim a live multiplayer hosting service without an actual endpoint"
   ],
   "acceptance": [
     "Every games/**/*.ts file has one architecture owner and all static and dynamic relative imports resolve through declared dependencies",
@@ -34,7 +37,12 @@
     "Ball markings roll over a lit spherical surface according to table displacement rather than rotating as flat discs",
     "A first user gesture unlocks project-authored Web Audio cues for cue strikes, ball contacts, cushion contacts, and pocket drops without external sound files",
     "Source checks, strict typecheck, production build, bundle ratchet, and all browser contracts pass before publication",
-    "The unchanged base/startup bundle ratchet and explicit Pocket Club lazy-client and Colyseus chunk ratchets all pass"
+    "The unchanged base/startup bundle ratchet and explicit Pocket Club lazy-client and Colyseus chunk ratchets all pass",
+    "Placement confirms exactly once, clears ball-in-hand, hides the solid cue ball and rejects shooting before confirmation in the domain",
+    "Click/tap locks aim; mouse and touch pull/forward strokes use fresh projected velocity, reach contact, and cancel safely on capture loss, blur or orientation change",
+    "Portrait coordinate round trips, keyboard repeat protection, server turn/revision/sequence authority and disposal races have regression tests",
+    "Aim, power, spin, placement and stroke previews travel through direct Colyseus room messages; no prototype patch or no-op adapter remains",
+    "Publish only a tested commit and verify the deployed build identity rather than assuming an HTTP 200 is the new build"
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json"

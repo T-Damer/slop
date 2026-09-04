@@ -5,7 +5,7 @@
   "canvasSelector": "[data-billiards-canvas]",
   "shootSelector": "[data-billiards-shoot]",
   "restartSelector": "[data-billiards-restart]",
-  "qaExpression": "window.__SLOP_BILLIARDS_QA__?.snapshot()",
+  "qaExpression": "window.__SLOP_BILLIARDS_QA_V2__?.snapshot().controller",
   "minimumCanvasWidthPx": 240,
   "minimumCanvasHeightPx": 130,
   "minimumTouchTargetPx": 44,

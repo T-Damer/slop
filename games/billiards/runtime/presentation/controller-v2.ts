@@ -1,95 +1,58 @@
-import {
-  advanceMatchShotWithEvents,
-  createInitialMatch,
-  positionCueBall,
-  restartMatch,
-  startMatchShot,
-} from '../domain/match.ts';
-import { billiardsMatchPhases, billiardsPhysics } from '../domain/registry.ts';
+import { createInitialMatch, positionCueBall, restartMatch, startMatchShot } from '../domain/match.ts';
+import { billiardsMatchPhases } from '../domain/registry.ts';
 import { previewShot } from '../domain/shot.ts';
 import { isTableAtRest } from '../domain/simulator.ts';
-import type {
-  BilliardsMatchState,
-  BilliardsShotCommand,
-  BilliardsShotPreview,
-  Vec2,
-} from '../domain/types.ts';
-import type { BilliardsInteractionMessage } from '../network/interaction-wire-v2.ts';
+import type { BilliardsMatchState, BilliardsShotCommand, BilliardsShotPreview, Vec2 } from '../domain/types.ts';
 import { createLocalBilliardsSession } from '../network/local-session.ts';
-import { billiardsConnectionStates } from '../network/registry.ts';
+import { billiardsConnectionStates as states } from '../network/registry.ts';
 import {
-  createCuePlacementWireCommand,
-  createRestartWireCommand,
-  createShotWireCommand,
-  readBilliardsSessionOptions,
-  type BilliardsSession,
-  type BilliardsSessionStatus,
+  createCuePlacementWireCommand, createRestartWireCommand, createShotWireCommand,
+  readBilliardsSessionOptions, type BilliardsSession, type BilliardsSessionStatus,
+  type BilliardsSessionListeners,
 } from '../network/session.ts';
+import { createCueFeedback, type BilliardsFeedbackBatch, type BilliardsFeedbackEvent } from './feedback.ts';
+import { BilliardsMatchPlayback } from './match-playback.ts';
 import {
-  createCollisionFeedback,
-  createCueFeedback,
-  type BilliardsFeedbackBatch,
-  type BilliardsFeedbackEvent,
-} from './feedback.ts';
-import {
-  billiardsInteractionModes,
-  type BilliardsInteractionState,
-} from './interaction-state-v2.ts';
-import {
-  BilliardsShotInteraction,
-  type BilliardsManualStrokeUpdate,
+  BilliardsShotInteraction, type BilliardsManualStrokeUpdate, type BilliardsShotInteractionSnapshot,
 } from './shot-interaction-v2.ts';
 
-export interface BilliardsControllerSnapshotV2 {
+export interface BilliardsControllerSnapshotV2 extends BilliardsShotInteractionSnapshot {
   readonly match: BilliardsMatchState;
   readonly preview: BilliardsShotPreview;
-  readonly angleRadians: number;
-  readonly power: number;
-  readonly sideSpin: number;
-  readonly followSpin: number;
-  readonly interaction: BilliardsInteractionState;
   readonly connection: BilliardsSessionStatus;
+  readonly canInteract: boolean;
 }
 
 type SnapshotListener = (snapshot: BilliardsControllerSnapshotV2) => void;
 type FeedbackListener = (batch: BilliardsFeedbackBatch) => void;
 
-interface InteractiveBilliardsSession extends BilliardsSession {
-  readonly sendInteraction?: (message: BilliardsInteractionMessage) => void;
-}
-
 export class BilliardsGameControllerV2 {
-  private match = createInitialMatch();
-  private connection: BilliardsSessionStatus = {
-    state: billiardsConnectionStates.local,
-    detail: 'Локальная тренировка',
-  };
+  private match: BilliardsMatchState;
+  private session: BilliardsSession;
+  private connection: BilliardsSessionStatus = { state: states.local, detail: 'Локальная тренировка' };
   private sequence = 0;
   private feedbackRevision = 0;
-  private accumulatorSeconds = 0;
   private disposed = false;
-  private session: InteractiveBilliardsSession = createLocalBilliardsSession();
+  private pendingRevision: number | null = null;
+  private readonly playback = new BilliardsMatchPlayback();
   private readonly listeners = new Set<SnapshotListener>();
   private readonly feedbackListeners = new Set<FeedbackListener>();
-  private readonly shot = new BilliardsShotInteraction({
-    onChange: () => this.emit(),
-    onInteraction: (message) => this.session.sendInteraction?.(message),
-    currentRevision: () => this.match.revision,
-    nextSequence: () => this.nextSequence(),
-  });
+  private readonly shot: BilliardsShotInteraction;
+  private previewCache: { table: BilliardsMatchState['table']; key: string; value: BilliardsShotPreview } | null = null;
+
+  public constructor(session = createLocalBilliardsSession(), match = createInitialMatch()) {
+    this.session = session;
+    this.match = match;
+    this.shot = new BilliardsShotInteraction({ onChange: () => this.emit(),
+      onInteraction: (message) => { if (this.canInteract()) this.session.sendInteraction(message); },
+      currentRevision: () => this.match.revision, nextSequence: () => this.nextSequence() });
+    this.shot.synchronizeMatch(match);
+  }
 
   public snapshot(): BilliardsControllerSnapshotV2 {
     const shot = this.shot.snapshot();
-    return {
-      match: this.match,
-      preview: previewShot(this.match.table, this.createShotCommand(0)),
-      angleRadians: shot.angleRadians,
-      power: shot.power,
-      sideSpin: shot.sideSpin,
-      followSpin: shot.followSpin,
-      interaction: shot.interaction,
-      connection: this.connection,
-    };
+    return { match: this.match, ...shot, preview: this.preview(),
+      connection: this.connection, canInteract: this.canInteract() };
   }
 
   public subscribe(listener: SnapshotListener): () => void {
@@ -104,23 +67,25 @@ export class BilliardsGameControllerV2 {
   }
 
   public async start(locationUrl: string): Promise<void> {
-    this.disposed = false;
+    if (this.disposed) return;
     const options = readBilliardsSessionOptions(locationUrl);
-    if (options.endpoint === null) {
-      await this.session.connect(this.sessionListeners());
-      return;
-    }
     try {
-      const module = await import('../network/colyseus-session-v2.ts');
-      this.session = module.createColyseusBilliardsSessionV2(options);
+      if (options.endpoint !== null) {
+        this.connection = { state: states.connecting, detail: 'Подключение к комнате…' };
+        this.emit();
+        const module = await import('../network/colyseus-session.ts');
+        if (this.disposed) return;
+        await this.session.close();
+        if (this.disposed) return;
+        this.session = module.createColyseusBilliardsSession(options);
+      }
       await this.session.connect(this.sessionListeners());
     } catch {
+      await this.session.close().catch(() => undefined);
+      if (this.disposed) return;
       this.session = createLocalBilliardsSession();
-      await this.session.connect(this.sessionListeners());
-      this.connection = {
-        state: billiardsConnectionStates.unavailable,
-        detail: 'Сервер недоступен · локальная тренировка',
-      };
+      this.connection = { state: states.unavailable, detail: 'Сервер недоступен · локальная тренировка' };
+      this.pendingRevision = null;
       this.emit();
     }
   }
@@ -133,213 +98,146 @@ export class BilliardsGameControllerV2 {
   }
 
   public advance(deltaSeconds: number): void {
-    if (this.disposed || this.match.activeShot === null) return;
-    this.accumulatorSeconds += Math.min(0.1, Math.max(0, deltaSeconds));
-    const events: BilliardsFeedbackEvent[] = [];
-    let changed = false;
-    for (
-      let step = 0;
-      step < billiardsPhysics.maximumFrameSteps
-        && this.accumulatorSeconds >= billiardsPhysics.fixedStepSeconds
-        && this.match.activeShot !== null;
-      step += 1
-    ) {
-      const previousTable = this.match.table;
-      const advanced = advanceMatchShotWithEvents(this.match);
-      this.match = advanced.match;
-      events.push(...createCollisionFeedback(previousTable, advanced.events));
-      this.accumulatorSeconds -= billiardsPhysics.fixedStepSeconds;
-      changed = true;
-    }
-    if (this.match.activeShot === null) {
-      this.accumulatorSeconds = 0;
-      this.shot.synchronizeMatch(this.match);
-    }
-    if (events.length > 0) this.emitFeedback(events);
-    if (changed) this.emit();
+    if (this.disposed || this.session.mode === 'colyseus' || this.match.activeShot === null) return;
+    const result = this.playback.advance(this.match, deltaSeconds);
+    if (result.match === this.match) return;
+    this.match = result.match;
+    this.shot.synchronizeMatch(this.match);
+    this.emitFeedback(result.events);
+    this.emit();
   }
 
-  public setAimFromWorld(point: Vec2): void {
-    if (!this.canInteract()) return;
-    this.shot.setAimFromWorld(this.match, point);
+  public setAimFromWorld(point: Vec2): void { if (this.canInteract()) this.shot.setAimFromWorld(this.match, point); }
+  public setAngleRadians(value: number): void { if (this.canInteract()) this.shot.setAngle(value); }
+  public adjustAngle(delta: number): void { if (this.canInteract()) this.shot.adjustAngle(delta); }
+  public setPower(value: number): void { if (this.canInteract()) this.shot.setPower(value); }
+  public adjustPower(delta: number): void { if (this.canInteract()) this.shot.adjustPower(delta); }
+  public setSideSpin(value: number): void { this.setSpin(value, this.shot.snapshot().followSpin); }
+  public setFollowSpin(value: number): void { this.setSpin(this.shot.snapshot().sideSpin, value); }
+  public setSpin(side: number, follow: number): void { if (this.canInteract()) this.shot.setSpin(side, follow); }
+  public setPlacementPreview(point: Vec2): void {
+    if (this.canInteract() && this.match.ballInHand) this.shot.setPlacementPreview(this.match, point);
   }
-
-  public setAngleRadians(value: number): void {
-    if (!this.canInteract()) return;
-    this.shot.setAngle(value);
-  }
-
-  public adjustAngle(deltaRadians: number): void {
-    if (!this.canInteract()) return;
-    this.shot.adjustAngle(deltaRadians);
-  }
-
-  public setPower(value: number): void {
-    this.shot.setPower(value);
-  }
-
-  public adjustPower(delta: number): void {
-    this.shot.adjustPower(delta);
-  }
-
-  public setSideSpin(value: number): void {
-    const current = this.shot.snapshot();
-    this.shot.setSpin(value, current.followSpin);
-  }
-
-  public setFollowSpin(value: number): void {
-    const current = this.shot.snapshot();
-    this.shot.setSpin(current.sideSpin, value);
-  }
-
-  public setSpin(sideSpin: number, followSpin: number): void {
-    this.shot.setSpin(sideSpin, followSpin);
-  }
-
-  public setPlacementPreview(position: Vec2): void {
-    if (!this.match.ballInHand || !this.canInteract()) return;
-    this.shot.setPlacementPreview(this.match, position);
-  }
-
-  public lockAim(): boolean {
-    return this.canInteract() && this.shot.lockAim();
-  }
-
-  public unlockAim(): void {
-    this.shot.unlockAim();
-  }
-
-  public beginManualStroke(): boolean {
-    return this.canInteract() && this.shot.beginManualStroke();
-  }
-
+  public lockAim(): boolean { return this.canInteract() && this.shot.lockAim(); }
+  public unlockAim(): void { if (this.canInteract()) this.shot.unlockAim(); }
+  public beginManualStroke(): boolean { return this.canInteract() && this.shot.beginManualStroke(); }
   public updateManualStroke(update: BilliardsManualStrokeUpdate): void {
-    this.shot.updateManualStroke(update);
+    if (this.canInteract()) this.shot.updateManualStroke(update);
   }
-
+  public cancelManualStroke(): void { this.shot.cancelManualStroke(); }
   public finishManualStroke(): boolean {
+    if (!this.canInteract()) return false;
     const power = this.shot.finishManualStroke();
     if (power === null) return false;
     this.shot.setPower(power);
     return this.shoot();
   }
-
-  public cancelManualStroke(): void {
-    this.shot.cancelManualStroke();
-  }
-
   public primaryAction(): boolean {
-    if (this.match.ballInHand) return this.confirmCuePlacement();
-    return this.shoot();
+    return this.match.ballInHand ? this.confirmCuePlacement() : this.shoot();
   }
 
   public confirmCuePlacement(): boolean {
-    const position = this.shot.consumeValidPlacement();
-    if (position === null) return false;
-    const expectedRevision = this.match.revision;
-    const result = positionCueBall(this.match, position);
-    if (!result.accepted) {
-      this.match = { ...this.match, status: result.reason };
-      this.emit();
-      return false;
-    }
-    this.match = result.match;
-    this.session.sendCuePlacement(createCuePlacementWireCommand(
-      position,
-      this.nextSequence(),
-      expectedRevision,
-    ));
-    this.shot.synchronizeMatch(this.match);
+    if (!this.canInteract()) return false;
+    const point = this.shot.consumeValidPlacement();
+    if (point === null) return false;
+    const result = positionCueBall(this.match, point);
+    if (!result.accepted) return false;
+    const command = createCuePlacementWireCommand(point, this.nextSequence(), this.match.revision);
+    this.acceptOrAwait(result.match);
+    this.session.sendCuePlacement(command);
     this.emit();
     return true;
   }
 
   public shoot(): boolean {
     if (!this.canInteract() || this.match.ballInHand) return false;
-    const expectedRevision = this.match.revision;
     const command = this.createShotCommand(this.nextSequence());
-    const before = this.match;
     const result = startMatchShot(this.match, command);
-    if (!result.accepted) {
-      this.match = { ...this.match, status: result.reason };
-      this.emit();
-      return false;
-    }
-    this.match = result.match;
-    const feedback = createCueFeedback(before, command.angleRadians, command.power);
+    if (!result.accepted) return false;
+    const wire = createShotWireCommand(command, this.match.revision);
+    const feedback = createCueFeedback(this.match, command.angleRadians, command.power);
+    this.acceptOrAwait(result.match);
+    this.session.sendShot(wire);
     if (feedback !== null) this.emitFeedback([feedback]);
-    this.session.sendShot(createShotWireCommand(command, expectedRevision));
     this.emit();
     return true;
   }
 
   public restart(): void {
-    const expectedRevision = this.match.revision;
-    this.match = restartMatch(this.match);
-    this.accumulatorSeconds = 0;
+    if (this.disposed || this.pendingRevision !== null || !this.ownsTurn()) return;
+    const command = createRestartWireCommand(this.nextSequence(), this.match.revision);
+    this.acceptOrAwait(restartMatch(this.match));
+    this.playback.reset();
     this.shot.reset(this.match.ballInHand);
-    this.session.sendRestart(createRestartWireCommand(
-      this.nextSequence(),
-      expectedRevision,
-    ));
+    this.session.sendRestart(command);
     this.emit();
   }
 
+  private acceptOrAwait(match: BilliardsMatchState): void {
+    if (this.session.mode === 'colyseus') this.pendingRevision = this.match.revision;
+    else { this.match = match; this.shot.synchronizeMatch(match); }
+  }
+
+  private ownsTurn(): boolean {
+    return this.session.mode === 'local' || (this.connection.state === states.online
+      && this.connection.playerIndex === this.match.turnIndex);
+  }
+
   private canInteract(): boolean {
-    return this.match.phase !== billiardsMatchPhases.finished
-      && this.match.activeShot === null
-      && isTableAtRest(this.match.table);
+    return !this.disposed && this.pendingRevision === null && this.ownsTurn()
+      && this.connection.state !== states.connecting
+      && this.match.phase !== billiardsMatchPhases.finished
+      && this.match.activeShot === null && isTableAtRest(this.match.table);
   }
 
   private createShotCommand(clientSequence: number): BilliardsShotCommand {
-    const shot = this.shot.snapshot();
-    return {
-      schemaVersion: 1,
-      angleRadians: shot.angleRadians,
-      power: shot.power,
-      sideSpin: shot.sideSpin,
-      followSpin: shot.followSpin,
-      clientSequence,
-    };
+    const { angleRadians, power, sideSpin, followSpin } = this.shot.snapshot();
+    return { schemaVersion: 1, angleRadians, power, sideSpin, followSpin, clientSequence };
   }
 
-  private nextSequence(): number {
-    this.sequence += 1;
-    return this.sequence;
+  private preview(): BilliardsShotPreview {
+    if (this.match.activeShot !== null || this.match.ballInHand) return { cuePath: [], objectPath: [], firstCollision: null };
+    const command = this.createShotCommand(0);
+    const key = `${command.angleRadians}:${command.power}:${command.sideSpin}:${command.followSpin}`;
+    if (this.previewCache?.table !== this.match.table || this.previewCache.key !== key) {
+      this.previewCache = { table: this.match.table, key, value: previewShot(this.match.table, command) };
+    }
+    return this.previewCache.value;
   }
 
+  private nextSequence(): number { this.sequence += 1; return this.sequence; }
   private emit(): void {
+    if (this.disposed) return;
     const snapshot = this.snapshot();
     for (const listener of this.listeners) listener(snapshot);
   }
-
   private emitFeedback(events: ReadonlyArray<BilliardsFeedbackEvent>): void {
-    if (events.length === 0) return;
+    if (events.length === 0 || this.disposed) return;
     this.feedbackRevision += 1;
-    const batch: BilliardsFeedbackBatch = {
-      revision: this.feedbackRevision,
-      events,
-    };
-    for (const listener of this.feedbackListeners) listener(batch);
+    for (const listener of this.feedbackListeners) listener({ revision: this.feedbackRevision, events });
   }
 
-  private sessionListeners() {
+  private sessionListeners(): BilliardsSessionListeners {
     return {
-      onSnapshot: (snapshot: BilliardsMatchState): void => {
-        if (snapshot.revision < this.match.revision) return;
-        this.match = snapshot;
-        this.shot.synchronizeMatch(snapshot);
-        this.emit();
+      onSnapshot: (snapshot) => this.receiveSnapshot(snapshot),
+      onRejected: (reason, snapshot) => {
+        if (this.disposed || snapshot.revision < this.match.revision) return;
+        this.pendingRevision = null;
+        this.receiveSnapshot({ ...snapshot, status: reason });
       },
-      onRejected: (reason: string, snapshot: BilliardsMatchState): void => {
-        this.match = { ...snapshot, status: reason };
-        this.shot.synchronizeMatch(snapshot);
-        this.emit();
-      },
-      onStatus: (status: BilliardsSessionStatus): void => {
-        this.connection = status;
-        this.emit();
+      onStatus: (status) => { if (!this.disposed) { this.connection = status; this.emit(); } },
+      onInteraction: (message) => {
+        if (!this.disposed && !this.ownsTurn()) this.shot.applyRemote(message, this.match);
       },
     };
+  }
+
+  private receiveSnapshot(snapshot: BilliardsMatchState): void {
+    if (this.disposed || snapshot.revision < this.match.revision
+      || (snapshot.revision === this.match.revision && snapshot.table.step < this.match.table.step)) return;
+    if (this.pendingRevision !== null && snapshot.revision > this.pendingRevision) this.pendingRevision = null;
+    this.match = snapshot;
+    this.shot.synchronizeMatch(snapshot);
+    this.emit();
   }
 }

@@ -107,7 +107,8 @@ export function positionCueBall(
   match: BilliardsMatchState,
   position: Vec2,
 ): BilliardsCommandResult {
-  if (!match.ballInHand) {
+  if (!match.ballInHand || match.activeShot !== null
+    || match.phase === billiardsMatchPhases.finished || !isTableAtRest(match.table)) {
     return { accepted: false, reason: 'Биток нельзя перемещать сейчас', match };
   }
   if (!isFiniteVec2(position) || !canPlaceCueBall(match.table, position)) {
@@ -118,6 +119,7 @@ export function positionCueBall(
     match: {
       ...match,
       revision: match.revision + 1,
+      ballInHand: false,
       table: placeCueBall(match.table, position),
       status: `${match.players[match.turnIndex].name}: поставьте направление удара`,
     },
@@ -126,7 +128,7 @@ export function positionCueBall(
 
 export function restartMatch(match: BilliardsMatchState): BilliardsMatchState {
   const names = [match.players[0].name, match.players[1].name] as const;
-  return createInitialMatch(names);
+  return { ...createInitialMatch(names), revision: match.revision + 1 };
 }
 
 function shotRejectionReason(
@@ -139,6 +141,7 @@ function shotRejectionReason(
   if (match.activeShot !== null || !isTableAtRest(match.table)) {
     return 'Дождитесь остановки шаров';
   }
+  if (match.ballInHand) return billiardsMessages.placementRequired;
   if (!isValidShotCommand(command)) {
     return 'Параметры удара недопустимы';
   }

@@ -1,4 +1,5 @@
 import type { BilliardsMatchState, Vec2 } from '../domain/types.ts';
+import type { BilliardsInteractionMessage } from './interaction-wire-v2.ts';
 import type { BilliardsConnectionState } from './registry.ts';
 import type {
   CuePlacementWireCommand,
@@ -9,9 +10,11 @@ import type {
 export interface BilliardsSessionStatus {
   readonly state: BilliardsConnectionState;
   readonly detail: string;
+  readonly playerIndex?: 0 | 1;
 }
 
 export interface BilliardsSessionListeners {
+  readonly onInteraction?: (message: BilliardsInteractionMessage) => void;
   readonly onSnapshot: (snapshot: BilliardsMatchState) => void;
   readonly onRejected: (reason: string, snapshot: BilliardsMatchState) => void;
   readonly onStatus: (status: BilliardsSessionStatus) => void;
@@ -19,6 +22,7 @@ export interface BilliardsSessionListeners {
 
 export interface BilliardsSession {
   readonly mode: 'local' | 'colyseus';
+  readonly sendInteraction: (message: BilliardsInteractionMessage) => void;
   readonly connect: (listeners: BilliardsSessionListeners) => Promise<void>;
   readonly sendShot: (command: ShotWireCommand) => void;
   readonly sendCuePlacement: (command: CuePlacementWireCommand) => void;
@@ -78,6 +82,7 @@ function normalizeEndpoint(value: string | null): string | null {
   }
   try {
     const endpoint = new URL(value);
+    if (!['http:', 'https:', 'ws:', 'wss:'].includes(endpoint.protocol)) return null;
     return endpoint.toString().replace(/\/$/, '');
   } catch {
     return null;

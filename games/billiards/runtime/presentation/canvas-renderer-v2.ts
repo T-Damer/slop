@@ -70,7 +70,7 @@ export class BilliardsCanvasRendererV2 {
     const snapshot = state.snapshot;
     const placing = snapshot.match.ballInHand
       || snapshot.interaction.mode === billiardsInteractionModes.placingCueBall;
-    if (!placing && snapshot.match.activeShot === null) {
+    if (!placing && snapshot.match.activeShot === null && snapshot.match.winnerIndex === null) {
       drawBilliardsGuideV2(context, snapshot.preview, snapshot.interaction);
       const cue = snapshot.match.table.balls.find(
         (ball) => ball.id === 0 && !ball.pocketed,
@@ -94,7 +94,7 @@ export class BilliardsCanvasRendererV2 {
         state.quality,
       );
     }
-    this.balls.draw(context, snapshot.match.table, this.skin, state.quality);
+    this.balls.draw(context, snapshot.match.table, this.skin, state.quality, placing);
     const placement = snapshot.interaction.placementPreview;
     if (placing && placement !== null) {
       this.balls.drawPlacementPreview(

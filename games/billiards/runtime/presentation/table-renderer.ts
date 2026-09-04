@@ -15,7 +15,6 @@ export function drawBilliardsBackdrop(context: CanvasRenderingContext2D): void {
   drawHerringboneFloor(context);
   drawLampGlow(context, 78, 62, 152);
   drawLampGlow(context, 1202, 66, 150);
-  drawCueRack(context);
   drawLoungeFurniture(context);
   const vignette = context.createRadialGradient(640, 350, 260, 640, 350, 760);
   vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
@@ -116,30 +115,6 @@ function drawLampGlow(
   context.strokeStyle = '#59351f';
   context.lineWidth = 5;
   context.stroke();
-}
-
-function drawCueRack(context: CanvasRenderingContext2D): void {
-  context.save();
-  roundedRect(context, 34, 190, 70, 336, 18);
-  context.fillStyle = 'rgba(18, 10, 8, 0.82)';
-  context.fill();
-  context.strokeStyle = '#a66731';
-  context.lineWidth = 4;
-  context.stroke();
-  for (let index = 0; index < 5; index += 1) {
-    const x = 48 + index * 11;
-    const cue = context.createLinearGradient(x, 210, x, 506);
-    cue.addColorStop(0, '#e8c491');
-    cue.addColorStop(0.72, '#9a5428');
-    cue.addColorStop(1, '#2b1712');
-    context.strokeStyle = cue;
-    context.lineWidth = 5;
-    context.beginPath();
-    context.moveTo(x, 214 + index * 4);
-    context.lineTo(x + 14, 500 - index * 5);
-    context.stroke();
-  }
-  context.restore();
 }
 
 function drawLoungeFurniture(context: CanvasRenderingContext2D): void {

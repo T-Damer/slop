@@ -1,6 +1,5 @@
 export const billiardsInteractionStylesV2 = `
 #slop-billiards-root {
-  --billiards-room-art: none !important;
   background:
     radial-gradient(ellipse at 50% 42%, rgba(151, 90, 39, .18), transparent 44%),
     linear-gradient(90deg, rgba(0, 0, 0, .55), transparent 22% 78%, rgba(0, 0, 0, .55)),
@@ -65,120 +64,56 @@ export const billiardsInteractionStylesV2 = `
   50% { transform: translateY(-1px); filter: brightness(1.12); }
 }
 
+
+#slop-billiards-root .billiards-controls > .billiards-table-hint {
+  position: static; display: block; transform: none; max-width: 100%;
+  margin: 0; padding: 2px 4px; border: 0; background: none;
+  white-space: normal; font-size: 11px; line-height: 1.15;
+}
+#slop-billiards-root .billiards-icon-button { width: 44px; height: 44px; }
+#slop-billiards-root[data-can-interact='false'] { cursor: default; }
+
 @media (orientation: portrait) {
   #slop-billiards-root .billiards-shell {
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-    padding-inline: max(8px, env(safe-area-inset-left));
+    grid-template-rows: 44px 62px minmax(0, 1fr) 74px;
+    gap: 4px; padding: 6px max(6px, env(safe-area-inset-right)) 6px max(6px, env(safe-area-inset-left));
   }
-
-  #slop-billiards-root .billiards-header {
-    min-height: 42px;
-    padding-left: 50px;
-  }
-
+  #slop-billiards-root .billiards-header { min-height: 0; }
+  #slop-billiards-root .billiards-brand { padding-left: 48px; }
   #slop-billiards-root .billiards-brand p,
-  #slop-billiards-root .billiards-table-hint {
-    display: none;
-  }
-
+  #slop-billiards-root .billiards-avatar,
+  #slop-billiards-root .billiards-spin-copy { display: none; }
   #slop-billiards-root .billiards-scoreboard {
-    min-height: 88px;
+    min-height: 0; grid-template-columns: minmax(0, 1fr) 80px minmax(0, 1fr);
+    padding: 4px 6px; gap: 3px;
   }
-
-  #slop-billiards-root .billiards-scoreboard-frame {
-    grid-template-columns: minmax(0, 1fr) minmax(86px, .55fr) minmax(0, 1fr);
-    padding: 9px 12px;
-  }
-
-  #slop-billiards-root .billiards-player {
-    grid-template-columns: 28px minmax(0, 1fr);
-    gap: 4px;
-  }
-
-  #slop-billiards-root .billiards-player[data-player-index='1'] {
-    grid-template-columns: minmax(0, 1fr) 28px;
-  }
-
-  #slop-billiards-root .billiards-avatar {
-    width: 28px;
-    height: 28px;
-    font-size: .56rem;
-  }
-
-  #slop-billiards-root .billiards-pocket-slots {
-    grid-column: 1 / -1;
-    gap: 2px;
-  }
-
+  #slop-billiards-root .billiards-player { grid-template-columns: minmax(0, 1fr); padding: 2px; }
+  #slop-billiards-root .billiards-pocketed-balls { grid-template-columns: repeat(7, minmax(8px, 12px)); gap: 2px; }
+  #slop-billiards-root .billiards-status { font-size: 10px; padding: 2px; }
+  #slop-billiards-root .billiards-table-wrap { width: 100%; height: 100%; min-height: 0; }
   #slop-billiards-root .billiards-stage {
-    min-height: 0;
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: 62px minmax(0, 1fr) 62px !important;
-    align-items: center;
-    justify-items: center;
-    gap: 7px;
+    width: min(calc(100vw - 108px), calc((100dvh - 204px) * 9 / 16));
+    height: auto; aspect-ratio: 9 / 16; position: relative;
   }
-
-  #slop-billiards-root [data-billiards-power-rail] {
-    grid-column: 1 !important;
-    grid-row: 1 !important;
-    width: min(82vw, 430px) !important;
-    height: 56px !important;
-    min-height: 56px !important;
-    writing-mode: horizontal-tb;
-  }
-
-  #slop-billiards-root .billiards-table-wrap {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-    position: relative;
-    width: min(78vw, calc((100dvh - 310px) * 9 / 16)) !important;
-    max-width: none !important;
-    max-height: calc(100dvh - 310px) !important;
-    aspect-ratio: 9 / 16;
-    overflow: visible;
-  }
-
   #slop-billiards-root #slop-billiards-canvas {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 177.7778% !important;
-    height: auto !important;
-    max-width: none !important;
-    max-height: none !important;
-    transform: translate(-50%, -50%) rotate(90deg);
-    transform-origin: 50% 50%;
+    position: absolute; inset: auto; left: 50%; top: 50%;
+    width: 177.7777778%; height: 56.25%; max-width: none; max-height: none;
+    transform: translate(-50%, -50%) rotate(90deg); transform-origin: center;
   }
-
-  #slop-billiards-root [data-billiards-angle-rail] {
-    grid-column: 1 !important;
-    grid-row: 3 !important;
-    width: min(82vw, 430px) !important;
-    height: 56px !important;
-    min-height: 56px !important;
-    writing-mode: horizontal-tb;
+  #slop-billiards-root .billiards-side-control {
+    position: absolute; top: 50%; height: min(74%, 280px); width: 44px;
+    transform: translateY(-50%); writing-mode: horizontal-tb;
   }
-
-  #slop-billiards-root .billiards-controls {
-    width: 100%;
-    min-height: 58px;
-  }
+  #slop-billiards-root .billiards-power-control { left: -48px; }
+  #slop-billiards-root .billiards-angle-control { right: -48px; }
+  #slop-billiards-root .billiards-controls { grid-template-columns: minmax(0, 1fr) auto; gap: 3px; }
+  #slop-billiards-root .billiards-spin-control { min-height: 46px; padding: 0 5px; grid-template-columns: 44px auto; gap: 5px; }
+  #slop-billiards-root .billiards-spin-pad { width: 44px; height: 44px; }
+  #slop-billiards-root .billiards-actions { grid-template-columns: minmax(94px, 1fr) 44px; gap: 4px; }
+  #slop-billiards-root .billiards-button { min-height: 46px; min-width: 44px; padding: 0 8px; font-size: 12px; }
 }
 
-@media (orientation: portrait) and (max-height: 720px) {
-  #slop-billiards-root .billiards-scoreboard { min-height: 68px; }
-  #slop-billiards-root .billiards-stage {
-    grid-template-rows: 48px minmax(0, 1fr) 48px !important;
-  }
-  #slop-billiards-root [data-billiards-power-rail],
-  #slop-billiards-root [data-billiards-angle-rail] {
-    height: 44px !important;
-    min-height: 44px !important;
-  }
-  #slop-billiards-root .billiards-table-wrap {
-    width: min(70vw, calc((100dvh - 260px) * 9 / 16)) !important;
-    max-height: calc(100dvh - 260px) !important;
-  }
+@media (prefers-reduced-motion: reduce) {
+  #slop-billiards-root * { animation: none !important; transition: none !important; }
 }
 `;

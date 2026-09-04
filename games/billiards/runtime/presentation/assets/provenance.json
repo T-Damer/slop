@@ -7,10 +7,10 @@
       "license": "project-authored",
       "source": "Original vector artwork authored for SLOP from the user's billiards-room direction; no third-party game artwork embedded.",
       "runtimeUse": "Decorative room backdrop behind the deterministic table canvas.",
-      "bytes": 4156,
+      "bytes": 3565,
       "maximumBytes": 6000,
-      "sha256": "0501581106fdfcb78f350c25752402bca5d8c0417fc2012bc4e2d21b13e6c5c0",
-      "promptSummary": "Warm top-down billiards lounge with dark herringbone wood, amber lamps, cue rack, leather seating, plants, and a clear central gameplay area."
+      "sha256": "e5534542148ee4ff272e003aaa061c60f920e7a9f39afe10b38393ad1a012675",
+      "promptSummary": "Warm top-down billiards lounge with dark herringbone wood, amber lamps, leather seating, plants, and a clear central gameplay area."
     },
     {
       "id": "pocket-club-scoreboard",
@@ -18,9 +18,9 @@
       "license": "project-authored",
       "source": "Original vector artwork authored for SLOP from the user's billiards-room direction; no third-party game artwork embedded.",
       "runtimeUse": "Decorative frame beneath the live player names and potted-ball slots.",
-      "bytes": 2412,
+      "bytes": 1587,
       "maximumBytes": 4000,
-      "sha256": "7841c95a38d19714465d419d592501564bbac4ada0a12b94acea063062157e1a",
+      "sha256": "b31b5c71d9d7bf28893b1c6d6583102f846e90a54eacb5b2c9a2a5ed221daed0",
       "promptSummary": "Original blue-versus-red luxury pool scoreboard frame with dark metal, wood, gold trim, avatar medallions, and seven ball slots per player."
     }
   ]

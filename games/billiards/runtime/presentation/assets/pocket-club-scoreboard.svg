@@ -14,13 +14,5 @@
     <rect x="30" y="30" width="1140" height="16" rx="8" fill="url(#wood)" opacity=".92"/>
     <rect x="474" y="25" width="252" height="101" rx="28" fill="#0b0d0e" stroke="#e0a54b" stroke-width="4"/>
     <rect x="486" y="36" width="228" height="79" rx="20" fill="#15191b" stroke="#6f4b22" stroke-width="2"/>
-    <g fill="none" stroke="#d8a24b" stroke-width="3" opacity=".9">
-      <circle cx="60" cy="76" r="40"/><circle cx="1140" cy="76" r="40"/>
-    </g>
-    <g fill="#050607" stroke="#d7a24d" stroke-width="2">
-      <circle cx="145" cy="76" r="15"/><circle cx="181" cy="76" r="15"/><circle cx="217" cy="76" r="15"/><circle cx="253" cy="76" r="15"/><circle cx="289" cy="76" r="15"/><circle cx="325" cy="76" r="15"/><circle cx="361" cy="76" r="15"/>
-      <circle cx="839" cy="76" r="15"/><circle cx="875" cy="76" r="15"/><circle cx="911" cy="76" r="15"/><circle cx="947" cy="76" r="15"/><circle cx="983" cy="76" r="15"/><circle cx="1019" cy="76" r="15"/><circle cx="1055" cy="76" r="15"/>
-    </g>
-    <circle cx="600" cy="27" r="22" fill="#111" stroke="#b8babc" stroke-width="5"/><circle cx="600" cy="27" r="10" fill="#f5f2e9"/>
   </g>
 </svg>

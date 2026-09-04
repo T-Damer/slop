@@ -37,3 +37,12 @@ The table skin owns the light position and material response used by both the cu
 - Audio cosmetics may change timbre only within readability limits; collision timing and semantic categories remain fixed.
 - Paid content must have a neutral fallback with equal gameplay clarity.
 - Catalog and entitlement code belong outside the deterministic billiards domain.
+
+## Delivery order
+
+1. Version the catalog and separate a selected loadout from owned entitlements.
+2. Ship table/cue/ball previews using the existing shared light profile, then room/menu previews.
+3. Replicate equipped catalog IDs through Colyseus; validate ownership on the server, never from client claims.
+4. Add purchases only after entitlement receipts, restore/refund handling and neutral fallback tests exist.
+
+The current house cue is procedurally textured and lit. This is not a shipped shop or entitlement system.
