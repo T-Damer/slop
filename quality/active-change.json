@@ -35,5 +35,8 @@
     "A first user gesture unlocks project-authored Web Audio cues for cue strikes, ball contacts, cushion contacts, and pocket drops without external sound files",
     "Source checks, strict typecheck, production build, bundle ratchet, and all browser contracts pass before publication",
     "The unchanged base/startup bundle ratchet and explicit Pocket Club lazy-client and Colyseus chunk ratchets all pass"
+  ],
+  "parallelChanges": [
+    "quality/changes/island-cozy.json"
   ]
 }

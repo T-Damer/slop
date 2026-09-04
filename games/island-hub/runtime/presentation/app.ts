@@ -13,7 +13,9 @@ import {
 } from '../storage/local-island-repository.ts';
 import { mountIslandOnboarding, type IslandOnboardingController } from './onboarding.ts';
 import { PersonalIslandScene, type IslandSceneSnapshot } from './scene.ts';
-import { personalIslandStyles } from './styles.ts';
+import { installIslandStyles } from './play-styles.ts';
+import { IslandMenuFocus } from './menu-focus.ts';
+import { loadIslandJournal, saveIslandJournal, clearIslandJournal } from '../storage/journal-repository.ts';
 
 export interface PersonalIslandGameEntry {
   readonly id: IslandDestinationId;
@@ -59,7 +61,7 @@ export async function mountPersonalIsland(
   options: PersonalIslandOptions,
 ): Promise<void> {
   unmountPersonalIsland();
-  installStyles();
+  installIslandStyles(ui.styleId);
   const root = document.createElement('div');
   root.id = ui.rootId;
   parent.append(root);
@@ -81,7 +83,7 @@ class PersonalIslandApp {
   private onboarding: IslandOnboardingController | null = null;
   private scene: PersonalIslandScene | null = null;
   private snapshot: IslandSnapshot | null = null;
-  private menuOpen = false;
+  private menuFocus: IslandMenuFocus | null = null;
   private disposed = false;
 
   public constructor(
@@ -108,6 +110,7 @@ class PersonalIslandApp {
   public destroy(): void {
     this.disposed = true;
     this.root.removeEventListener('click', this.handleClick);
+    this.menuFocus?.destroy();
     this.onboarding?.destroy();
     this.onboarding = null;
     this.scene?.destroy();
@@ -141,6 +144,8 @@ class PersonalIslandApp {
   private mountOnboarding(): void {
     this.scene?.destroy();
     this.scene = null;
+    this.menuFocus?.destroy();
+    this.menuFocus = null;
     this.onboarding?.destroy();
     this.onboarding = mountIslandOnboarding(this.root, {
       onComplete: async (preferences) => {
@@ -168,7 +173,10 @@ class PersonalIslandApp {
     this.scene = new PersonalIslandScene(host, this.root, snapshot.blueprint, {
       onPortalProgress: (progress) => this.renderPortalProgress(progress),
       onLaunchGame: (destinationId) => this.options.onLaunchGame(destinationId),
-    });
+      onJournalChanged: (journal) => saveIslandJournal(snapshot.blueprint.islandId, journal),
+    }, loadIslandJournal(snapshot.blueprint.islandId));
+    this.menuFocus = new IslandMenuFocus(this.root, () => this.setMenuOpen(false));
+    this.menuFocus.setOpen(false);
     this.renderPortalProgress({ destinationId: null, progress: 0 });
   }
 
@@ -176,18 +184,20 @@ class PersonalIslandApp {
     const mode = this.scene?.cycleCamera();
     const label = this.root.querySelector<HTMLElement>('[data-island-camera-label]');
     if (label !== null && mode !== undefined) {
-      label.textContent = cameraLabel(mode);
+      label.textContent = mode === 'cozy' ? 'Ближе' : mode === 'overview' ? 'Обзор' : 'Обычная';
     }
   }
 
   private setMenuOpen(open: boolean): void {
-    this.menuOpen = open;
+    this.scene?.setPaused(open);
+    this.menuFocus?.setOpen(open);
     const menu = this.root.querySelector<HTMLElement>('.island-game-menu');
     menu?.classList.toggle('is-open', open);
     menu?.setAttribute('aria-hidden', String(!open));
   }
 
   private async regenerate(): Promise<void> {
+    if (this.snapshot !== null) clearIslandJournal(this.snapshot.blueprint.islandId);
     await this.repository.clear();
     if (this.disposed) {
       return;
@@ -247,16 +257,19 @@ function renderIslandShell(
       <div class="island-canvas-host"></div>
       <header class="island-hud">
         <div class="island-name-card">
-          <span>🏝️</span><div><strong>Остров ${snapshot.profile.displayName}</strong><small>seed ${snapshot.blueprint.seed}</small></div>
+          <span>🏝️</span><div><strong>Остров ${snapshot.profile.displayName}</strong><small data-island-journal>Яблоки 0 · Сад 0/3</small></div>
         </div>
         <div class="island-hud-actions">
-          <button type="button" data-island-shell-action="camera" aria-label="Сменить камеру">📷 <span data-island-camera-label>Обычная</span></button>
+          <button type="button" data-island-shell-action="camera" aria-label="Сменить камеру">📷 <span data-island-camera-label>Ближе</span></button>
           <button type="button" data-island-shell-action="games" aria-label="Открыть игры">🎮 Игры</button>
         </div>
       </header>
       <div class="island-guide-tip"><span>✨</span><p><strong>Луми</strong> Подойди к светящемуся порталу или открой меню игр.</p></div>
       <div class="island-portal-progress" aria-live="polite"><span></span><strong></strong></div>
       <div class="island-joystick-base" aria-label="Джойстик движения"><span class="island-joystick-knob"></span></div>
+      <div class="island-play-actions"><button type="button" data-island-run aria-pressed="false">Бег · Shift</button><button type="button" data-island-interact disabled>Подойди к дереву или жителю</button></div>
+      <div class="island-toast" data-island-toast role="status" aria-live="polite" hidden></div>
+      <div class="island-control-hint">WASD / стрелки — идти · Shift — бежать · E — действие</div>
       ${renderGameMenu(games)}
     </main>
   `;
@@ -264,7 +277,7 @@ function renderIslandShell(
 
 function renderGameMenu(games: ReadonlyArray<PersonalIslandGameEntry>): string {
   return `
-    <aside class="island-game-menu" aria-hidden="true">
+    <aside class="island-game-menu" role="dialog" aria-label="Игры SLOP" aria-modal="true" aria-hidden="true" inert>
       <div class="island-menu-header"><div><small>Куда отправимся?</small><h2>Игры SLOP</h2></div><button type="button" data-island-shell-action="close-games" aria-label="Закрыть">×</button></div>
       <div class="island-menu-grid">
         ${games.map((game) => `
@@ -294,20 +307,4 @@ function isIslandDestinationId(value: string | undefined): value is IslandDestin
   return value === 'billiards'
     || value === 'parking-jam'
     || value === 'junkyard-station';
-}
-
-function cameraLabel(mode: string): string {
-  if (mode === 'cozy') return 'Ближе';
-  if (mode === 'overview') return 'Обзор';
-  return 'Обычная';
-}
-
-function installStyles(): void {
-  if (document.getElementById(ui.styleId) !== null) {
-    return;
-  }
-  const style = document.createElement('style');
-  style.id = ui.styleId;
-  style.textContent = personalIslandStyles;
-  document.head.append(style);
 }

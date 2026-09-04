@@ -43,9 +43,13 @@
         "avatar appearance",
         "deterministic island seed",
         "island blueprint",
-        "portal placements"
+        "portal placements",
+        "island obstacle movement",
+        "harvest and garden journal"
       ],
-      "dependsOn": []
+      "dependsOn": [
+        "proximity-domain"
+      ]
     },
     {
       "id": "island-application",

@@ -1,256 +1,143 @@
 import * as THREE from 'three';
+import type { IslandBlueprint, IslandPlacement, IslandPortalPlacement } from '../domain/types.ts';
+import type { IslandAtelier } from './atelier.ts';
+import { islandArt } from './art-direction.ts';
 
-import type {
-  IslandActivityId,
-  IslandAnimalId,
-  IslandPlacement,
-  IslandPortalPlacement,
-} from '../domain/types.ts';
-
-export function createIslandCharacter(
-  primaryColor: number,
-  secondaryColor: number,
-  scale = 1,
-): THREE.Group {
-  const group = new THREE.Group();
-  const skin = material(0xf2c7a2, 0.82);
-  const shirt = material(primaryColor, 0.7);
-  const trousers = material(secondaryColor, 0.82);
-  const hair = material(0x5a3825, 0.9);
-  const body = mesh(new THREE.CapsuleGeometry(0.24, 0.44, 4, 8), shirt);
-  body.position.y = 0.67;
-  const head = mesh(new THREE.SphereGeometry(0.24, 12, 9), skin);
-  head.position.y = 1.28;
-  const hairCap = mesh(
-    new THREE.SphereGeometry(0.247, 12, 7, 0, Math.PI * 2, 0, Math.PI * 0.52),
-    hair,
-  );
-  hairCap.position.y = 1.34;
-  const leftLeg = limb('left-leg', trousers, -0.12);
-  const rightLeg = limb('right-leg', trousers, 0.12);
-  const leftArm = arm('left-arm', skin, -0.31);
-  const rightArm = arm('right-arm', skin, 0.31);
-  group.add(body, head, hairCap, leftLeg, rightLeg, leftArm, rightArm);
-  group.scale.setScalar(scale);
+export function placeIslandObject(group: THREE.Group, placement: IslandPlacement): THREE.Group {
+  group.position.set(placement.x, islandArt.ground, placement.z);
+  group.rotation.y = placement.rotation;
+  group.scale.setScalar(placement.scale);
   return group;
 }
 
-export function createIslandHouse(
-  placement: IslandPlacement,
-  roofColor: number,
-): THREE.Group {
-  const group = new THREE.Group();
-  const base = mesh(
-    new THREE.BoxGeometry(2.5, 1.55, 2.1),
-    material(0xfff0d3, 0.92),
-  );
-  base.position.y = 0.78;
-  const roof = mesh(
-    new THREE.ConeGeometry(2.05, 1.2, 4),
-    material(roofColor, 0.68),
-  );
-  roof.position.y = 2.02;
-  roof.rotation.y = Math.PI / 4;
-  const door = mesh(
-    new THREE.BoxGeometry(0.58, 1.05, 0.08),
-    material(0x9a6542, 0.82),
-  );
-  door.position.set(0, 0.55, 1.09);
-  const windowMaterial = material(0x8fd8ee, 0.32, 0.18);
-  for (const x of [-0.72, 0.72]) {
-    const window = mesh(new THREE.BoxGeometry(0.48, 0.48, 0.07), windowMaterial);
-    window.position.set(x, 0.94, 1.1);
-    group.add(window);
+export function createIslandHouse(a: IslandAtelier, blueprint: IslandBlueprint): THREE.Group {
+  const root = new THREE.Group();
+  const p = islandArt.palette;
+  a.part(root, p.cream, [2.5, 1.65, 2.1], [0, 0.84, 0], 'round');
+  a.part(root, p.timber, [2.58, 0.16, 2.18], [0, 0.15, 0], 'round');
+  for (const side of [-1, 1]) {
+    a.part(root, p.timber, [0.13, 1.55, 0.12], [side * 1.18, 0.88, 1.045], 'round');
+    const roof = a.part(root, blueprint.palette.roof, [1.72, 0.16, 2.65], [side * 0.68, 2, 0], 'round');
+    roof.rotation.z = side * -0.57;
+    for (let tile = 0; tile < 7; tile += 1) {
+      const seam = a.part(root, blueprint.palette.roof, [1.74, 0.07, 0.11],
+        [side * 0.68, 2.09, (tile - 3) * 0.37], 'round');
+      seam.rotation.z = side * -0.57;
+    }
+    a.part(root, p.timber, [0.65, 0.7, 0.11], [side * 0.77, 1.02, 1.08], 'round');
+    const glass = a.part(root, p.window, [0.49, 0.53, 0.12], [side * 0.77, 1.03, 1.13], 'round');
+    const material = a.material(p.window);
+    material.emissive.setHex(p.window);
+    material.emissiveIntensity = 0.5;
+    glass.castShadow = false;
+    a.part(root, p.cream, [0.035, 0.54, 0.04], [side * 0.77, 1.03, 1.205], 'box');
+    a.part(root, p.cream, [0.5, 0.035, 0.04], [side * 0.77, 1.03, 1.207], 'box');
+    a.part(root, p.timber, [0.74, 0.16, 0.3], [side * 0.77, 0.64, 1.2], 'round');
   }
-  group.add(base, roof, door);
-  applyPlacement(group, placement);
-  return group;
+  a.part(root, p.darkWood, [0.66, 1.17, 0.13], [0, 0.68, 1.12], 'round');
+  a.part(root, p.timber, [0.5, 1.01, 0.07], [0, 0.69, 1.2], 'round');
+  a.part(root, p.pollen, [0.065, 0.065, 0.065], [0.15, 0.66, 1.25]);
+  a.part(root, p.cream, [0.88, 0.14, 0.5], [0, 0.08, 1.23], 'round');
+  a.part(root, p.timber, [0.36, 0.68, 0.4], [0.78, 2.25, -0.6], 'round');
+  a.part(root, p.darkWood, [0.46, 0.13, 0.5], [0.78, 2.61, -0.6], 'round');
+  addGables(a, root);
+  return placeIslandObject(root, blueprint.house);
 }
 
-export function createIslandTree(
-  placement: IslandPlacement,
-  autumn: boolean,
-): THREE.Group {
-  const group = new THREE.Group();
-  const trunk = mesh(
-    new THREE.CylinderGeometry(0.15, 0.21, 1.35, 8),
-    material(0x7a4d2d, 0.94),
-  );
-  trunk.position.y = 0.67;
-  const leafColor = autumn ? 0xd98b42 : 0x4eaf66;
-  const crown = mesh(
-    new THREE.IcosahedronGeometry(0.78, 1),
-    material(leafColor, 0.88),
-  );
-  crown.position.y = 1.58;
-  crown.scale.set(1, 1.12, 1);
-  group.add(trunk, crown);
-  applyPlacement(group, placement);
-  return group;
+function addGables(a: IslandAtelier, root: THREE.Group): void {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+    -1.25, 1.55, 1.04, 1.25, 1.55, 1.04, 0, 2.44, 1.04,
+    1.25, 1.55, -1.04, -1.25, 1.55, -1.04, 0, 2.44, -1.04,
+  ], 3));
+  geometry.computeVertexNormals();
+  const gables = new THREE.Mesh(geometry, a.material(islandArt.palette.cream));
+  gables.castShadow = true;
+  root.add(gables);
 }
 
-export function createIslandRock(placement: IslandPlacement): THREE.Mesh {
-  const rock = mesh(
-    new THREE.DodecahedronGeometry(0.36, 0),
-    material(0x8c9697, 0.98),
-  );
-  rock.scale.set(1.2, 0.72, 0.9);
-  rock.position.set(placement.x, 0.25, placement.z);
-  rock.rotation.set(0.1, placement.rotation, -0.08);
-  rock.scale.multiplyScalar(placement.scale);
-  return rock;
-}
-
-export function createIslandFlower(
-  placement: IslandPlacement,
-  color: number,
-): THREE.Group {
-  const group = new THREE.Group();
-  const stem = mesh(
-    new THREE.CylinderGeometry(0.025, 0.035, 0.28, 6),
-    material(0x4b9e55, 0.9),
-  );
-  stem.position.y = 0.14;
-  const blossom = mesh(
-    new THREE.SphereGeometry(0.09, 8, 6),
-    material(color, 0.68),
-  );
-  blossom.position.y = 0.32;
-  group.add(stem, blossom);
-  applyPlacement(group, placement);
-  return group;
-}
-
-export function createIslandAnimal(
-  placement: IslandPlacement,
-  species: IslandAnimalId,
-): THREE.Group {
-  const colors: Record<IslandAnimalId, number> = {
-    cat: 0xe3a95d,
-    dog: 0xc28a54,
-    rabbit: 0xe9e5df,
-    raccoon: 0x7d8586,
-    fox: 0xd97843,
-    duck: 0xf0d85e,
-  };
-  const group = new THREE.Group();
-  const bodyMaterial = material(colors[species], 0.84);
-  const body = mesh(new THREE.SphereGeometry(0.34, 10, 8), bodyMaterial);
-  body.position.y = 0.38;
-  body.scale.set(1, 0.9, 1.25);
-  const head = mesh(new THREE.SphereGeometry(0.27, 10, 8), bodyMaterial);
-  head.position.set(0, 0.75, 0.2);
-  const eyes = material(0x2e3434, 0.62);
-  for (const x of [-0.09, 0.09]) {
-    const eye = mesh(new THREE.SphereGeometry(0.025, 6, 5), eyes);
-    eye.position.set(x, 0.8, 0.45);
-    group.add(eye);
+export function createIslandTree(a: IslandAtelier, placement: IslandPlacement, season: string): THREE.Group {
+  const root = new THREE.Group();
+  const p = islandArt.palette;
+  const winter = season === 'winter';
+  const color = season === 'autumn' ? p.leafAutumn : winter ? 0xc7dac7 : p.leafLight;
+  a.part(root, p.timber, [0.29, 1.32, 0.29], [0, 0.69, 0], 'cylinder');
+  for (const side of [-1, 1]) {
+    const branch = a.part(root, p.timber, [0.13, 0.75, 0.13], [side * 0.2, 1.07, 0], 'cylinder');
+    branch.rotation.z = side * -0.62;
+    a.part(root, color, [1.2, 1.12, 1.24], [side * 0.39, 1.66, 0]);
   }
-  group.add(body, head);
-  applyPlacement(group, placement);
-  return group;
+  a.part(root, color, [1.34, 1.27, 1.3], [0, 2.14, 0]);
+  a.part(root, winter ? 0xeaf0de : color, [1.06, 0.96, 1.13], [0, 1.74, 0.38]);
+  return placeIslandObject(root, placement);
 }
 
-export function createIslandPortal(portal: IslandPortalPlacement): THREE.Group {
-  const group = new THREE.Group();
-  const ring = mesh(
-    new THREE.TorusGeometry(0.72, 0.12, 10, 28),
-    emissiveMaterial(portal.color),
-  );
+export function createTreeFruit(a: IslandAtelier, placement: IslandPlacement): THREE.Group {
+  const root = new THREE.Group();
+  for (const [x, y, z] of [[-0.55, 1.6, 0.45], [0.5, 1.82, 0.42], [0.07, 2.28, 0.55]]) {
+    a.part(root, islandArt.palette.apple, [0.24, 0.25, 0.24], [x ?? 0, y ?? 0, z ?? 0]);
+  }
+  return placeIslandObject(root, placement);
+}
+
+export function createGardenFlower(a: IslandAtelier, color: number): THREE.Group {
+  const root = new THREE.Group();
+  a.part(root, islandArt.palette.leaf, [0.035, 0.32, 0.035], [0, 0.16, 0], 'cylinder');
+  a.part(root, islandArt.palette.leafLight, [0.22, 0.065, 0.1], [0.07, 0.13, 0]);
+  for (let petal = 0; petal < 5; petal += 1) {
+    const angle = petal / 5 * Math.PI * 2;
+    a.part(root, color, [0.16, 0.07, 0.16], [Math.cos(angle) * 0.085, 0.34, Math.sin(angle) * 0.085]);
+  }
+  a.part(root, islandArt.palette.pollen, [0.085, 0.065, 0.085], [0, 0.37, 0]);
+  return root;
+}
+
+export function createIslandPortal(a: IslandAtelier, portal: IslandPortalPlacement): THREE.Group {
+  const root = new THREE.Group();
+  const p = islandArt.palette;
+  a.part(root, p.path, [1.65, 0.12, 1.65], [0, 0, 0], 'cylinder');
+  a.part(root, p.timber, [0.11, 1.02, 0.11], [0, 0.5, -0.48], 'round');
+  a.part(root, p.cream, [1.45, 0.62, 0.15], [0, 1.04, -0.48], 'round');
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.025, 6, 48),
+    new THREE.MeshStandardMaterial({ color: portal.color, emissive: portal.color, emissiveIntensity: 1.2 }));
   ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.15;
-  const pad = mesh(
-    new THREE.CylinderGeometry(0.9, 1.05, 0.18, 24),
-    material(0xf2e4c2, 0.92),
-  );
-  pad.position.y = 0.06;
-  group.add(pad, ring);
-  group.position.set(portal.x, 0, portal.z);
-  group.userData.destinationId = portal.destinationId;
-  group.userData.ring = ring;
-  return group;
+  ring.position.y = 0.08;
+  root.add(ring);
+  root.userData.ring = ring;
+  root.position.set(portal.x, islandArt.ground, portal.z);
+  return root;
 }
 
-export function createActivityZone(
-  placement: IslandPlacement & { readonly activity: IslandActivityId },
-): THREE.Group {
-  const group = new THREE.Group();
-  const base = mesh(
-    new THREE.CylinderGeometry(1.15, 1.22, 0.12, 24),
-    material(0xdccca3, 0.96),
-  );
-  base.position.y = 0.04;
-  group.add(base);
-  const symbolByActivity: Record<IslandActivityId, string> = {
-    gardening: '🌱',
-    fishing: '🎣',
-    picnic: '🧺',
-    crafting: '🛠️',
-    exploring: '🧭',
-    social: '🎉',
-  };
-  group.userData.symbol = symbolByActivity[placement.activity];
-  applyPlacement(group, placement);
-  return group;
+export function createPortalLabel(text: string): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const context = canvas.getContext('2d');
+  if (context !== null) {
+    context.fillStyle = '#504c3e';
+    context.font = '700 38px sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(text, canvas.width / 2, canvas.height / 2, canvas.width - 16);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthWrite: false }));
+  sprite.scale.set(1.42, 0.355, 1);
+  sprite.position.set(0, 1.06, -0.34);
+  return sprite;
 }
 
-export function setObjectShadows(object: THREE.Object3D): void {
-  object.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
+/** Release sprites and canvas textures as well as geometry, once per resource. */
+export function disposeIslandObject(root: THREE.Object3D): void {
+  const resources = new Set<{ dispose(): void }>();
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh) resources.add(object.geometry);
+    if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Sprite)) return;
+    for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+      resources.add(material);
+      for (const value of Object.values(material)) if (value instanceof THREE.Texture) resources.add(value);
     }
   });
-}
-
-export function disposeIslandObject(object: THREE.Object3D): void {
-  object.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) {
-      return;
-    }
-    child.geometry.dispose();
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
-    for (const entry of materials) {
-      entry.dispose();
-    }
-  });
-}
-
-function limb(name: string, entry: THREE.Material, x: number): THREE.Mesh {
-  const leg = mesh(new THREE.CapsuleGeometry(0.07, 0.28, 3, 6), entry);
-  leg.name = name;
-  leg.position.set(x, 0.25, 0);
-  return leg;
-}
-
-function arm(name: string, entry: THREE.Material, x: number): THREE.Mesh {
-  const result = mesh(new THREE.CapsuleGeometry(0.055, 0.28, 3, 6), entry);
-  result.name = name;
-  result.position.set(x, 0.68, 0);
-  result.rotation.z = x < 0 ? -0.1 : 0.1;
-  return result;
-}
-
-function mesh(geometry: THREE.BufferGeometry, entry: THREE.Material): THREE.Mesh {
-  return new THREE.Mesh(geometry, entry);
-}
-
-function material(color: number, roughness: number, metalness = 0): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
-}
-
-function emissiveMaterial(color: number): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
-    color,
-    emissive: color,
-    emissiveIntensity: 0.72,
-    roughness: 0.42,
-  });
-}
-
-function applyPlacement(object: THREE.Object3D, placement: IslandPlacement): void {
-  object.position.set(placement.x, 0, placement.z);
-  object.rotation.y = placement.rotation;
-  object.scale.multiplyScalar(placement.scale);
-  setObjectShadows(object);
+  for (const resource of resources) resource.dispose();
 }

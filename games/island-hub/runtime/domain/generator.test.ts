@@ -65,3 +65,6 @@ test('every island contains every local game portal', () => {
     ['billiards', 'junkyard-station', 'parking-jam'],
   );
 });
+
+// Island walking and life regressions share the existing island test entry point.
+import './life.test.ts';
