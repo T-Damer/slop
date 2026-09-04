@@ -1,10 +1,10 @@
 import {
   createEffect,
+  createRoot,
   createSignal,
   onCleanup,
   onMount,
 } from 'solid-js';
-import { render } from 'solid-js/web';
 
 import { BilliardsAdaptiveQuality } from './adaptive-quality-v2.ts';
 import { BilliardsAudioEngine } from './audio.ts';
@@ -48,7 +48,12 @@ let disposeSolidRoot: (() => void) | null = null;
 export function mountBilliards(parent: HTMLElement): void {
   unmountBilliards();
   installStyles();
-  disposeSolidRoot = render(() => createBilliardsAppV2(), parent);
+  // The view owns one stable DOM element, not a reconciled JSX collection.
+  // Keep Solid signals/lifecycle without shipping the unused DOM reconciler.
+  createRoot((dispose) => {
+    disposeSolidRoot = dispose;
+    parent.append(createBilliardsAppV2());
+  });
 }
 
 export function unmountBilliards(): void {

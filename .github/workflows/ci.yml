@@ -141,6 +141,12 @@ jobs:
           cat "${RUNNER_TEMP}/slop-http.log"
           exit 1
 
+      - name: Run Pocket Club browser contract
+        if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
+        env:
+          EXPECTED_DEPLOYMENT_SHA: ${{ github.sha }}
+        run: npm run billiards:quality -- http://127.0.0.1:4173/slop/
+
       - name: Run game hub browser contract
         if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
         run: npm run hub:quality -- http://127.0.0.1:4173/slop/
@@ -152,12 +158,6 @@ jobs:
       - name: Run Junkyard Station browser contract
         if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
         run: npm run junkyard:quality -- http://127.0.0.1:4173/slop/
-
-      - name: Run Pocket Club browser contract
-        if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
-        env:
-          EXPECTED_DEPLOYMENT_SHA: ${{ github.sha }}
-        run: npm run billiards:quality -- http://127.0.0.1:4173/slop/
 
       - name: Stop production server
         if: always()

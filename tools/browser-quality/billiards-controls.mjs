@@ -1,4 +1,4 @@
-import { delay, evaluate } from './cdp-client.mjs';
+import { delay, evaluate, waitForExpression } from './cdp-client.mjs';
 
 export async function clickAt(cdp, point) {
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point });
@@ -34,5 +34,44 @@ export async function verifyAimControls(cdp, ui) {
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
   if ((await read()).interaction.mode !== 'aiming') failures.push('Escape did not unlock aim.');
-  return { locked: locked.interaction.mode, failures };
+  await clickAt(cdp, point);
+  const gesture = await performManualStroke(cdp, ui);
+  await waitForExpression(cdp, `document.querySelector(${JSON.stringify(ui.rootSelector)})?.dataset.shotActive === 'true'`, 3000);
+  const executed = await read();
+  if (executed.match.revision !== locked.match.revision + 1) failures.push('Manual gesture did not execute exactly one shot.');
+  const restart = await evaluate(cdp, `(() => {
+    const rect = document.querySelector(${JSON.stringify(ui.restartSelector)}).getBoundingClientRect();
+    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+  })()`);
+  await clickAt(cdp, restart);
+  await waitForExpression(cdp, `document.querySelector(${JSON.stringify(ui.rootSelector)})?.dataset.shotActive === 'false'`, 3000);
+  return { locked: locked.interaction.mode, gesture, failures };
+}
+
+export async function performManualStroke(cdp, ui) {
+  const touch = await evaluate(cdp, 'innerHeight > innerWidth');
+  const start = await aimPoint(cdp, ui, 600, 360);
+  const back = await aimPoint(cdp, ui, 500, 360);
+  const contact = await aimPoint(cdp, ui, 610, 360);
+  if (touch) {
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
+  } else {
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...start });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...start, button: 'left', buttons: 1, clickCount: 1 });
+  }
+  await delay(30);
+  const move = (point) => touch
+    ? cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, id: 1 }] })
+    : cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point, button: 'left', buttons: 1 });
+  await move(back);
+  await delay(40);
+  const pulled = await evaluate(cdp, ui.qaExpression);
+  if (pulled?.interaction.mode !== 'manual-stroke' || pulled.interaction.stroke.pullback < 90) {
+    throw new Error('The captured pointer did not pull the prepared cue.');
+  }
+  await move(contact);
+  if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  else await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...contact, button: 'left', clickCount: 1 });
+  return { pointer: touch ? 'touch' : 'mouse', pullback: pulled.interaction.stroke.pullback };
 }
