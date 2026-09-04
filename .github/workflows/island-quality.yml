@@ -2,10 +2,10 @@ name: Island quality
 on:
   push:
     branches: [feature/core-traffic]
-    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', '.github/workflows/island-quality.yml']
+    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', 'tools/build-island-preview.mjs', 'tools/browser-quality/island-preview/**', '.github/workflows/island-quality.yml']
   pull_request:
     branches: [main]
-    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', '.github/workflows/island-quality.yml']
+    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', 'tools/build-island-preview.mjs', 'tools/browser-quality/island-preview/**', '.github/workflows/island-quality.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -44,20 +44,25 @@ jobs:
           npm run architecture:check
           npm run change:check
       - name: Build actual production hub
+        id: hub
+        continue-on-error: true
         working-directory: .modoki-engine
         env:
           MODOKI_PROJECT: ${{ github.workspace }}/games/traffic-jam
         run: npm run build -- --target web
       - name: Record unchanged bundle ratchet
+        if: steps.hub.outcome == 'success'
         id: budget
         continue-on-error: true
         run: npm run web:budget
-      - name: Serve hub and exercise island
+      - name: Build isolated island evidence fixture
+        run: node tools/build-island-preview.mjs
+      - name: Serve isolated island and exercise real controls
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .island-site/slop
-          cp -a games/traffic-jam/dist/. .island-site/slop/
+          cp -a quality-artifacts/island-preview/. .island-site/slop/
           python3 -m http.server 4173 --bind 127.0.0.1 --directory .island-site > /tmp/island-http.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" || true' EXIT
@@ -66,9 +71,21 @@ jobs:
             sleep 1
           done
           node tools/check-island-quality.mjs http://127.0.0.1:4173/slop/
+      - name: Exercise production hub when available
+        if: steps.hub.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .island-site/slop
+          mkdir -p .island-site/slop
+          cp -a games/traffic-jam/dist/. .island-site/slop/
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory .island-site > /tmp/island-hub-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" || true' EXIT
+          sleep 1
           npm run hub:quality -- http://127.0.0.1:4173/slop/
-      - name: Enforce bundle result after browser evidence
-        if: steps.budget.outcome == 'failure'
+      - name: Enforce integration build and bundle results after island evidence
+        if: steps.hub.outcome == 'failure' || steps.budget.outcome == 'failure'
         run: exit 1
       - name: Upload production build and evidence
         if: always()

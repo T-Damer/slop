@@ -9,7 +9,7 @@ export const islandArt = {
   camera: { fov: 36, near: 0.1, far: 100, follow: 7, focusHeight: 0.65,
     portraitDistance: 1.22, elevation: 0.68, initialMode: 0 },
   render: { pixelRatio: 1.5, mobilePixelRatio: 1.15, mobileWidth: 700,
-    exposure: 1.08, bloomStrength: 0.2, bloomRadius: 0.55, bloomThreshold: 1.1,
+    antialiasSamples: 4, exposure: 1.08, bloomStrength: 0.2, bloomRadius: 0.55, bloomThreshold: 1.1,
     shadowSize: 1024, shadowBias: -0.00025, normalBias: 0.035,
     sun: 0xffe6ba, sunIntensity: 2.65, skyIntensity: 2.2, groundLight: 0x929a74,
     fogNear: 28, fogFar: 62, stallSeconds: 0.25, slowFrameMs: 30, slowFrames: 80 },

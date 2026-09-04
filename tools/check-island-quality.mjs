@@ -81,6 +81,7 @@ try {
   assert.equal((await snapshot()).portal.progress, 0);
 } catch (error) {
   failures.push(error instanceof Error ? error.stack : String(error));
+  await captureScreenshot(cdp, path.join(output, 'failure.png')).catch(() => {});
 } finally {
   await writeFile(path.join(output, 'report.json'), JSON.stringify({ reports, failures }, null, 2));
   console.log(JSON.stringify({ reports, failures }, null, 2));

@@ -26,7 +26,9 @@ export class IslandRendering {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.info.autoReset = false;
-    this.composer = new EffectComposer(this.renderer);
+    const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType,
+      samples: Math.min(islandArt.render.antialiasSamples, this.renderer.capabilities.maxSamples) });
+    this.composer = new EffectComposer(this.renderer, target);
     this.renderPass = new RenderPass(scene, camera);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), settings.bloomStrength,
       settings.bloomRadius, settings.bloomThreshold);
