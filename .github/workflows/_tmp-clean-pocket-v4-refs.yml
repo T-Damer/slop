@@ -1,0 +1,54 @@
+name: Temporary clean Pocket Club v4 refs
+
+on:
+  push:
+    branches: ["docs/agent-foundation"]
+    paths: [".github/workflows/_tmp-clean-pocket-v4-refs.yml"]
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Wait for publication workflow completion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/_tmp-verify-publish-pocket-controls-v4.yml/runs?branch=docs%2Fagent-foundation&per_page=1" --jq '.workflow_runs[0].id')
+          for attempt in $(seq 1 180); do
+            STATUS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '.status')
+            [ "$STATUS" = completed ] && exit 0
+            sleep 10
+          done
+          exit 1
+      - name: Remove temporary status and automation refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/git/matching-refs/heads/status/pocket-v4-" --jq '.[].ref' | while read -r ref; do
+            [ -n "$ref" ] && gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/${ref}" || true
+          done
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/automation/pocket-club-refactor" || true
+      - name: Close accidental feature-to-stable PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=stable&per_page=100" --jq '.[] | select(.head.ref == "feature/core-traffic") | .number' | while read -r number; do
+            [ -n "$number" ] && gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${number}" -f state=closed || true
+          done
+      - name: Restore clean documentation branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/heads/docs/agent-foundation" -f sha=2fcf8aa1b4b30d20e05e0a82e0f59643c96ddb61 -F force=true
