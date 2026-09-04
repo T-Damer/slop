@@ -1,0 +1,37 @@
+name: Temporary tag verified Pocket Club controls v4
+
+on:
+  push:
+    branches: ["docs/agent-foundation"]
+    paths: [".github/workflows/_tmp-tag-pocket-v4-success.yml"]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Wait for v4 and create immutable tag only on success
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/_tmp-verify-publish-pocket-controls-v4.yml/runs?branch=docs%2Fagent-foundation&per_page=1" --jq '.workflow_runs[0].id')
+          for attempt in $(seq 1 180); do
+            STATUS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '.status')
+            [ "$STATUS" = completed ] && break
+            sleep 10
+          done
+          CONCLUSION=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq '.conclusion')
+          [ "$CONCLUSION" = success ]
+          FEATURE_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/feature/core-traffic" --jq '.object.sha')
+          STABLE_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/stable" --jq '.object.sha')
+          [ "$FEATURE_SHA" = "$STABLE_SHA" ]
+          MARKER=$(curl --fail --silent https://t-damer.github.io/slop/pocket-club-build.txt)
+          [ "$FEATURE_SHA" = "$MARKER" ]
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/pocket-club-controls-v4-verified" || true
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" -f ref=refs/tags/pocket-club-controls-v4-verified -f sha="$FEATURE_SHA"
