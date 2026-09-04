@@ -107,6 +107,7 @@ jobs:
         run: npm run check
 
       - name: Build the Slop game hub for web
+        id: build
         working-directory: .modoki-engine
         env:
           MODOKI_PROJECT: ${{ github.workspace }}/${{ env.HUB_PROJECT_PATH }}
@@ -119,6 +120,8 @@ jobs:
         run: npm run web:budget
 
       - name: Assemble and serve the complete site
+        id: serve
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -139,15 +142,21 @@ jobs:
           exit 1
 
       - name: Run game hub browser contract
+        if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
         run: npm run hub:quality -- http://127.0.0.1:4173/slop/
 
       - name: Run Parking Jam browser contract
+        if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
         run: npm run ui:quality -- http://127.0.0.1:4173/slop/
 
       - name: Run Junkyard Station browser contract
+        if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
         run: npm run junkyard:quality -- http://127.0.0.1:4173/slop/
 
       - name: Run Pocket Club browser contract
+        if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
+        env:
+          EXPECTED_DEPLOYMENT_SHA: ${{ github.sha }}
         run: npm run billiards:quality -- http://127.0.0.1:4173/slop/
 
       - name: Stop production server
