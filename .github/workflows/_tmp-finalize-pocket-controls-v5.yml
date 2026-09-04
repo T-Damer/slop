@@ -1,0 +1,274 @@
+name: Temporary finalize Pocket Club controls v5
+
+on:
+  push:
+    branches: ["docs/agent-foundation"]
+    paths: [".github/workflows/_tmp-finalize-pocket-controls-v5.yml"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  pull-requests: write
+
+env:
+  FEATURE_REF: feature/core-traffic
+  MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
+  HUB_PROJECT_PATH: games/traffic-jam
+  QUALITY_REPORT_DIR: quality-artifacts
+
+jobs:
+  verify-commit-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    outputs:
+      feature_sha: ${{ steps.commit.outputs.feature_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.FEATURE_REF }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Remove the decorative cue rack and stale delivery probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import json
+          import re
+
+          room = Path('games/billiards/runtime/presentation/assets/pocket-club-room.svg')
+          text = room.read_text()
+          pattern = re.compile(
+              r'\n\s*<g transform="translate\(24 180\)">.*?</g>(?=\n\s*<g transform="translate\(1120 116\)">)',
+              re.S,
+          )
+          updated, count = pattern.subn('', text, count=1)
+          if count not in (0, 1):
+              raise SystemExit(f'unexpected cue rack match count: {count}')
+          if 'translate(24 180)' in updated:
+              raise SystemExit('cue rack remains in room artwork')
+          room.write_text(updated)
+
+          provenance_path = Path('games/billiards/runtime/presentation/assets/provenance.json')
+          provenance = json.loads(provenance_path.read_text())
+          for entry in provenance['assets']:
+              if entry.get('path') == str(room):
+                  payload = room.read_bytes()
+                  entry['bytes'] = len(payload)
+                  entry['sha256'] = hashlib.sha256(payload).hexdigest()
+                  entry['promptSummary'] = (
+                      'Hand-authored warm billiards lounge with worn timber, leather, brass, lamps, '
+                      'restrained smoke and a clear gameplay area; decorative cue racks removed.'
+                  )
+                  break
+          else:
+              raise SystemExit('room provenance entry missing')
+          provenance_path.write_text(json.dumps(provenance, ensure_ascii=False, indent=2) + '\n')
+
+          for name in (
+              'quality/deployment-intent-2026-09-04.md',
+              'quality/publish-candidate.txt',
+              'quality/.publish-ready',
+              'quality/tool-capability-probe.txt',
+              'quality/connector-probe-2.txt',
+              'quality/graphql-probe.txt',
+          ):
+              Path(name).unlink(missing_ok=True)
+          PY
+
+      - name: Assert active control implementation and room cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat games/billiards/runtime/presentation/app.ts)" = "export { mountBilliards, unmountBilliards } from './app-v2.ts';"
+          ! grep -q 'translate(24 180)' games/billiards/runtime/presentation/assets/pocket-club-room.svg
+          for path in \
+            games/billiards/runtime/presentation/app-v2.ts \
+            games/billiards/runtime/presentation/controller-v2.ts \
+            games/billiards/runtime/presentation/control-input-v2.ts \
+            games/billiards/runtime/presentation/interaction-state-v2.ts \
+            games/billiards/runtime/presentation/frame-loop-v2.ts \
+            games/billiards/runtime/presentation/adaptive-quality-v2.ts \
+            games/billiards/runtime/presentation/effects-renderer.ts \
+            games/billiards/runtime/presentation/feedback.ts \
+            games/billiards/runtime/presentation/view-state.ts \
+            games/billiards/runtime/network/interaction-wire-v2.ts \
+            games/billiards/runtime/network/interaction-relay-v2.ts; do
+              test -f "$path"
+          done
+
+      - uses: actions/checkout@v5
+        with:
+          repository: lsgmasa33/modoki-engine
+          ref: ${{ env.MODOKI_COMMIT }}
+          path: .modoki-engine
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            .modoki-engine/package-lock.json
+            games/traffic-jam/package-lock.json
+            games/billiards/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: tools/requirements-assets.txt
+
+      - name: Install exact dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix .modoki-engine --no-audit --no-fund
+          npm ci --prefix games/traffic-jam --ignore-scripts --no-audit --no-fund
+          npm ci --prefix games/billiards --ignore-scripts --no-audit --no-fund
+          python -m pip install --disable-pip-version-check -r tools/requirements-assets.txt
+
+      - name: Run full cleanup, bug, type, architecture and asset gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run assets:reproduce
+          npm run check 2>&1 | tee "${RUNNER_TEMP}/source-check.log"
+
+      - name: Build and run bundle ratchets
+        shell: bash
+        run: |
+          set -euo pipefail
+          MODOKI_PROJECT="$PWD/${HUB_PROJECT_PATH}" npm --prefix .modoki-engine run build 2>&1 | tee "${RUNNER_TEMP}/build.log"
+          npm run web:budget 2>&1 | tee "${RUNNER_TEMP}/budget.log"
+
+      - name: Run local real-browser controls contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .preview
+          mkdir -p .preview/slop
+          cp -R games/traffic-jam/dist/. .preview/slop/
+          python3 -m http.server 4173 --directory .preview >"${RUNNER_TEMP}/slop-http.log" 2>&1 &
+          PID=$!
+          trap 'kill "$PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:4173/slop/ >/dev/null && break
+            sleep 1
+          done
+          npm run billiards:quality -- http://127.0.0.1:4173/slop/ 2>&1 | tee "${RUNNER_TEMP}/browser.log"
+
+      - name: Commit only the verified targeted cleanup
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Daniil Pankov'
+          git config user.email 'dpancov64@gmail.com'
+          git add games/billiards/runtime/presentation/assets/pocket-club-room.svg \
+            games/billiards/runtime/presentation/assets/provenance.json \
+            quality
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix(billiards): remove room cue rack and stale delivery probes'
+            git push origin HEAD:${FEATURE_REF}
+          fi
+          echo "feature_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Advance stable to the exact tested commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEATURE_SHA: ${{ steps.commit.outputs.feature_sha }}
+        shell: bash
+        run: gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/heads/stable" -f sha="$FEATURE_SHA" -F force=true
+
+      - name: Prepare Pages artifact with exact build marker
+        shell: bash
+        run: |
+          rm -rf .site
+          mkdir -p .site
+          cp -R games/traffic-jam/dist/. .site/
+          printf '%s\n' '${{ steps.commit.outputs.feature_sha }}' > .site/pocket-club-build.txt
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .site
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-club-controls-v5-${{ steps.commit.outputs.feature_sha }}
+          path: |
+            ${{ runner.temp }}/source-check.log
+            ${{ runner.temp }}/build.log
+            ${{ runner.temp }}/budget.log
+            ${{ runner.temp }}/browser.log
+            ${{ runner.temp }}/slop-http.log
+            quality-artifacts
+            games/traffic-jam/dist
+          if-no-files-found: warn
+          retention-days: 14
+
+  deploy:
+    needs: verify-commit-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  deployed-browser:
+    needs: [verify-commit-build, deploy]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.verify-commit-build.outputs.feature_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm ci --prefix games/traffic-jam --ignore-scripts --no-audit --no-fund
+      - run: npm ci --prefix games/billiards --ignore-scripts --no-audit --no-fund
+      - name: Wait for exact deployed SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED='${{ needs.verify-commit-build.outputs.feature_sha }}'
+          for attempt in $(seq 1 90); do
+            ACTUAL=$(curl --fail --silent https://t-damer.github.io/slop/pocket-club-build.txt || true)
+            [ "$ACTUAL" = "$EXPECTED" ] && exit 0
+            sleep 5
+          done
+          echo "Expected $EXPECTED, got ${ACTUAL:-missing}" >&2
+          exit 1
+      - name: Run deployed Pocket Club controls contract
+        run: npm run billiards:quality -- https://t-damer.github.io/slop/
+      - name: Publish exact success evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FEATURE_SHA: ${{ needs.verify-commit-build.outputs.feature_sha }}
+        shell: bash
+        run: |
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/pocket-club-controls-v5-verified" || true
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" -f ref=refs/tags/pocket-club-controls-v5-verified -f sha="$FEATURE_SHA"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/1/comments" -f body="Pocket Club controls v5 are on Pages and passed the deployed browser contract from exact SHA \`${FEATURE_SHA}\`. Live: https://t-damer.github.io/slop/?game=billiards&build=${FEATURE_SHA}. Tag: https://github.com/T-Damer/slop/tree/pocket-club-controls-v5-verified. Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+  report-failure:
+    if: ${{ always() && (needs.verify-commit-build.result == 'failure' || needs.deploy.result == 'failure' || needs.deployed-browser.result == 'failure') }}
+    needs: [verify-commit-build, deploy, deployed-browser]
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/1/comments" -f body="Pocket Club controls v5 did **not** reach verified Pages. verify=${{ needs.verify-commit-build.result }}, deploy=${{ needs.deploy.result }}, browser=${{ needs.deployed-browser.result }}. Workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
