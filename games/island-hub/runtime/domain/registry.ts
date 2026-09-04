@@ -96,10 +96,15 @@ export const islandRules = {
   rockCount: 9,
   flowerCount: 18,
   minimumPlacementDistance: 1.15,
+  housePlantingClearance: 2.45,
   playerSpeed: 4.2,
   portalRadius: 1.35,
   portalHoldSeconds: 0.8,
   generationStageMs: 340,
   storageKey: 'slop.personal-island.v1',
   playerIdKey: 'slop.local-player-id.v1',
+} as const;
+
+export const islandLandmarks = {
+  house: { x: -1.4, z: -1.6, scale: 1, rotation: 0.18 },
 } as const;

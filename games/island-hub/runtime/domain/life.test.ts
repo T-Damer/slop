@@ -96,3 +96,17 @@ test('portal progress does not carry to a different portal or survive pause', ()
   for (let index = 0; index < 8; index += 1) destination = life.step(second.point, 0.1, false).destination ?? destination;
   assert.equal(destination, second.destination);
 });
+
+
+test('200 generated islands keep scenery clear of the house and the spawn walkable', () => {
+  for (let seed = 0; seed < 200; seed += 1) {
+    const island = buildIslandBlueprint('island-stress-' + seed, preferences);
+    // Isolate the house from shoreline checks; decorative flowers may sit on the beach.
+    const houseOnly: IslandBlueprint = { ...island, trees: [], rocks: [],
+      coastline: island.coastline.map((radius) => radius * 2) };
+    assert.equal(canWalkOnIsland(island.playerSpawn, island), true);
+    for (const prop of [...island.trees, ...island.rocks, ...island.flowers]) {
+      assert.equal(canWalkOnIsland(prop, houseOnly), true, prop.id + ' intersects the house');
+    }
+  }
+});

@@ -81,20 +81,33 @@ function decorateWater(material: THREE.MeshStandardMaterial, time: { value: numb
   material.customProgramCacheKey = () => 'island-water-v1';
 }
 
+const villagePaths = { crossroads: { x: 1.2, z: 0.8 }, houseBypass: 2.6,
+  doorOffset: 1.65, step: 0.32, width: 0.83, thickness: 0.008, elevation: 0.007 } as const;
+
 export function addVillagePaths(a: IslandAtelier, root: THREE.Group, blueprint: IslandBlueprint): void {
-  const crossroads: IslandPoint = { x: 1.2, z: 0.8 };
-  const destinations: IslandPoint[] = [blueprint.playerSpawn,
-    { x: blueprint.house.x + Math.sin(blueprint.house.rotation) * 1.65,
-      z: blueprint.house.z + Math.cos(blueprint.house.rotation) * 1.65 },
-    blueprint.activityZone, ...blueprint.portals];
-  for (const destination of destinations) {
-    const distance = Math.hypot(destination.x - crossroads.x, destination.z - crossroads.z);
-    const count = Math.ceil(distance / 0.32);
+  const crossroads: IslandPoint = villagePaths.crossroads;
+  const routes: IslandPoint[][] = [
+    [crossroads, blueprint.playerSpawn],
+    [crossroads, { x: blueprint.house.x + Math.sin(blueprint.house.rotation) * villagePaths.doorOffset,
+      z: blueprint.house.z + Math.cos(blueprint.house.rotation) * villagePaths.doorOffset }],
+    [crossroads, blueprint.activityZone],
+    ...blueprint.portals.map((portal) => portal.x < blueprint.house.x
+      ? [crossroads, { x: blueprint.house.x - villagePaths.houseBypass, z: crossroads.z },
+        { x: blueprint.house.x - villagePaths.houseBypass, z: portal.z }, portal]
+      : [crossroads, portal]),
+  ];
+  for (const route of routes) for (let segment = 1; segment < route.length; segment += 1) {
+    const origin = route[segment - 1];
+    const destination = route[segment];
+    if (origin === undefined || destination === undefined) continue;
+    const distance = Math.hypot(destination.x - origin.x, destination.z - origin.z);
+    const count = Math.ceil(distance / villagePaths.step);
     for (let step = 0; step <= count; step += 1) {
       const t = count === 0 ? 0 : step / count;
-      const x = THREE.MathUtils.lerp(crossroads.x, destination.x, t);
-      const z = THREE.MathUtils.lerp(crossroads.z, destination.z, t);
-      const disc = a.part(root, islandArt.palette.path, [0.83, 0.008, 0.83], [x, islandArt.ground + 0.007, z], 'cylinder');
+      const x = THREE.MathUtils.lerp(origin.x, destination.x, t);
+      const z = THREE.MathUtils.lerp(origin.z, destination.z, t);
+      const disc = a.part(root, islandArt.palette.path, [villagePaths.width, villagePaths.thickness, villagePaths.width],
+        [x, islandArt.ground + villagePaths.elevation, z], 'cylinder');
       disc.castShadow = false;
     }
   }

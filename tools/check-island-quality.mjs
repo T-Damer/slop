@@ -26,6 +26,7 @@ try {
   await cdp.send('Log.enable');
   const url = new URL(baseUrl);
   url.searchParams.set('qa', '1');
+  await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `localStorage.setItem('slop.local-player-id.v1', 'island-browser-review')` });
   await cdp.send('Page.navigate', { url: url.href });
   await waitForExpression(cdp, `!!document.querySelector('#slop-island-onboarding')`, 30000);
   await click('[data-island-action="start"]');
@@ -38,12 +39,14 @@ try {
   for (const viewport of viewports) {
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: viewport.width,
       height: viewport.height, deviceScaleFactor: 1, mobile: viewport.width < 768 });
+    await cdp.send('Page.bringToFront');
+    await waitForExpression(cdp, `window.__SLOP_ISLAND_QA__?.scene()?.paused === false`, 10000);
     await delay(500);
     const before = await snapshot();
-    await key('KeyD', 'd', 250);
+    await walk('KeyD', 'd', `window.__SLOP_ISLAND_QA__.scene().player.x > ${before.player.x + 0.15}`);
     const after = await snapshot();
     assert.ok(after.player.x > before.player.x, `${viewport.id}: screen-right movement`);
-    await key('KeyA', 'a', 250);
+    await walk('KeyA', 'a', `window.__SLOP_ISLAND_QA__.scene().player.x <= ${before.player.x + 0.03}`);
     await click('[data-island-shell-action="camera"]');
     assert.notEqual((await snapshot()).cameraMode, before.cameraMode);
     await click('[data-island-shell-action="camera"]');
@@ -65,12 +68,13 @@ try {
     reports.push({ ...viewport, ...layout });
   }
   // Real joystick pointer dispatch, rather than calling the simulation or teleporting QA state.
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
   const beforeTouch = await snapshot();
   const stick = await evaluate(cdp, `(() => { const r = document.querySelector('.island-joystick-base').getBoundingClientRect();
     return {x:r.x+r.width/2,y:r.y+r.height/2}; })()`);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: stick.x, y: stick.y }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: stick.x + 34, y: stick.y }] });
-  await delay(300);
+  await waitForExpression(cdp, `window.__SLOP_ISLAND_QA__.scene().player.x > ${beforeTouch.player.x + 0.05}`, 10000);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   assert.ok((await snapshot()).player.x > beforeTouch.player.x, 'Touch joystick moves right');
   // Focus loss releases a held key and pauses portal progress.
@@ -79,8 +83,33 @@ try {
   await evaluate(cdp, `window.dispatchEvent(new Event('focus'))`);
   assert.equal((await snapshot()).paused, false);
   assert.equal((await snapshot()).portal.progress, 0);
+  // Deterministic fixture route: walk to a tree, harvest, return by the cottage and plant.
+  // The read-only QA bridge observes state; no teleport or reward injection is used.
+  await walk('KeyD', 'd', `document.querySelector('[data-island-interact]').textContent.includes('Собрать яблоко')`);
+  await key('KeyE', 'e', 30);
+  await waitForExpression(cdp, `window.__SLOP_ISLAND_QA__.scene().fruit === 1`, 10000);
+  await walk('KeyA', 'a', `window.__SLOP_ISLAND_QA__.scene().player.x <= 0.1`);
+  await walk('KeyW', 'w', `window.__SLOP_ISLAND_QA__.scene().player.z <= 1.5`);
+  await walk('KeyA', 'a', `document.querySelector('[data-island-interact]').textContent.includes('Посадить цветы')`);
+  await click('[data-island-interact]');
+  await waitForExpression(cdp, `window.__SLOP_ISLAND_QA__.scene().planted === 1`, 10000);
+  const journal = (await snapshot()).journal;
+  await captureScreenshot(cdp, path.join(output, 'planting.png'));
+  await cdp.send('Page.reload');
+  await ready();
+  const restored = await snapshot();
+  assert.equal(restored.planted, 1);
+  assert.equal(restored.fruit, 0);
+  assert.deepEqual(restored.journal, journal);
+  reports.push({ interactions: { keyboard: true, touch: true, pause: true,
+    harvest: true, planting: true, persistence: true } });
+  await click('[data-island-shell-action="camera"]');
+  await click('[data-island-shell-action="camera"]');
+  await delay(1500);
+  await captureScreenshot(cdp, path.join(output, 'overview.png'));
 } catch (error) {
   failures.push(error instanceof Error ? error.stack : String(error));
+  reports.push({ failureState: await snapshot().catch(() => null) });
   await captureScreenshot(cdp, path.join(output, 'failure.png')).catch(() => {});
 } finally {
   await writeFile(path.join(output, 'report.json'), JSON.stringify({ reports, failures }, null, 2));
@@ -103,4 +132,10 @@ async function key(code, key, milliseconds) {
   await delay(milliseconds);
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', code, key });
   await delay(100);
+}
+
+async function walk(code, key, condition) {
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', code, key });
+  try { await waitForExpression(cdp, condition, 10000); }
+  finally { await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', code, key }); }
 }

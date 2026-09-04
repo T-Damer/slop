@@ -5,7 +5,7 @@ export const islandPlayStyles = `
 .personal-island .island-hud{padding:16px;gap:10px;}
 .personal-island .island-name-card,.personal-island .island-hud-actions button{box-shadow:0 3px 0 #51644020;backdrop-filter:none;border:0;background:#fff4dce8;}
 .personal-island .island-name-card{padding:10px 16px;border-radius:24px;}
-.personal-island .island-name-card small{letter-spacing:.015em;color:#72745b;}
+.personal-island .island-name-card small{display:block;letter-spacing:.015em;color:#72745b;}
 .personal-island .island-hud-actions button{min-height:46px;border-radius:22px;}
 .personal-island .island-guide-tip{display:none;}
 .personal-island .island-joystick-base{background:#f4ead638;border:2px solid #fff7e4b0;box-shadow:none;}

@@ -1,6 +1,7 @@
 import {
   islandDestinationIds,
   islandRules,
+  islandLandmarks,
 } from './registry.ts';
 import {
   createSeededRandom,
@@ -56,7 +57,7 @@ export function buildIslandBlueprint(
     season: preferences.season,
     coastline,
     palette,
-    house: placement('house', -1.4, -1.6, 1, 0.18),
+    house: { id: 'house', ...islandLandmarks.house },
     playerSpawn: { x: 0, z: 2.1 },
     guideSpawn: { x: 1.25, z: 1.45 },
     trees,
@@ -151,7 +152,8 @@ function findFreePoint(
     const angle = random.between(0, Math.PI * 2);
     const radius = Math.sqrt(random.next()) * (islandRules.baseRadius - 1.25);
     const point = { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius };
-    if (occupied.every((other) => distance(point, other) >= islandRules.minimumPlacementDistance)) {
+    if (distance(point, islandLandmarks.house) >= islandRules.housePlantingClearance
+      && occupied.every((other) => distance(point, other) >= islandRules.minimumPlacementDistance)) {
       return point;
     }
   }
@@ -160,7 +162,7 @@ function findFreePoint(
 
 function createReservedPoints(): ReadonlyArray<IslandPoint> {
   return [
-    { x: -1.4, z: -1.6 },
+    islandLandmarks.house,
     { x: 0, z: 2.1 },
     { x: 1.25, z: 1.45 },
     { x: 2.9, z: -1.15 },

@@ -75,7 +75,7 @@ export class PersonalIslandScene {
   public snapshot() {
     return { player: { x: this.world.player.position.x, z: this.world.player.position.z },
       cameraMode: this.camera.mode, portal: this.portal, renderer: this.rendering.snapshot(),
-      paused: this.paused, fruit: this.life.fruit, planted: this.life.planted,
+      paused: this.paused, simulationTime: this.time, fruit: this.life.fruit, planted: this.life.planted,
       journal: this.life.journal, targets: this.life.targets };
   }
   public destroy(): void {
@@ -122,7 +122,7 @@ export class PersonalIslandScene {
     if (this.disposed || this.paused) return;
     const elapsed = this.lastFrameAt === 0 ? 0 : (timestamp - this.lastFrameAt) / 1000;
     this.lastFrameAt = timestamp;
-    const delta = elapsed > islandArt.render.stallSeconds ? 0 : Math.max(0, Math.min(0.05, elapsed));
+    const delta = Math.max(0, Math.min(0.05, elapsed));
     this.time += delta;
     this.movePlayer(delta);
     this.updateLife(delta);
