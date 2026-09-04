@@ -13,6 +13,9 @@ const browser = await openChromium();
 const { cdp } = browser;
 const failures = [];
 const reports = [];
+// Software WebGL runners advance capped simulation much slower than wall time.
+// Keep real-input assertions, but allow the same route enough actual frames.
+const walkingTimeoutMs = 60000;
 cdp.on('Runtime.exceptionThrown', ({ exceptionDetails }) => failures.push(exceptionDetails.text));
 cdp.on('Runtime.consoleAPICalled', ({ type, args }) => {
   if (type === 'error') failures.push(args.map((arg) => arg.value ?? arg.description ?? '').join(' '));
@@ -36,6 +39,9 @@ try {
     await click('[data-island-action="next"]');
   }
   await ready();
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
+  await waitForExpression(cdp, `window.__SLOP_ISLAND_QA__.scene().simulationTime > 0.1`, 10000);
+  await captureScreenshot(cdp, path.join(output, 'hero-desktop.png'));
   for (const viewport of viewports) {
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: viewport.width,
       height: viewport.height, deviceScaleFactor: 1, mobile: viewport.width < 768 });
@@ -105,7 +111,8 @@ try {
     harvest: true, planting: true, persistence: true } });
   await click('[data-island-shell-action="camera"]');
   await click('[data-island-shell-action="camera"]');
-  await delay(1500);
+  const overviewStart = (await snapshot()).simulationTime;
+  await waitForExpression(cdp, `window.__SLOP_ISLAND_QA__.scene().simulationTime > ${overviewStart + 0.8}`, walkingTimeoutMs);
   await captureScreenshot(cdp, path.join(output, 'overview.png'));
 } catch (error) {
   failures.push(error instanceof Error ? error.stack : String(error));
@@ -136,6 +143,6 @@ async function key(code, key, milliseconds) {
 
 async function walk(code, key, condition) {
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', code, key });
-  try { await waitForExpression(cdp, condition, 10000); }
+  try { await waitForExpression(cdp, condition, walkingTimeoutMs); }
   finally { await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', code, key }); }
 }
