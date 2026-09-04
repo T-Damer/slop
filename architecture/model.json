@@ -176,7 +176,8 @@
         "versioned billiards wire messages",
         "local session fallback",
         "lazy Colyseus client transport",
-        "snapshot validation"
+        "snapshot validation",
+        "transient interaction relay"
       ],
       "dependsOn": [
         "billiards-domain"
@@ -189,8 +190,10 @@
       "owns": [
         "SolidJS billiards HUD",
         "Canvas 2D table renderer",
-        "pointer touch and keyboard controls",
-        "client prediction and reconciliation"
+        "pointer touch wheel and keyboard controls",
+        "client prediction and reconciliation",
+        "manual cue stroke interaction",
+        "adaptive presentation quality"
       ],
       "dependsOn": [
         "billiards-domain",
@@ -205,11 +208,13 @@
         "billiards collision regression tests",
         "determinism tests",
         "8-ball rules tests",
-        "billiards wire contract tests"
+        "billiards wire contract tests",
+        "presentation feedback rolling-orientation and interaction tests"
       ],
       "dependsOn": [
         "billiards-domain",
-        "billiards-network"
+        "billiards-network",
+        "billiards-presentation"
       ]
     },
     {
