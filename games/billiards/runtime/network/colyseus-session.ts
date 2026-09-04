@@ -1,5 +1,7 @@
 import { Client } from '@colyseus/sdk/Client';
 import type { Room } from '@colyseus/sdk/Room';
+import { registerSerializer } from '@colyseus/sdk/serializer/Serializer';
+import { NoneSerializer } from '@colyseus/sdk/serializer/NoneSerializer';
 import { billiardsConnectionStates as states, billiardsProtocol as protocol } from './registry.ts';
 import {
   billiardsInteractionKinds as kinds,
@@ -11,6 +13,10 @@ import {
 import type { BilliardsSession, BilliardsSessionListeners, BilliardsSessionOptions } from './session.ts';
 import { isMatchSnapshot } from './wire.ts';
 import type { BilliardsRejectedWireMessage } from './wire.ts';
+
+// Subpath imports deliberately avoid unused schema machinery. Register the
+// SDK's own message-only serializer, normally installed by its barrel entry.
+registerSerializer('none', NoneSerializer);
 
 export function createColyseusBilliardsSession(options: BilliardsSessionOptions): BilliardsSession {
   if (options.endpoint === null) throw new Error('A Colyseus endpoint is required.');
