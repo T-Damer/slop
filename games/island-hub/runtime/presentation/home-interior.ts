@@ -51,7 +51,7 @@ export class HomeInterior {
   }
   public pick(raycaster: THREE.Raycaster): string | null {
     const hit = raycaster.intersectObjects([...this.furniture.values()].filter((object) => object.visible), true)[0];
-    let object = hit?.object;
+    let object: THREE.Object3D | undefined = hit?.object;
     while (object !== undefined && object !== this.root) {
       if (typeof object.userData.homeItemId === 'string') return object.userData.homeItemId;
       object = object.parent ?? undefined;
