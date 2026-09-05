@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "area": "billiards-geometric-presets-and-materials",
-  "problem": "Add a selectable Russian geometry preset, with the existing 8-ball rules explicitly retained, and improve material readability and pot attribution without expanding the server.",
+  "area": "billiards-mobile-camera-graphics-and-pocket-feedback",
+  "problem": "Mobile balls are too small; graphics settings are absent; a suspended frame driver reports a stall on resume; pocketed balls disappear without a visual return to the player.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
@@ -24,13 +24,13 @@
     "games/billiards/runtime/domain/rules.ts",
     "games/billiards/runtime/presentation/ball-renderer-v2.ts"
   ],
-  "reuseDecision": "Extend the canonical table model and CCD: profiles live per table, never global mutable physics. Retain the American baseline and legacy wire defaults. Reuse the existing native dialog and licensed Phosphor SVG subset; cache graphics instead of adding a second engine.",
+  "reuseDecision": "Extend canonical canvas coordinates and captured pointer input. Use native Pointer Events, ResizeObserver and Web Animations; panzoom was reviewed but its independent gesture owner conflicts with cue input. Reuse the existing engine patch hook for a hash-guarded frame-driver lifecycle fix. Shared graphics preferences drive each renderer; domain outcomes alone authorize pot feedback.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
-    "Full pyramid rules or tournament-accurate certification",
-    "Server deployment or new online features",
-    "Changing other games or overwriting concurrent island work",
-    "Relaxing size or quality budgets"
+    "Full pyramid rules or online/server hosting",
+    "Changing deterministic shot results to match cosmetic animations",
+    "Increasing byte budgets or muting genuine frame-loop faults",
+    "Copying the generated mockup as a screenshot of working code"
   ],
   "acceptance": [
     "Every games/**/*.ts file has one architecture owner and all static and dynamic relative imports resolve through declared dependencies",
@@ -40,7 +40,6 @@
     "The browser contract executes a real break shot, observes movement, waits for rest, and captures every required viewport without runtime errors",
     "The Colyseus adapter remains optional and lazy while billiards.proto preserves a versioned transport-neutral message contract",
     "Ball markings roll over a lit spherical surface according to table displacement rather than rotating as flat discs",
-    "A first user gesture unlocks project-authored Web Audio cues for cue strikes, ball contacts, cushion contacts, and pocket drops without external sound files",
     "Source checks, strict typecheck, production build, bundle ratchet, and all browser contracts pass before publication",
     "The unchanged base/startup bundle ratchet and explicit Pocket Club lazy-client and Colyseus chunk ratchets all pass",
     "Placement confirms exactly once, clears ball-in-hand, hides the solid cue ball and rejects shooting before confirmation in the domain",
@@ -56,7 +55,12 @@
     "The new-game dialog does not reset state until confirmed; cancel and Escape return focus and preserve an in-progress game.",
     "Both presets use the same geometry for rack, placement, collision, preview and visible pockets. Narrow pockets reject oblique shots but accept centered shots.",
     "HUD pots show the actual shooter rather than infer group ownership, including wrong-group and foul pots.",
-    "Server source is unchanged; the shipped route remains local while the optional Colyseus adapter is retained."
+    "Mobile overview fits all six pockets; automatic aim zoom, two-pointer pan/pinch and reset use the same pointer inverse and cannot accidentally shoot or place a ball.",
+    "Camera stops moving during cue gestures, resets on shot/restart/orientation, and respects reduced-motion and auto-zoom preferences.",
+    "Graphics menu is keyboard accessible and saved; auto/high/balanced/low affects real renderer quality across routes.",
+    "Pocket animations consume semantic pocket events exactly once, preserve shot ownership, exclude cue scratches from HUD rewards and cancel cleanly on restart/unmount.",
+    "Frame-driver tests cover tab resume, suspended event loop, genuinely dropped RAF, duplicate generation rejection and balanced ref counts; no watchdog errors are hidden.",
+    "Published build has zero overlap between both rollers and shot action on all six viewports; tested source and artifact identity match."
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json",

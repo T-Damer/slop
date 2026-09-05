@@ -24,6 +24,8 @@ export interface BilliardsFeedbackEvent {
   readonly power?: number;
   readonly primaryBallId?: number;
   readonly secondaryBallId?: number;
+  readonly pocketId?: string;
+  readonly shooterIndex?: 0 | 1;
 }
 
 export interface BilliardsFeedbackBatch {
@@ -50,8 +52,9 @@ export function createCueFeedback(
 export function createCollisionFeedback(
   table: BilliardsTableState,
   events: ReadonlyArray<BilliardsCollisionEvent>,
+  shooterIndex?: 0 | 1,
 ): ReadonlyArray<BilliardsFeedbackEvent> {
-  return events.map((event) => mapCollision(table, event));
+  return events.map((event) => ({ ...mapCollision(table, event), shooterIndex }));
 }
 
 function mapCollision(
@@ -85,6 +88,7 @@ function mapCollision(
         / billiardsFeedbackTuning.fullIntensitySpeed,
     ),
     primaryBallId: event.ballId,
+    pocketId: event.kind === billiardsCollisionKinds.pocket ? event.pocketId : undefined,
   };
 }
 

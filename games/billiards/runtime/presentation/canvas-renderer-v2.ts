@@ -1,3 +1,4 @@
+import type { BilliardsPocketJourney } from './pocket-journey.ts';
 import { tableModelFor, type BilliardsTableModel } from '../domain/table-model.ts';
 import type { BilliardsQualityMode } from './adaptive-quality-v2.ts';
 import { BilliardsBallRendererV2 } from './ball-renderer-v2.ts';
@@ -51,6 +52,7 @@ export class BilliardsCanvasRendererV2 {
   public constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly effects: BilliardsEffectsRenderer,
+    private readonly pockets: BilliardsPocketJourney,
   ) {
     const context = canvas.getContext('2d', { alpha: true });
     if (context === null) throw new Error('Canvas 2D is unavailable.');
@@ -62,6 +64,8 @@ export class BilliardsCanvasRendererV2 {
     this.staticCanvas.height = billiardsView.canvasHeight;
   }
 
+  public ballSprite(id: number): HTMLCanvasElement | null { return this.balls.sprite(id); }
+
   public setSkin(skin: BilliardsTableSkinV2): void {
     if (this.skin.id === skin.id) return;
     this.skin = skin;
@@ -70,7 +74,7 @@ export class BilliardsCanvasRendererV2 {
 
   public draw(state: BilliardsCanvasRenderStateV2, nowMs: number): void {
     const effects = this.effects.debugSnapshot(nowMs);
-    const activeEffects = effects.activeImpacts > 0 || effects.cueStrikeActive;
+    const activeEffects = effects.activeImpacts > 0 || effects.cueStrikeActive || this.pockets.active(nowMs);
     if (this.previous === state.snapshot && this.quality === state.quality
       && !activeEffects && !this.hadEffects && this.cueReady && !this.staticSceneDirty) return;
     this.previous = state.snapshot; this.hadEffects = activeEffects;
@@ -122,7 +126,8 @@ export class BilliardsCanvasRendererV2 {
         model.ballRadius,
       );
     }
-    this.effects.draw(context, nowMs);
+    this.pockets.draw(context, nowMs);
+    if (!state.reducedMotion) this.effects.draw(context, nowMs);
   }
 
   public debugSnapshot(nowMs: number): BilliardsCanvasDebugV2 {

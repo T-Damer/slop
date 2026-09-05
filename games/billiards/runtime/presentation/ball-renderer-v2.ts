@@ -35,7 +35,7 @@ export class BilliardsBallRendererV2 {
         : rollBall(old.orientation, dx, dy, radius);
       this.rolling.set(ball.id, { position: ball.position, orientation, step: table.step });
       if (hideCue && ball.id === 0) continue;
-      this.drawBall(context, ball.id, ball.position, orientation, radius, skin, quality);
+      this.drawBall(context, ball.id, ball.position, orientation, radius, skin, quality, table.presetId === 'russian');
       this.litBallCount += 1;
       if (Math.hypot(ball.velocity.x, ball.velocity.y) > billiardsPhysics.stopSpeed) this.rollingBallCount += 1;
     }
@@ -52,6 +52,8 @@ export class BilliardsBallRendererV2 {
     context.stroke(); context.restore();
   }
 
+  public sprite(id: number): HTMLCanvasElement | null { return this.sprites.get(id)?.canvas ?? null; }
+
   public reset(): void { this.rolling.clear(); this.sprites.clear(); }
   public debugSnapshot() {
     return { rollingBallCount: this.rollingBallCount, litBallCount: this.litBallCount,
@@ -59,16 +61,16 @@ export class BilliardsBallRendererV2 {
   }
 
   private drawBall(context: CanvasRenderingContext2D, id: number, position: Vec2,
-    orientation: BallOrientation, radius: number, skin: BilliardsTableSkinV2, quality: BilliardsQualityMode): void {
+    orientation: BallOrientation, radius: number, skin: BilliardsTableSkinV2, quality: BilliardsQualityMode, ivory = false): void {
     const center = worldToCanvas(position), size = worldLengthToCanvas(radius);
     const lightX = Math.round(center.x / material.lightCellPixels) * material.lightCellPixels;
     const lightY = Math.round(center.y / material.lightCellPixels) * material.lightCellPixels;
-    const key = `${quality}:${skin.id}:${lightX}:${lightY}:${orientation.map((v) => Math.round(v * material.rotationQuantization)).join(':')}`;
+    const key = `${ivory}:${quality}:${skin.id}:${lightX}:${lightY}:${orientation.map((v) => Math.round(v * material.rotationQuantization)).join(':')}`;
     let sprite = this.sprites.get(id);
     if (sprite?.key !== key) {
       let texture = this.numbers.get(id);
       if (texture === undefined) { texture = createNumberTexture(id); this.numbers.set(id, texture); }
-      sprite = { key, canvas: shadeSphere(id, orientation, lightX, lightY, skin, quality, texture) };
+      sprite = { key, canvas: shadeSphere(id, orientation, lightX, lightY, skin, quality, texture, ivory) };
       this.sprites.set(id, sprite); this.spriteBuildCount += 1;
     }
     const awayX = (center.x / billiardsView.canvasWidth - skin.light.x) * size;
@@ -80,12 +82,12 @@ export class BilliardsBallRendererV2 {
 }
 
 function shadeSphere(id: number, orientation: BallOrientation, centerX: number, centerY: number,
-  skin: BilliardsTableSkinV2, quality: BilliardsQualityMode, number: Uint8ClampedArray): HTMLCanvasElement {
+  skin: BilliardsTableSkinV2, quality: BilliardsQualityMode, number: Uint8ClampedArray, ivory: boolean): HTMLCanvasElement {
   const size = material.spriteSizes[quality], canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const context = canvas.getContext('2d')!;
   const pixels = context.createImageData(size, size), matrix = surfaceMatrix(orientation);
-  const base = hexRgb(ballColor(id)), white = [242, 237, 221];
+  const base = hexRgb(ivory ? '#eee3c8' : ballColor(id)), white = [242, 237, 221];
   const light = [skin.light.x - centerX / billiardsView.canvasWidth,
     skin.light.y - centerY / billiardsView.canvasHeight, skin.light.height];
   const norm = Math.hypot(...light); light.forEach((v, i) => { light[i] = v / norm; });
@@ -98,7 +100,7 @@ function shadeSphere(id: number, orientation: BallOrientation, centerX: number, 
       if (surface === null) continue;
       const nz = Math.sqrt(1 - nx * nx - ny * ny), [u, v, z] = surface;
       const cap = id !== 0 && u * u + v * v < material.capRadius ** 2;
-      const albedo = id > 8 && Math.abs(v) > material.stripeHalfWidth ? white : base;
+      const albedo = !ivory && id > 8 && Math.abs(v) > material.stripeHalfWidth ? white : base;
       const tx = Math.min(material.textureSize - 1, Math.max(0,
         Math.floor((u * Math.sign(z) / material.capRadius + 1) / 2 * material.textureSize)));
       const ty = Math.min(material.textureSize - 1, Math.max(0,

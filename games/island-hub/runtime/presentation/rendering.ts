@@ -1,5 +1,6 @@
 import { voyageArt } from './voyage-art.ts';
 import type { IslandPoint } from '../domain/types.ts';
+import { graphicsSettings, graphicsPixelRatio } from '../../../shared/game-shell/graphics-settings.ts';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -20,6 +21,7 @@ export class IslandRendering {
   private height = 1;
   private slowFrames = 0;
   private lowQuality = false;
+  private readonly removeGraphics: () => void;
   public constructor(canvas: HTMLCanvasElement, scene: THREE.Scene, camera: THREE.Camera) {
     const settings = islandArt.render;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -47,6 +49,12 @@ export class IslandRendering {
     sun.shadow.bias = settings.shadowBias;
     sun.shadow.normalBias = settings.normalBias;
     scene.add(hemisphere, sun, sun.target);
+    this.removeGraphics = graphicsSettings.subscribe(({ quality }) => {
+      this.bloom.enabled = quality === 'auto' ? !this.lowQuality : quality === 'high';
+      this.renderer.shadowMap.enabled = quality !== 'low';
+      this.renderer.shadowMap.needsUpdate = true;
+      this.resize(this.width, this.height);
+    });
   }
   public followSun(point: IslandPoint): void {
     const origin = voyageArt.sunOffset;
@@ -60,7 +68,8 @@ export class IslandRendering {
   public resize(width: number, height: number): void {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
-    const cap = this.lowQuality ? 0.85 : width < islandArt.render.mobileWidth
+    const preference = graphicsSettings.get().quality;
+    const cap = preference !== 'auto' ? graphicsPixelRatio[preference] : this.lowQuality ? 0.85 : width < islandArt.render.mobileWidth
       ? islandArt.render.mobilePixelRatio : islandArt.render.pixelRatio;
     const ratio = Math.min(window.devicePixelRatio || 1, cap);
     this.renderer.setPixelRatio(ratio);
@@ -71,7 +80,7 @@ export class IslandRendering {
   public draw(delta: number): void {
     if (delta * 1000 > islandArt.render.slowFrameMs) this.slowFrames += 1;
     else this.slowFrames = Math.max(0, this.slowFrames - 1);
-    if (!this.lowQuality && this.slowFrames >= islandArt.render.slowFrames) {
+    if (graphicsSettings.get().quality === 'auto' && !this.lowQuality && this.slowFrames >= islandArt.render.slowFrames) {
       this.lowQuality = true;
       this.bloom.enabled = false;
       this.resize(this.width, this.height);
@@ -85,6 +94,7 @@ export class IslandRendering {
       pixelRatio: this.renderer.getPixelRatio() };
   }
   public dispose(): void {
+    this.removeGraphics();
     this.renderPass.dispose();
     this.bloom.dispose();
     this.output.dispose();

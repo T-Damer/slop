@@ -1,13 +1,9 @@
+import { verifyGraphicsMenu, verifyCamera, verifyPocketJourney } from './browser-quality/billiards-camera.mjs';
 import { verifyPresetRoundtrip } from './browser-quality/billiards-presets.mjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import {
-  captureScreenshot,
-  delay,
-  evaluate,
-  waitForExpression,
-} from './browser-quality/cdp-client.mjs';
+import { captureScreenshot, delay, evaluate, waitForExpression } from './browser-quality/cdp-client.mjs';
 import { clickAt, aimPoint, verifyAimControls } from './browser-quality/billiards-controls.mjs';
 import { openChromium } from './browser-quality/chromium-host.mjs';
 const root = process.cwd();
@@ -94,10 +90,11 @@ async function inspectViewport({
   );
   await waitForExpression(cdp, `Boolean(${ui.qaExpression})`, 20000);
   await delay(700);
+  const settings = await verifyGraphicsMenu(cdp, directory);
   const layout = await evaluate(cdp, createLayoutExpression(ui));
   const screenshot = await captureScreenshot(cdp, path.join(directory, 'boot.png'));
   const failures = [...layout.failures];
-  const interactions = { controls: await verifyAimControls(cdp, ui) };
+  const interactions = { settings, camera: await verifyCamera(cdp, ui, directory), controls: await verifyAimControls(cdp, ui) };
   failures.push(...interactions.controls.failures);
   if (exerciseShot) {
     interactions.breakShot = await runBreakShot(cdp, ui, directory);
@@ -114,6 +111,7 @@ async function inspectViewport({
       failures.push('Web Audio did not unlock for the shot.');
     }
   }
+  interactions.pocketJourney = await verifyPocketJourney(cdp, ui, directory, aimPoint, clickAt);
   interactions.presets = await verifyPresetRoundtrip(cdp, ui, directory, () => runBreakShot(cdp, ui, directory));
   failures.push(...interactions.presets.failures);
   for (const runtimeError of runtimeErrors) {
@@ -225,6 +223,12 @@ function createLayoutExpression(ui) {
     if (root?.getAttribute('data-ball-render-mode') !== ${JSON.stringify(ui.expectedBallRenderMode)}) {
       failures.push('Spherical rolling renderer is not active.');
     }
+    const controls = [power,angle,shoot,restart,sound,document.querySelector('.slop-graphics-launcher'),document.querySelector('[data-billiards-zoom]')].filter(Boolean);
+    for (let i=0;i<controls.length;i++) for(let j=i+1;j<controls.length;j++) {
+      const a=controls[i].getBoundingClientRect(), b=controls[j].getBoundingClientRect();
+      if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1 && Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1) failures.push('Interactive controls overlap.');
+    }
+    for (const element of [power,angle]) if(!element?.textContent.includes(element===power?'Сила':'Направление')) failures.push('A roller has no purpose label.');
     const canvasRect = canvas instanceof HTMLElement ? canvas.getBoundingClientRect() : null;
     if (canvasRect && ((innerHeight > innerWidth) !== (canvasRect.height > canvasRect.width))) failures.push('Table orientation does not follow viewport.');
     if (canvasRect && (canvasRect.width < ${ui.minimumCanvasWidthPx} || canvasRect.height < ${ui.minimumCanvasHeightPx})) {

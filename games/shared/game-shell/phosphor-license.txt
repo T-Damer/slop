@@ -25,3 +25,5 @@ house.svg blob 2e936a922768982138e123c6b223390cf676ec49
 arrow-counter-clockwise.svg blob 5c6b67d9c870c0499f940eb0b0cbb548dda9e4d1
 speaker-high.svg blob 2c9885bd1e50e41fbfd25673e3802099d895f917
 user.svg blob d560c5d59bb9898491ce9aa35e3ca542557d34fe
+
+gear-six.svg blob 2f6e0ca0de7906c9a6f0a8dbca41821fbe8e65ca

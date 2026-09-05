@@ -1,3 +1,5 @@
+import { graphicsSettings } from '../../../shared/game-shell/graphics-settings.ts';
+
 export const billiardsQualityModes = {
   high: 'high',
   balanced: 'balanced',
@@ -75,9 +77,9 @@ export class BilliardsAdaptiveQuality {
   }
 
   public shouldRender(nowMs: number): boolean {
-    const interval = this.modeValue === billiardsQualityModes.high
+    const interval = this.mode() === billiardsQualityModes.high
       ? qualityTuning.highRenderIntervalMs
-      : this.modeValue === billiardsQualityModes.balanced
+      : this.mode() === billiardsQualityModes.balanced
         ? qualityTuning.balancedRenderIntervalMs
         : qualityTuning.lowRenderIntervalMs;
     if (nowMs - this.lastRenderMs < interval) return false;
@@ -86,12 +88,13 @@ export class BilliardsAdaptiveQuality {
   }
 
   public mode(): BilliardsQualityMode {
-    return this.modeValue;
+    const requested = graphicsSettings.get().quality;
+    return requested === 'auto' ? this.modeValue : requested;
   }
 
   public snapshot(): BilliardsQualitySnapshot {
     return {
-      mode: this.modeValue,
+      mode: this.mode(),
       averageFrameMs: this.averageFrameMs(),
       longFrameCount: this.longFrameCount,
       downgradeCount: this.downgradeCount,

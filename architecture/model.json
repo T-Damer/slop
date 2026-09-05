@@ -31,7 +31,9 @@
       "path": "games/shared/game-shell",
       "owns": [
         "standalone game return navigation",
-        "shared licensed Phosphor SVG subset"
+        "shared licensed Phosphor SVG subset",
+        "shared graphics preferences and accessible menu",
+        "renderer quality binding"
       ],
       "dependsOn": []
     },
@@ -93,7 +95,8 @@
         "island-domain",
         "island-application",
         "island-storage",
-        "player-movement-input"
+        "player-movement-input",
+        "game-shell-navigation"
       ]
     },
     {
@@ -125,7 +128,8 @@
         "local preferences"
       ],
       "dependsOn": [
-        "parking-domain"
+        "parking-domain",
+        "game-shell-navigation"
       ]
     },
     {
@@ -157,7 +161,8 @@
       "dependsOn": [
         "junkyard-domain",
         "proximity-domain",
-        "player-movement-input"
+        "player-movement-input",
+        "game-shell-navigation"
       ]
     },
     {
@@ -220,7 +225,8 @@
       "dependsOn": [
         "billiards-domain",
         "billiards-network",
-        "billiards-presentation"
+        "billiards-presentation",
+        "game-shell-navigation"
       ]
     },
     {

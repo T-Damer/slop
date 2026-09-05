@@ -1,3 +1,4 @@
+import { bindRendererGraphics } from '../../../shared/game-shell/graphics-settings.ts';
 import * as THREE from 'three';
 
 import { junkyardLevel } from '../domain/level.ts';
@@ -42,6 +43,7 @@ export class JunkyardScene {
   private readonly lastPlayerPosition = new THREE.Vector3();
   private elapsedSeconds = 0;
   private disposed = false;
+  private readonly removeGraphics: () => void;
 
   public constructor(
     private readonly host: HTMLElement,
@@ -51,6 +53,7 @@ export class JunkyardScene {
     this.canvas.setAttribute('aria-label', '3D junkyard station');
     this.host.append(this.canvas);
     this.renderer = this.createRenderer();
+    this.removeGraphics = bindRendererGraphics(this.renderer);
     this.scene.background = new THREE.Color(junkyardSceneColors.sky);
     this.scene.fog = new THREE.Fog(
       junkyardSceneColors.fog,
@@ -162,6 +165,7 @@ export class JunkyardScene {
         material.dispose();
       }
     });
+    this.removeGraphics();
     this.renderer.dispose();
     this.canvas.remove();
   }

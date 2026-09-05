@@ -29,3 +29,16 @@ still counted by the base and TOTAL raw/gzip/Brotli budgets; it is not free byte
 and is not excluded from the report. No limit in `quality-contract.json` changes.
 Do not delete emitted files blindly, fake fingerprints, or bypass a failed gate.
 The full production browser suites and two-client Colyseus test remain required.
+
+## Frame-driver lifecycle repair
+
+`prepare-web-engine.mjs` also applies `patch-frame-driver.mjs` to the exact pinned
+upstream frame driver (source SHA is checked). Hidden documents cancel their
+pending continuation without releasing consumer refs. Visibility restoration and
+BFCache pageshow arm one fresh generation. A suspended event-loop/watchdog gets
+one RAF grace period; an actually lost chain still emits the original diagnostic
+and recovers. The health report still measures real frames, not re-arms. No global
+RAF shim, ignored errors, duplicate frame driver or ref-count manipulation.
+`tools/frame-driver.test.mjs` executes the patched upstream code under a fake
+clock/RAF in CI, including a 12,941ms suspension, two live refs, genuinely lost
+frames, stale generations and throwing callbacks.

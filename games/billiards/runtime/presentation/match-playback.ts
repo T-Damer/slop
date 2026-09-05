@@ -18,7 +18,7 @@ export class BilliardsMatchPlayback {
     for (let step = 0; step < billiardsPhysics.maximumFrameSteps
       && this.accumulator >= billiardsPhysics.fixedStepSeconds && next.activeShot !== null; step += 1) {
       const advanced = advanceMatchShotWithEvents(next);
-      events.push(...createCollisionFeedback(next.table, advanced.events));
+      events.push(...createCollisionFeedback(next.table, advanced.events, next.turnIndex));
       next = advanced.match;
       this.accumulator -= billiardsPhysics.fixedStepSeconds;
     }

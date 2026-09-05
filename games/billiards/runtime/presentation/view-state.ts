@@ -10,6 +10,7 @@ import type { BilliardsViewElements } from './view-elements.ts';
 
 const fullCircleDegrees = 360;
 const radiansToDegrees = 180 / Math.PI;
+const dialStates = new WeakMap<HTMLElement, { angle: number; offset: number }>();
 
 export function updateBilliardsView(
   view: BilliardsViewElements,
@@ -38,15 +39,22 @@ export function updateBilliardsView(
     panel.classList.toggle('is-active', match.turnIndex === playerIndex);
     panel.classList.toggle('is-winner', winnerIndex === playerIndex);
     view.playerNames[playerIndex].textContent = player.name;
-    view.playerGroups[playerIndex].textContent = `${groupLabel(player.group)} · забито ${match.table.balls.filter((ball) => ball.pocketed && ball.pocketedBy === playerIndex).length}`;
+    view.playerGroups[playerIndex].textContent = `${match.table.presetId === 'russian' && player.group !== 'open' ? (player.group === 'solids' ? '1–7' : '9–15') : groupLabel(player.group)} · забито ${match.table.balls.filter((ball) => ball.pocketed && ball.pocketedBy === playerIndex).length}`;
     panel.setAttribute('aria-current', String(match.turnIndex === playerIndex));
     updatePocketSlots(
       view.pocketSlots[playerIndex],
       match.table.balls,
       playerIndex,
+      match.table.presetId === 'russian',
     );
   }
 
+  const previous = dialStates.get(view.root) ?? { angle: snapshot.angleRadians, offset: 0 };
+  const delta = Math.atan2(Math.sin(snapshot.angleRadians - previous.angle), Math.cos(snapshot.angleRadians - previous.angle));
+  const offset = previous.offset + delta * 100;
+  dialStates.set(view.root, { angle: snapshot.angleRadians, offset });
+  view.root.style.setProperty('--dial-angle', `${offset}px`);
+  view.root.style.setProperty('--dial-power', `${snapshot.power * 180}px`);
   setRangeValue(view.power, snapshot.power);
   view.powerOutput.value = `${Math.round(snapshot.power * 100)}%`;
   view.angleOutput.value = `${normalizeDegrees(snapshot.angleRadians * radiansToDegrees)}°`;
@@ -74,12 +82,13 @@ function updatePocketSlots(
   slots: ReadonlyArray<HTMLElement>,
   balls: ReadonlyArray<BilliardsBallState>,
   playerIndex: 0 | 1,
+  ivory: boolean,
 ): void {
   const pocketed = balls.filter((ball) => ball.pocketed && ball.pocketedBy === playerIndex)
     .sort((left, right) => left.id - right.id);
 
   slots.forEach((slot, index) => {
-    const ball = pocketed[index];
+    const ball = pocketed.find((entry) => entry.id === index + 1);
     slot.classList.toggle('is-pocketed', ball !== undefined);
     slot.classList.toggle(
       'is-stripe',
@@ -92,7 +101,7 @@ function updatePocketSlots(
     if (ball === undefined) {
       slot.style.removeProperty('--slot-color');
     } else {
-      slot.style.setProperty('--slot-color', ballColor(ball.id));
+      slot.style.setProperty('--slot-color', ivory ? '#eee3c8' : ballColor(ball.id));
     }
   });
 }

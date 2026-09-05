@@ -69,7 +69,9 @@ export function advanceMatchShotWithEvents(
   const trace = appendShotEvents(match.activeShot, simulation.events);
   const movingMatch = {
     ...match,
-    table: simulation.table,
+    table: { ...simulation.table, balls: simulation.table.balls.map((ball) =>
+      ball.id !== billiardsBallIds.cue && trace.pocketedBallIds.includes(ball.id)
+        ? { ...ball, pocketedBy: match.turnIndex } : ball) },
     activeShot: trace,
   };
   if (!isTableAtRest(simulation.table)) {

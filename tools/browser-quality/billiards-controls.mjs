@@ -1,3 +1,4 @@
+import { settleCamera } from './billiards-camera.mjs';
 import { chooseNewMatch, verifyNewMatchPause } from './billiards-presets.mjs';
 import { delay, evaluate, waitForExpression } from './cdp-client.mjs';
 
@@ -46,6 +47,7 @@ export async function verifyAimControls(cdp, ui) {
 }
 
 export async function performManualStroke(cdp, ui) {
+  await settleCamera(cdp);
   const touch = await evaluate(cdp, 'innerHeight > innerWidth');
   const start = await aimPoint(cdp, ui, 600, 360);
   const back = await aimPoint(cdp, ui, 500, 360);

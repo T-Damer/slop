@@ -36,6 +36,10 @@ export class BilliardsAudioEngine {
     }
   }
 
+  public playDialTick(): void {
+    if (this.canPlay()) this.playTone(1800, 0.012, 0.022, 'triangle', 0, 0);
+  }
+
   public toggle(): boolean {
     this.muted = !this.muted;
     return this.isEnabled();

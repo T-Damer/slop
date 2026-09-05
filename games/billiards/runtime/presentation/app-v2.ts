@@ -1,3 +1,6 @@
+import { graphicsSettings, prefersReducedMotion } from '../../../shared/game-shell/graphics-settings.ts';
+import { BilliardsTableCamera } from './table-camera.ts';
+import { BilliardsPocketJourney } from './pocket-journey.ts';
 import {
   createEffect,
   createRoot,
@@ -29,6 +32,8 @@ interface BilliardsQaV2 {
     readonly quality: ReturnType<BilliardsAdaptiveQuality['snapshot']>;
     readonly renderer: ReturnType<BilliardsCanvasRendererV2['debugSnapshot']>;
     readonly portrait: boolean;
+    readonly camera: ReturnType<BilliardsTableCamera['snapshot']>;
+    readonly pockets: ReturnType<BilliardsPocketJourney['snapshot']>;
   };
   readonly primaryAction: () => boolean;
   readonly setPlacementPreview: (x: number, y: number) => void;
@@ -67,9 +72,10 @@ function createBilliardsAppV2(): HTMLElement {
   const controller = new BilliardsGameControllerV2();
   const effects = new BilliardsEffectsRenderer();
   const audio = new BilliardsAudioEngine();
-  const renderer = new BilliardsCanvasRendererV2(view.canvas, effects);
+  const pockets = new BilliardsPocketJourney();
+  const renderer = new BilliardsCanvasRendererV2(view.canvas, effects, pockets);
+  const camera = new BilliardsTableCamera(view.stage, view.canvas, controller, view.zoom);
   const quality = new BilliardsAdaptiveQuality();
-  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const orientation = matchMedia('(orientation: portrait)');
   const [snapshot, setSnapshot] = createSignal(controller.snapshot());
   const [soundEnabled, setSoundEnabled] = createSignal(audio.isEnabled());
@@ -79,6 +85,7 @@ function createBilliardsAppV2(): HTMLElement {
   const unsubscribeFeedback = controller.subscribeFeedback((batch) => {
     const nowMs = performance.now();
     effects.consume(batch, nowMs);
+    pockets.consume(batch, controller.snapshot().match, nowMs, (id) => renderer.ballSprite(id));
     audio.consume(batch);
   });
   const removeControls = bindBilliardsControlsV2({
@@ -89,15 +96,17 @@ function createBilliardsAppV2(): HTMLElement {
     setSoundEnabled,
   });
   const removeOrientation = bindOrientation(orientation, setPortrait);
-  const frameLoop = createFrameLoop(
-    controller,
-    renderer,
-    quality,
-    snapshot,
-    qualityMode,
-    setQualityMode,
-    reducedMotion,
-  );
+  const removeGraphics = graphicsSettings.subscribe(() => setQualityMode(quality.mode()));
+  const frameLoop = new BilliardsFrameLoop({ onFrame: (nowMs, deltaSeconds) => {
+    if (snapshot().match.activeShot !== null) quality.observe(deltaSeconds * 1000, nowMs);
+    camera.advance(deltaSeconds);
+    controller.advance(deltaSeconds);
+    const mode = quality.mode();
+    if (mode !== qualityMode()) setQualityMode(mode);
+    pockets.synchronize(snapshot().match, view, nowMs);
+    if (quality.shouldRender(nowMs)) renderer.draw({ snapshot: snapshot(), quality: mode,
+      reducedMotion: prefersReducedMotion() }, nowMs);
+  } });
 
   createEffect(() => {
     updateBilliardsViewV2(
@@ -107,11 +116,13 @@ function createBilliardsAppV2(): HTMLElement {
       qualityMode(),
       portrait(),
     );
+    camera.synchronize(snapshot());
+    pockets.synchronize(snapshot().match, view, performance.now());
   });
 
   onMount(() => {
     document.title = `${billiardsCopy.title} · SLOP`;
-    installQaBridge(controller, renderer, frameLoop, quality, snapshot, portrait);
+    installQaBridge(controller, renderer, frameLoop, quality, snapshot, portrait, camera, pockets);
     frameLoop.start();
     // Public game is local-only for now; retain the optional SDK behind its adapter.
     void controller.start(location.origin);
@@ -120,6 +131,7 @@ function createBilliardsAppV2(): HTMLElement {
 
   onCleanup(() => {
     frameLoop.stop();
+    camera.dispose(); pockets.clear(view); removeGraphics();
     unsubscribe();
     unsubscribeFeedback();
     removeControls();
@@ -130,31 +142,6 @@ function createBilliardsAppV2(): HTMLElement {
   });
 
   return view.root;
-}
-
-function createFrameLoop(
-  controller: BilliardsGameControllerV2,
-  renderer: BilliardsCanvasRendererV2,
-  quality: BilliardsAdaptiveQuality,
-  snapshot: () => BilliardsControllerSnapshotV2,
-  qualityMode: () => ReturnType<BilliardsAdaptiveQuality['mode']>,
-  setQualityMode: (mode: ReturnType<BilliardsAdaptiveQuality['mode']>) => void,
-  reducedMotion: MediaQueryList,
-): BilliardsFrameLoop {
-  return new BilliardsFrameLoop({
-    onFrame: (nowMs, deltaSeconds) => {
-      quality.observe(deltaSeconds * 1000, nowMs);
-      controller.advance(deltaSeconds);
-      const nextMode = quality.mode();
-      if (nextMode !== qualityMode()) setQualityMode(nextMode);
-      if (!quality.shouldRender(nowMs)) return;
-      renderer.draw({
-        snapshot: snapshot(),
-        quality: nextMode,
-        reducedMotion: reducedMotion.matches,
-      }, nowMs);
-    },
-  });
 }
 
 function bindOrientation(
@@ -177,6 +164,8 @@ function installQaBridge(
   quality: BilliardsAdaptiveQuality,
   snapshot: () => BilliardsControllerSnapshotV2,
   portrait: () => boolean,
+  camera: BilliardsTableCamera,
+  pockets: BilliardsPocketJourney,
 ): void {
   if (new URLSearchParams(location.search).get('qa') !== '1') return;
   window.__SLOP_BILLIARDS_QA_V2__ = {
@@ -187,6 +176,8 @@ function installQaBridge(
       quality: quality.snapshot(),
       renderer: renderer.debugSnapshot(performance.now()),
       portrait: portrait(),
+      camera: camera.snapshot(),
+      pockets: pockets.snapshot(performance.now()),
     }),
     primaryAction: () => controller.primaryAction(),
     setPlacementPreview: (x, y) => controller.setPlacementPreview({ x, y }),

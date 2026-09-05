@@ -80,7 +80,7 @@ export class BilliardsFrameLoop {
   }
 
   private scheduleFreshChain(recovery: boolean): void {
-    if (!this.running) return;
+    if (!this.running || document.visibilityState !== 'visible') return;
     this.generation += 1;
     const generation = this.generation;
     cancelAnimationFrame(this.animationFrameId);
@@ -100,11 +100,11 @@ export class BilliardsFrameLoop {
     );
     this.lastFrameAtMs = nowMs;
     this.callbackCount += 1;
-    this.onFrame(nowMs, Math.min(rawDeltaMs, this.maximumDeltaMs) / 1000);
     if (!this.running || generation !== this.generation) return;
     this.animationFrameId = requestAnimationFrame(
       (nextNowMs) => this.tick(nextNowMs, generation),
     );
+    this.onFrame(nowMs, Math.min(rawDeltaMs, this.maximumDeltaMs) / 1000);
   }
 
   private recoverWhenStalled(): void {
@@ -116,9 +116,10 @@ export class BilliardsFrameLoop {
 
   private installRecoveryListeners(): void {
     this.addListener(document, 'visibilitychange', () => {
-      if (document.visibilityState === 'visible') this.scheduleFreshChain(true);
+      if (document.visibilityState === 'visible') this.scheduleFreshChain(false);
+      else { this.generation += 1; cancelAnimationFrame(this.animationFrameId); }
     });
-    this.addListener(window, 'pageshow', () => this.scheduleFreshChain(true));
+    this.addListener(window, 'pageshow', () => this.scheduleFreshChain(false));
     this.addListener(window, 'focus', () => this.ensureRunning());
     for (const eventName of ['pointerdown', 'keydown', 'touchstart'] as const) {
       this.addListener(window, eventName, () => this.ensureRunning(), true);

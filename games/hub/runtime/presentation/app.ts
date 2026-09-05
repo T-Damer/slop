@@ -1,3 +1,4 @@
+import { mountGraphicsMenu } from '../../../shared/game-shell/graphics-menu.ts';
 import { phosphorIcon } from '../../../shared/game-shell/phosphor.ts';
 import {
   mountPersonalIsland,
@@ -83,10 +84,12 @@ class GameHubController {
   private activeUnmount: GameUnmount | null = null;
   private routeVersion = 0;
   private disposed = false;
+  private removeGraphics: (() => void) | null = null;
 
   public constructor(private readonly root: HTMLElement) {}
 
   public mount(): void {
+    this.removeGraphics = mountGraphicsMenu(document.body);
     this.root.addEventListener('click', this.handleClick);
     window.addEventListener('popstate', this.handlePopState);
     this.installQaBridge();
@@ -94,6 +97,7 @@ class GameHubController {
   }
 
   public unmount(): void {
+    this.removeGraphics?.();
     this.disposed = true;
     this.routeVersion += 1;
     this.activeUnmount?.();

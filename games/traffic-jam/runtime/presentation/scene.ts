@@ -1,3 +1,4 @@
+import { bindRendererGraphics } from '../../../shared/game-shell/graphics-settings.ts';
 import * as THREE from 'three';
 
 import {
@@ -95,6 +96,7 @@ export class ParkingJamScene {
   private shakeStrength: number = trafficRules.firstCoordinate;
   private interactive = true;
   private disposed = false;
+  private readonly removeGraphics: () => void;
 
   public constructor(
     private readonly host: HTMLElement,
@@ -117,6 +119,7 @@ export class ParkingJamScene {
     this.renderer.toneMappingExposure = parkingCamera.toneMappingExposure;
     this.renderer.shadowMap.enabled = this.quality.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.removeGraphics = bindRendererGraphics(this.renderer);
 
     this.scene.add(this.levelRoot, this.effectsRoot);
     this.configureLights();
@@ -434,6 +437,7 @@ export class ParkingJamScene {
     document.removeEventListener(parkingUiEvents.visibilityChange, this.handleVisibilityChange);
     this.clearLevel();
     disposeObject(this.effectsRoot);
+    this.removeGraphics();
     this.renderer.dispose();
     this.canvas.remove();
   }

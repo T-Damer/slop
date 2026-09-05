@@ -13,18 +13,30 @@ export interface BilliardsRailInputOptions {
 
 export function bindBilliardsRailInputV2(options: BilliardsRailInputOptions): () => void {
   let angleCoordinate = 0;
+  let detent = 0;
   const power = (event: PointerEvent): void => {
     const rect = options.view.powerRail.getBoundingClientRect();
-    const portrait = options.view.root.dataset.billiardsPortrait === 'true';
-    options.controller.setPower(clamp(portrait ? (event.clientX - rect.left) / Math.max(1, rect.width)
-      : 1 - (event.clientY - rect.top) / Math.max(1, rect.height), 0));
+    options.controller.setPower(clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0));
   };
   const angle = (event: PointerEvent, beginning: boolean): void => {
-    const coordinate = options.view.root.dataset.billiardsPortrait === 'true' ? event.clientX : event.clientY;
+    const coordinate = event.clientX;
     if (!beginning) options.controller.adjustAngle((coordinate - angleCoordinate) * tuning.angleRadiansPerPixel);
     angleCoordinate = coordinate;
+    const nextDetent = Math.floor(coordinate / 12);
+    if (!beginning && nextDetent !== detent) options.audio.playDialTick();
+    detent = nextDetent;
   };
+  const key = (event: KeyboardEvent): void => {
+    const direction = ['ArrowLeft', 'ArrowDown'].includes(event.code) ? -1
+      : ['ArrowRight', 'ArrowUp'].includes(event.code) ? 1 : 0;
+    if (direction === 0) return;
+    event.preventDefault(); event.stopPropagation();
+    options.controller.adjustAngle(direction * (event.shiftKey ? tuning.fineAngleStep : tuning.angleStep));
+    options.audio.playDialTick();
+  };
+  options.view.angle.addEventListener('keydown', key);
   const removers = [
+    () => options.view.angle.removeEventListener('keydown', key),
     bindCapturedControl(options.view.powerRail, options, power),
     bindCapturedControl(options.view.angleRail, options, angle),
     bindRangeInputs(options),

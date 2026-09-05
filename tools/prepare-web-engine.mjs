@@ -1,3 +1,4 @@
+import { patchFrameDriver, frameDriverPatch } from './patch-frame-driver.mjs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -41,7 +42,10 @@ async function prepare() {
   const file = path.join(engine, compactWebProfile.entryPath);
   const source = await readFile(file, 'utf8');
   const patched = compactEngineEntry(source, config, commit);
+  const driverFile = path.join(engine, frameDriverPatch.path);
+  const driver = patchFrameDriver(await readFile(driverFile, 'utf8'));
   await writeFile(file, patched);
+  await writeFile(driverFile, driver);
   console.log(`Prepared static SLOP web profile for Modoki ${commit}; ordinary game imports remain enabled.`);
 }
 

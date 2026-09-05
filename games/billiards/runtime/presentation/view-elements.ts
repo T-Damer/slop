@@ -5,6 +5,8 @@ import { billiardsCopy, billiardsUiAttributes, billiardsUiIds } from './registry
 export interface BilliardsViewElements {
   readonly root: HTMLElement;
   readonly canvas: HTMLCanvasElement;
+  readonly stage: HTMLElement;
+  readonly zoom: HTMLButtonElement;
   readonly status: HTMLElement;
   readonly hint: HTMLElement;
   readonly connection: HTMLElement;
@@ -24,218 +26,60 @@ export interface BilliardsViewElements {
   readonly smokeLayer: HTMLElement;
 }
 
-const roomArtworkUrl = new URL('./assets/pocket-club-room.svg', import.meta.url).href;
-const scoreboardArtworkUrl = new URL('./assets/pocket-club-scoreboard.svg', import.meta.url).href;
-
 export function createBilliardsViewElements(): BilliardsViewElements {
   const root = document.createElement('main');
-  root.id = billiardsUiIds.root;
-  root.setAttribute(billiardsUiAttributes.root, '');
-  root.style.setProperty('--billiards-room-art', cssUrl(roomArtworkUrl));
-  root.style.setProperty('--billiards-scoreboard-art', cssUrl(scoreboardArtworkUrl));
-  root.innerHTML = `
-    <div class="billiards-room-backdrop" aria-hidden="true"></div>
-    ${smokeLayer()}
+  root.id = billiardsUiIds.root; root.setAttribute(billiardsUiAttributes.root, '');
+  root.style.setProperty('--billiards-room-art', `url("${new URL('./assets/pocket-club-room.svg', import.meta.url).href}")`);
+  root.innerHTML = `<div class="billiards-room-backdrop" aria-hidden="true"></div>
+    <div class="billiards-smoke-layer" aria-hidden="true">${Array.from({ length: 5 }, () => '<i class="billiards-smoke-wisp"></i>').join('')}</div>
     <div class="billiards-shell">
-      <header class="billiards-header">
-        <div class="billiards-brand">
-          <h1>${billiardsCopy.title}</h1>
-          <p>${billiardsCopy.subtitle}</p>
-        </div>
-        <div class="billiards-utilities">
-          <div class="billiards-connection" aria-live="polite"></div>
-          <button
-            class="billiards-icon-button"
-            type="button"
-            data-billiards-sound
-            aria-label="${billiardsCopy.soundOn}"
-            aria-pressed="false"
-            title="${billiardsCopy.soundOn}"
-          >${phosphorIcon('sound')}</button>
-        </div>
-      </header>
-      <section class="billiards-scoreboard" aria-label="Счёт и очередь хода">
-        ${playerCard(0)}
-        <div class="billiards-status" aria-live="polite"></div>
-        ${playerCard(1)}
-      </section>
-      <section class="billiards-table-wrap" aria-label="Бильярдный стол">
-        <div class="billiards-stage">
-          <canvas
-            id="${billiardsUiIds.canvas}"
-            ${billiardsUiAttributes.canvas}
-            width="1280"
-            height="720"
-            tabindex="0"
-            aria-label="Бильярдный стол. Ведите указателем для прицеливания."
-          ></canvas>
-          ${powerControl()}
-          ${angleControl()}
-        </div>
-      </section>
-      <section class="billiards-controls" aria-label="Настройки удара">
-        <div class="billiards-actions">
-          <button class="billiards-button" type="button" ${billiardsUiAttributes.shoot}>
-            ${billiardsCopy.shoot}
-          </button>
-          <button
-            class="billiards-button secondary"
-            type="button"
-            title="${billiardsCopy.restart}"
-            aria-label="${billiardsCopy.restart}"
-            ${billiardsUiAttributes.restart}
-          >${phosphorIcon('restart')}</button>
-        </div>
-        <p class="billiards-controls-copy billiards-table-hint" aria-live="polite">${billiardsCopy.controls}</p>
-      </section>
-    </div>
-  `;
-  return collectElements(root);
+    <header class="billiards-header"><span class="billiards-brand">Pocket Club</span><span class="billiards-connection"></span>
+      <button class="billiards-icon-button" type="button" data-billiards-sound aria-label="Звук">${phosphorIcon('sound')}</button></header>
+    <section class="billiards-scoreboard" aria-label="Игроки и забитые шары">${playerCard(0)}${playerCard(1)}
+      <div class="billiards-status" aria-live="polite"></div></section>
+    <section class="billiards-stage" aria-label="Бильярдный стол">
+      <canvas id="${billiardsUiIds.canvas}" data-billiards-canvas width="1280" height="720" tabindex="0" aria-label="Стол: один палец — прицел, два — масштаб и сдвиг"></canvas>
+    </section>
+    <div class="billiards-camera-tools"><button type="button" data-billiards-zoom>Приблизить</button><span>2 пальца: масштаб и сдвиг</span></div>
+    <section class="billiards-controls" aria-label="Управление ударом">
+      <div class="billiards-rollers">${roller('power', 'Сила удара', '68%', '0.04', '1', '0.01')}${roller('angle', 'Направление', '0°', '0', '359', '1')}</div>
+      <div class="billiards-actions"><button class="billiards-button" type="button" data-billiards-shoot>Удар</button>
+      <button class="billiards-icon-button" type="button" data-billiards-restart aria-label="Новая партия">${phosphorIcon('restart')}</button></div>
+      <p class="billiards-table-hint" aria-live="polite">${billiardsCopy.controls}</p>
+    </section></div>`;
+  return collect(root);
 }
-
-function playerCard(index: 0 | 1): string {
-  return `
-    <article class="billiards-player" data-billiards-player data-player-index="${index}">
-      <div class="billiards-avatar" aria-hidden="true">${phosphorIcon('player')}</div>
-      <div class="billiards-player-copy">
-        <div class="billiards-player-name"></div>
-        <div class="billiards-player-group"></div>
-        <div class="billiards-pocketed-balls" data-player-ball-slots="${index}">
-          ${Array.from({ length: billiardsBallIds.allObjects.length }, (_, slot) => `
-            <span
-              class="billiards-ball-slot"
-              data-billiards-pocket-slot
-              data-ball-slot="${slot}"
-              role="img"
-            ></span>
-          `).join('')}
-        </div>
-      </div>
-    </article>
-  `;
+function playerCard(index: number): string {
+  return `<article class="billiards-player" data-billiards-player data-player-index="${index}">
+    <div class="billiards-avatar" aria-hidden="true">${index + 1}</div><div class="billiards-player-copy">
+    <div class="billiards-player-name"></div><div class="billiards-player-group"></div>
+    <div class="billiards-pocketed-balls" data-player-ball-slots="${index}">${billiardsBallIds.allObjects.map((id) =>
+      `<span class="billiards-ball-slot" data-billiards-pocket-slot data-ball-id="${id}" hidden role="img"></span>`).join('')}</div></div></article>`;
 }
-
-function powerControl(): string {
-  return `
-    <label class="billiards-side-control billiards-power-control" data-billiards-power-rail>
-      <output data-output-for="power" data-billiards-power-output>68%</output>
-      <span class="billiards-side-caption">${billiardsCopy.power}</span>
-      <span class="billiards-power-meter" aria-hidden="true">
-        <span class="billiards-power-track"></span>
-        <span class="billiards-power-fill"></span>
-        <span class="billiards-power-cue"></span>
-        <span class="billiards-power-tip"></span>
-      </span>
-      <input
-        data-control="power"
-        type="range"
-        min="0.04"
-        max="1"
-        value="0.68"
-        step="0.01"
-        aria-label="${billiardsCopy.power}"
-      />
-    </label>
-  `;
+function roller(id: string, label: string, value: string, min: string, max: string, step: string): string {
+  return `<label class="billiards-side-control billiards-${id}-control" data-billiards-${id}-rail>
+    <span class="billiards-side-caption">${label}</span><span class="billiards-roller-drum">
+    <span class="billiards-roller-ridges" aria-hidden="true"></span><output data-output-for="${id}">${value}</output>
+    <input data-control="${id}" type="range" min="${min}" max="${max}" step="${step}" aria-label="${label}"></span></label>`;
 }
-
-function angleControl(): string {
-  return `
-    <label class="billiards-side-control billiards-angle-control" data-billiards-angle-rail>
-      <output data-output-for="angle" data-billiards-angle-output>0°</output>
-      <span class="billiards-side-caption">${billiardsCopy.angle}</span>
-      <span class="billiards-angle-meter" aria-hidden="true">
-        <span class="billiards-angle-scale"></span>
-        <span class="billiards-angle-indicator"></span>
-      </span>
-      <input
-        data-control="angle"
-        type="range"
-        min="0"
-        max="359"
-        value="0"
-        step="1"
-        aria-label="${billiardsCopy.angle}"
-      />
-    </label>
-  `;
-}
-
-function smokeLayer(): string {
-  return `
-    <div class="billiards-smoke-layer" data-billiards-smoke aria-hidden="true">
-      <span class="billiards-smoke-wisp smoke-a"></span>
-      <span class="billiards-smoke-wisp smoke-b"></span>
-      <span class="billiards-smoke-wisp smoke-c"></span>
-      <span class="billiards-smoke-wisp smoke-d"></span>
-      <span class="billiards-smoke-wisp smoke-e"></span>
-      <span class="billiards-dust-mote dust-a"></span>
-      <span class="billiards-dust-mote dust-b"></span>
-      <span class="billiards-dust-mote dust-c"></span>
-      <span class="billiards-dust-mote dust-d"></span>
-      <span class="billiards-dust-mote dust-e"></span>
-      <span class="billiards-dust-mote dust-f"></span>
-    </div>
-  `;
-}
-
-function collectElements(root: HTMLElement): BilliardsViewElements {
-  const players = root.querySelectorAll<HTMLElement>('.billiards-player');
-  const names = root.querySelectorAll<HTMLElement>('.billiards-player-name');
-  const groups = root.querySelectorAll<HTMLElement>('.billiards-player-group');
-  const slots = root.querySelectorAll<HTMLElement>('[data-player-ball-slots]');
-  return {
-    root,
-    canvas: required(root, `#${billiardsUiIds.canvas}`, HTMLCanvasElement),
-    status: required(root, '.billiards-status', HTMLElement),
-    hint: required(root, '.billiards-table-hint', HTMLElement),
-    connection: required(root, '.billiards-connection', HTMLElement),
-    sound: required(root, '[data-billiards-sound]', HTMLButtonElement),
-    players: [requiredIndex(players, 0), requiredIndex(players, 1)],
-    playerNames: [requiredIndex(names, 0), requiredIndex(names, 1)],
-    playerGroups: [requiredIndex(groups, 0), requiredIndex(groups, 1)],
-    pocketSlots: [Array.from(requiredIndex(slots, 0).querySelectorAll<HTMLElement>('[data-billiards-pocket-slot]')),
-      Array.from(requiredIndex(slots, 1).querySelectorAll<HTMLElement>('[data-billiards-pocket-slot]'))],
-    powerRail: required(root, '[data-billiards-power-rail]', HTMLElement),
-    angleRail: required(root, '[data-billiards-angle-rail]', HTMLElement),
-    power: control(root, 'power'),
-    angle: control(root, 'angle'),
-    powerOutput: output(root, 'power'),
-    angleOutput: output(root, 'angle'),
-    shoot: required(root, `[${billiardsUiAttributes.shoot}]`, HTMLButtonElement),
-    restart: required(root, `[${billiardsUiAttributes.restart}]`, HTMLButtonElement),
-    smokeLayer: required(root, '[data-billiards-smoke]', HTMLElement),
+function collect(root: HTMLElement): BilliardsViewElements {
+  const required = <T extends Element>(selector: string): T => {
+    const node = root.querySelector<T>(selector);
+    if (!node) throw new Error(`Missing billiards view: ${selector}`);
+    return node;
   };
-}
-
-function control(root: HTMLElement, id: string): HTMLInputElement {
-  return required(root, `[data-control="${id}"]`, HTMLInputElement);
-}
-
-function output(root: HTMLElement, id: string): HTMLOutputElement {
-  return required(root, `[data-output-for="${id}"]`, HTMLOutputElement);
-}
-
-function requiredIndex<T extends Element>(items: NodeListOf<T>, index: number): T {
-  const element = items.item(index);
-  if (element === null) {
-    throw new Error(`Missing billiards view element at index ${index}.`);
-  }
-  return element;
-}
-
-function required<T extends Element>(
-  root: ParentNode,
-  selector: string,
-  constructor: { new(): T },
-): T {
-  const element = root.querySelector(selector);
-  if (!(element instanceof constructor)) {
-    throw new Error(`Missing billiards view element: ${selector}`);
-  }
-  return element;
-}
-
-function cssUrl(value: string): string {
-  return `url(${JSON.stringify(value)})`;
+  const pair = (selector: string): readonly [HTMLElement, HTMLElement] => {
+    const nodes = root.querySelectorAll<HTMLElement>(selector);
+    return [nodes[0]!, nodes[1]!];
+  };
+  const players = pair('.billiards-player');
+  return { root, players, canvas: required('canvas'), stage: required('.billiards-stage'), zoom: required('[data-billiards-zoom]'),
+    status: required('.billiards-status'), hint: required('.billiards-table-hint'), connection: required('.billiards-connection'), sound: required('[data-billiards-sound]'),
+    playerNames: pair('.billiards-player-name'), playerGroups: pair('.billiards-player-group'),
+    pocketSlots: [Array.from(players[0].querySelectorAll<HTMLElement>('[data-billiards-pocket-slot]')),
+      Array.from(players[1].querySelectorAll<HTMLElement>('[data-billiards-pocket-slot]'))],
+    powerRail: required('[data-billiards-power-rail]'), angleRail: required('[data-billiards-angle-rail]'),
+    power: required('[data-control="power"]'), angle: required('[data-control="angle"]'),
+    powerOutput: required('[data-output-for="power"]'), angleOutput: required('[data-output-for="angle"]'),
+    shoot: required('[data-billiards-shoot]'), restart: required('[data-billiards-restart]'), smokeLayer: required('.billiards-smoke-layer') };
 }

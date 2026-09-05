@@ -1,3 +1,4 @@
+import { cameraTuning } from './camera-geometry.ts';
 import type { Vec2 } from '../domain/types.ts';
 import { canvasToWorld, clientToCanvas } from './coordinates.ts';
 import type { BilliardsControllerSnapshotV2, BilliardsGameControllerV2 } from './controller-v2.ts';
@@ -116,6 +117,7 @@ export function bindBilliardsPointerInputV2(options: BilliardsPointerInputOption
   const gesture = new BilliardsPointerGesture(options);
   const { canvas } = options;
   const onContextMenu = (event: MouseEvent): void => event.preventDefault();
+  canvas.addEventListener(cameraTuning.cancelGestureEvent, gesture.cancel);
   canvas.addEventListener('pointerdown', gesture.down);
   canvas.addEventListener('pointermove', gesture.move);
   canvas.addEventListener('pointerup', gesture.up);
@@ -127,6 +129,7 @@ export function bindBilliardsPointerInputV2(options: BilliardsPointerInputOption
   document.addEventListener('visibilitychange', gesture.cancel);
   return () => {
     gesture.cancel();
+    canvas.removeEventListener(cameraTuning.cancelGestureEvent, gesture.cancel);
     canvas.removeEventListener('pointerdown', gesture.down);
     canvas.removeEventListener('pointermove', gesture.move);
     canvas.removeEventListener('pointerup', gesture.up);

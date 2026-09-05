@@ -15,7 +15,8 @@ const requiredFiles = [
   'frame-loop-v2.ts',
   'guide-renderer-v2.ts',
   'interaction-state-v2.ts',
-  'interaction-styles-v2.css',
+  'pocket-club.css',
+  'table-camera.ts',
   'pointer-input-v2.ts',
   'rail-input-v2.ts',
   'shot-interaction-v2.ts',
@@ -39,7 +40,7 @@ const frameLoop = sources.get('frame-loop-v2.ts') ?? '';
 const controller = sources.get('controller-v2.ts') ?? '';
 const pointer = sources.get('pointer-input-v2.ts') ?? '';
 const renderer = sources.get('canvas-renderer-v2.ts') ?? '';
-const styles = sources.get('interaction-styles-v2.css') ?? '';
+const styles = sources.get('pocket-club.css') ?? '';
 
 expectIncludes(frameLoop, 'recoverWhenStalled', 'frame loop needs stall recovery');
 expectIncludes(frameLoop, 'visibilitychange', 'frame loop needs visibility recovery');
@@ -49,7 +50,7 @@ expectIncludes(pointer, 'beginManualStroke', 'pointer input must support manual 
 expectIncludes(pointer, 'ManualCueStroke', 'manual stroke must use pointer velocity');
 expectIncludes(renderer, 'placementPreview', 'renderer must draw placement preview');
 expectIncludes(renderer, 'if (!placing', 'cue and guide must be hidden while placing');
-expectIncludes(styles, 'rotate(90deg)', 'portrait layout must rotate the table');
+expectIncludes(sources.get('table-camera.ts') ?? '', 'this.portrait ? 90 : 0', 'camera must rotate the portrait table');
 expectIncludes(styles, "data-interaction-mode='aim-locked'", 'locked aim needs visible feedback');
 
 const allSourceFiles = await collectFiles(path.join(root, 'games/billiards'));
