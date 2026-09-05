@@ -20,15 +20,17 @@ export function validateVoyage(value: unknown, home: IslandBlueprint): VoyageSta
     || !stringList(value.discovered, sites) || !stringList(value.collected, new Set(pickups.map((entry) => entry.id)))
     || !stringList(value.accepted, quests) || !stringList(value.claimed, quests)
     || !record(value.inventory) || !record(value.conversations)) return null;
+  const visited = [...value.visited]; const discovered = [...value.discovered]; const collected = [...value.collected];
+  const accepted = [...value.accepted]; const claimed = [...value.claimed];
   const inventory = { ...createVoyageState().inventory };
-  for (const id of value.collected) { const pickup = pickups.find((entry) => entry.id === id)!; inventory[pickup.item] += 1; }
-  for (const id of value.claimed) {
+  for (const id of collected) { const pickup = pickups.find((entry) => entry.id === id)!; inventory[pickup.item] += 1; }
+  for (const id of claimed) {
     const quest = voyageQuests.find((entry) => entry.id === id)!;
-    if (!value.accepted.includes(id) || (quest.prerequisite && !value.claimed.includes(quest.prerequisite))) return null;
+    if (!accepted.includes(id) || (quest.prerequisite && !claimed.includes(quest.prerequisite))) return null;
     if (quest.needs) inventory[quest.needs.item] -= quest.needs.count;
-    if (quest.islands && value.visited.length < quest.islands) return null;
-    if (quest.discoveries && value.discovered.filter((key) => key.startsWith('home:')).length < quest.discoveries) return null;
-    if (quest.requiredDiscoveries && !quest.requiredDiscoveries.every((key) => value.discovered.includes(key))) return null;
+    if (quest.islands && visited.length < quest.islands) return null;
+    if (quest.discoveries && discovered.filter((key) => key.startsWith('home:')).length < quest.discoveries) return null;
+    if (quest.requiredDiscoveries && !quest.requiredDiscoveries.every((key) => discovered.includes(key))) return null;
   }
   for (const key of Object.keys(inventory) as (keyof typeof inventory)[]) {
     if (inventory[key] < 0 || inventory[key] > voyageRules.inventoryLimit || value.inventory[key] !== inventory[key]) return null;
@@ -39,7 +41,7 @@ export function validateVoyage(value: unknown, home: IslandBlueprint): VoyageSta
     if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0 || count > voyageRules.dialogueHistoryLimit) return null;
     conversations[key] = count;
   }
-  if ([...value.collected, ...value.discovered].some((id) => !(value.visited as string[]).includes(id.split(':')[0]!))) return null;
-  return { version: 1, region: value.region as VoyageRegionId, visited: [...value.visited] as VoyageRegionId[],
-    accepted: [...value.accepted], claimed: [...value.claimed], discovered: [...value.discovered], collected: [...value.collected], inventory, conversations };
+  if ([...collected, ...discovered].some((id) => !visited.includes(id.split(':')[0]!))) return null;
+  return { version: 1, region: value.region as VoyageRegionId, visited: visited as VoyageRegionId[],
+    accepted, claimed, discovered, collected, inventory, conversations };
 }
