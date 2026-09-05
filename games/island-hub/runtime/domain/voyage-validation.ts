@@ -28,6 +28,7 @@ export function validateVoyage(value: unknown, home: IslandBlueprint): VoyageSta
     if (quest.needs) inventory[quest.needs.item] -= quest.needs.count;
     if (quest.islands && value.visited.length < quest.islands) return null;
     if (quest.discoveries && value.discovered.filter((key) => key.startsWith('home:')).length < quest.discoveries) return null;
+    if (quest.requiredDiscoveries && !quest.requiredDiscoveries.every((key) => value.discovered.includes(key))) return null;
   }
   for (const key of Object.keys(inventory) as (keyof typeof inventory)[]) {
     if (inventory[key] < 0 || inventory[key] > voyageRules.inventoryLimit || value.inventory[key] !== inventory[key]) return null;

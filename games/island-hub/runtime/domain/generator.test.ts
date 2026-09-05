@@ -66,9 +66,8 @@ test('every island contains every local game portal', () => {
   );
 });
 
-// Island walking and life regressions share the existing island test entry point.
+// Island subsystems share the existing deterministic island test entry point.
 import './life.test.ts';
-
 import './home.test.ts';
-
-import "./voyage.test.ts";
+import './voyage.test.ts';
+import './voyage-expansion.test.ts';

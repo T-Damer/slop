@@ -1,4 +1,4 @@
-import { outsidePond } from './voyage-layout.ts';
+import { outsideResidentHomes, outsideWaterways } from './voyage-layout.ts';
 import { isPointInsideIsland } from './generator.ts';
 import type { IslandBlueprint, IslandPoint } from './types.ts';
 
@@ -11,7 +11,8 @@ export const islandWalking = {
 export function canWalkOnIsland(point: IslandPoint, blueprint: IslandBlueprint): boolean {
   if (!Number.isFinite(point.x) || !Number.isFinite(point.z)
     || !isPointInsideIsland(point, blueprint, islandWalking.coastMargin)) return false;
-  if (blueprint.exploration && !outsidePond(point, blueprint.exploration, islandWalking.playerRadius)) return false;
+  if (blueprint.exploration && (!outsideWaterways(point, blueprint.exploration, islandWalking.playerRadius)
+    || !outsideResidentHomes(point, blueprint.exploration, islandWalking.playerRadius))) return false;
   const house = blueprint.house;
   const dx = point.x - house.x;
   const dz = point.z - house.z;

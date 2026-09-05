@@ -5,7 +5,7 @@ import { voyageQuests } from '../domain/voyage-quests.ts';
 import type { IslandAtelier } from './atelier.ts';
 import { islandArt } from './art-direction.ts';
 import { voyageArt as v } from './voyage-art.ts';
-import { addDistrict, addPier, addPond } from './voyage-props.ts';
+import { addBridge, addDistrict, addPier, addPond, addRiver, createShrub, createVillagerHouse } from './voyage-props.ts';
 import { createVillager } from './villager-models.ts';
 import { animateResident } from './residents.ts';
 
@@ -19,7 +19,12 @@ export class VoyageScenery {
   public constructor(a: IslandAtelier, world: IslandBlueprint) {
     const layout = world.exploration!;
     const scenery = new THREE.Group();
+    if (layout.river) addRiver(a, scenery, layout.river);
     addPier(a, scenery, layout.dock); addPond(a, scenery, world);
+    for (const bridge of layout.bridges) addBridge(a, scenery, bridge);
+    for (const house of layout.homes) scenery.add(createVillagerHouse(a, house));
+    for (const shrub of layout.shrubs ?? []) scenery.add(createShrub(a, shrub,
+      world.palette.flowers[Math.abs(shrub.id.length) % world.palette.flowers.length] ?? 0xf0b3a9));
     for (const site of layout.sites) addDistrict(a, scenery, site.id, site.point);
     a.batch(scenery); this.root.add(scenery);
     for (const resident of layout.residents) {
@@ -67,7 +72,7 @@ export class VoyageScenery {
     for (let i = 0; i < voyageQuests.length; i += 1) {
       const quest = voyageQuests[i]!;
       const gift = new THREE.Group();
-      gift.position.set(world.house.x + (i - 1.5) * 0.62, islandArt.ground, world.house.z + 1.95);
+      gift.position.set(world.house.x + (i - (voyageQuests.length - 1) / 2) * 0.58, islandArt.ground, world.house.z + 1.95);
       if (i === 0) {
         a.part(gift, v.timber, [0.16, 0.65, 0.16], [0, 0.32, 0], 'round');
         const light = a.part(gift, 0xffdb94, [0.32, 0.36, 0.32], [0, 0.7, 0], 'round');
@@ -78,9 +83,15 @@ export class VoyageScenery {
       } else if (i === 2) {
         a.part(gift, v.timber, [0.1, 0.45, 0.1], [0, 0.22, 0], 'round');
         a.part(gift, v.glass, [0.45, 0.25, 0.33], [0, 0.55, 0], 'round');
-      } else {
+      } else if (i === 3) {
         for (const x of [-0.23, 0.23]) a.part(gift, v.timber, [0.07, 1.1, 0.07], [x, 0.55, 0], 'cylinder');
         a.part(gift, v.accent, [0.45, 0.23, 0.06], [0, 0.94, 0], 'round');
+      } else {
+        a.part(gift, v.darkWood, [0.12, 0.75, 0.12], [0, 0.36, 0], 'cylinder');
+        const lamp = a.part(gift, 0xffc975, [0.28, 0.32, 0.28], [0, 0.73, 0], 'round');
+        if (lamp.material instanceof THREE.MeshStandardMaterial) {
+          lamp.material.emissive.setHex(0x6b4922); lamp.material.emissiveIntensity = 0.55;
+        }
       }
       gift.visible = false; this.gifts.set(quest.id, gift); this.root.add(gift);
     }

@@ -136,6 +136,14 @@ export class VoyageController {
     if (!layout) return null;
     const quest = voyageQuests.find((entry) => entry.id === id);
     if (!quest || questStatus(this.state, quest) === 'ready') return layout.residents.find((entry) => entry.id === (quest?.owner ?? 'lumi'))?.point ?? layout.dock;
+    if (quest.requiredDiscoveries) {
+      const missing = quest.requiredDiscoveries.find((key) => !this.state.discovered.includes(key));
+      if (missing) {
+        const [region, siteId] = missing.split(':');
+        if (region === this.state.region) return layout.sites.find((site) => site.id === siteId)?.point ?? layout.dock;
+        return layout.dock;
+      }
+    }
     if (quest.discoveries && this.state.discovered.filter((key) => key.startsWith('home:')).length < quest.discoveries) {
       return this.state.region === 'home' ? layout.sites.find((site) => !this.state.discovered.includes(`home:${site.id}`))?.point ?? layout.dock : layout.dock;
     }

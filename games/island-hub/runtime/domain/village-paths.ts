@@ -23,9 +23,15 @@ export function islandSurface(point: IslandPoint, blueprint: IslandBlueprint): I
     const { dock, pond } = layout;
     const onDock = Math.abs(point.x - dock.x) <= voyageRules.dockWidth / 2
       && point.z >= dock.z && point.z <= dock.z + voyageRules.dockLength;
-    const onBridge = Math.abs(point.z - pond.z) <= pond.bridgeHalfWidth
+    const onPondBridge = Math.abs(point.z - pond.z) <= pond.bridgeHalfWidth
       && Math.abs(point.x - pond.x) <= pond.rx + voyageRules.bridgeApron;
-    if (onDock || onBridge) return 'wood';
+    const onRiverBridge = layout.bridges.some((bridge) => {
+      const dx = point.x - bridge.x; const dz = point.z - bridge.z;
+      const cos = Math.cos(bridge.rotation); const sin = Math.sin(bridge.rotation);
+      const localX = dx * cos - dz * sin; const localZ = dx * sin + dz * cos;
+      return Math.abs(localX) <= bridge.length / 2 && Math.abs(localZ) <= bridge.width / 2;
+    });
+    if (onDock || onPondBridge || onRiverBridge) return 'wood';
   }
   for (const route of villageRoutes(blueprint)) for (let i = 1; i < route.length; i += 1) {
     const a = route[i - 1]!;
