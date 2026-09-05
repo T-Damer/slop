@@ -70,3 +70,5 @@ test('every island contains every local game portal', () => {
 import './life.test.ts';
 
 import './home.test.ts';
+
+import "./voyage.test.ts";

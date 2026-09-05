@@ -4,7 +4,7 @@ export const villagePaths = { crossroads: { x: 1.2, z: 0.8 }, houseBypass: 2.6,
   doorOffset: 1.65, step: 0.32, width: 0.83, thickness: 0.008, elevation: 0.007, grassScale: 0.91 } as const;
 export function villageRoutes(blueprint: IslandBlueprint): ReadonlyArray<ReadonlyArray<IslandPoint>> {
   const crossroads = villagePaths.crossroads;
-  return [[crossroads, blueprint.playerSpawn],
+  const routes = [[crossroads, blueprint.playerSpawn],
     [crossroads, { x: blueprint.house.x + Math.sin(blueprint.house.rotation) * villagePaths.doorOffset,
       z: blueprint.house.z + Math.cos(blueprint.house.rotation) * villagePaths.doorOffset }],
     [crossroads, blueprint.activityZone],
@@ -12,6 +12,8 @@ export function villageRoutes(blueprint: IslandBlueprint): ReadonlyArray<Readonl
       ? [crossroads, { x: blueprint.house.x - villagePaths.houseBypass, z: crossroads.z },
         { x: blueprint.house.x - villagePaths.houseBypass, z: portal.z }, portal]
       : [crossroads, portal])];
+  return blueprint.exploration?.region !== undefined && blueprint.exploration.region !== 'home'
+    ? blueprint.exploration.routes : [...routes, ...(blueprint.exploration?.routes ?? [])];
 }
 export type IslandSurface = 'grass' | 'sand' | 'path' | 'wood';
 export function islandSurface(point: IslandPoint, blueprint: IslandBlueprint): IslandSurface {

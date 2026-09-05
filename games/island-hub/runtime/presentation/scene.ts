@@ -1,3 +1,6 @@
+import { VoyageController } from './voyage-controller.ts';
+import { voyageTargets } from '../domain/voyage.ts';
+import { createVoyageState, type VoyageState } from '../domain/voyage-registry.ts';
 import * as THREE from 'three';
 import type { IslandBlueprint, IslandDestinationId, IslandPortalProgress } from '../domain/types.ts';
 import { IslandLife, type IslandJournal } from '../domain/life.ts';
@@ -17,6 +20,8 @@ import { IslandSoundPanel } from './sound-panel.ts';
 import { animateResident } from './residents.ts';
 
 export interface IslandSceneCallbacks {
+  readonly onVoyageChanged?: (state: VoyageState) => boolean;
+  readonly onTravel?: (state: VoyageState) => void;
   readonly onPortalProgress: (progress: IslandPortalProgress) => void;
   readonly onLaunchGame: (destinationId: IslandDestinationId) => void;
   readonly onHomeChanged?: (state: HomeState) => boolean;
@@ -35,6 +40,7 @@ export class PersonalIslandScene {
   private readonly sound: IslandSoundscape;
   private readonly soundPanel: IslandSoundPanel;
   private readonly life: IslandLife;
+  private readonly voyage: VoyageController;
   private readonly canvas: HTMLCanvasElement;
   private readonly resizeObserver: ResizeObserver;
   private readonly reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -55,7 +61,7 @@ export class PersonalIslandScene {
   public constructor(private readonly host: HTMLElement, inputRoot: HTMLElement,
     private readonly blueprint: IslandBlueprint, private readonly callbacks: IslandSceneCallbacks,
     journal: IslandJournal = { completed: [] }, homeState: HomeState = createHomeState(),
-    soundMix: SoundMix = { ...soundDefaults }) {
+    soundMix: SoundMix = { ...soundDefaults }, voyageState: VoyageState = createVoyageState()) {
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'island-canvas';
     this.canvas.setAttribute('aria-label', 'Остров: WASD или стрелки — ходьба, Shift — бег, E — действие');
@@ -66,7 +72,7 @@ export class PersonalIslandScene {
     this.world = createIslandWorld(blueprint);
     this.scene.add(this.world.root);
     this.scene.add(this.world.player);
-    this.life = new IslandLife(blueprint, journal);
+    this.life = new IslandLife(blueprint, journal, voyageTargets(blueprint, voyageState));
     this.world.applyJournal(this.life.journal);
     this.input = createIslandMovementInput(inputRoot);
     this.sound = new IslandSoundscape(inputRoot, soundMix);
@@ -76,6 +82,14 @@ export class PersonalIslandScene {
       context: (inside) => this.changeContext(inside), inputChanged: () => this.syncInput(),
       message: (text) => this.showToast(text), sound: (kind) => this.sound.event(kind),
       save: (state) => this.callbacks.onHomeChanged?.(state) ?? false,
+    });
+    this.voyage = new VoyageController(inputRoot, blueprint, this.world.player.position, voyageState, {
+      save: (state) => this.callbacks.onVoyageChanged?.(state) ?? false,
+      changed: (state) => {
+        this.world.exploration?.apply(state);
+        for (const id of state.collected) this.life.dismissExternal(`voyage:pickup:${id}`);
+      }, inputChanged: () => this.syncInput(), travel: (state) => this.callbacks.onTravel?.(state),
+      message: (text) => this.showToast(text), sound: () => this.sound.event('harvest'),
     });
     this.canvas.addEventListener('click', this.pickFurniture);
     this.actionButton = inputRoot.querySelector('[data-island-interact]');
@@ -100,7 +114,7 @@ export class PersonalIslandScene {
     return { player: { x: this.world.player.position.x, z: this.world.player.position.z },
       cameraMode: this.camera.mode, portal: this.portal, renderer: this.rendering.snapshot(),
       paused: this.paused, simulationTime: this.time, fruit: this.life.fruit, planted: this.life.planted,
-      home: this.home.snapshot(), audio: this.sound.snapshot(),
+      home: this.home.snapshot(), audio: this.sound.snapshot(), voyage: this.voyage.snapshot(),
       journal: this.life.journal, targets: this.life.targets };
   }
   public destroy(): void {
@@ -114,6 +128,7 @@ export class PersonalIslandScene {
     this.canvas.removeEventListener('webglcontextlost', this.loseContext);
     this.canvas.removeEventListener('webglcontextrestored', this.restoreContext);
     this.canvas.removeEventListener('click', this.pickFurniture);
+    this.voyage.destroy();
     this.soundPanel.destroy(); this.sound.dispose(); this.home.destroy();
     this.world.root.add(this.world.player);
     this.input.destroy();
@@ -155,16 +170,18 @@ export class PersonalIslandScene {
     this.time += delta;
     this.home.tick(delta);
     this.movePlayer(delta);
+    this.voyage.observe(delta);
     this.updateLife(delta);
     if (this.disposed || this.paused) return;
     this.animateWorld();
-    this.sound.update(new Date().getHours(), this.home.inside ? 0 : 8 - Math.hypot(this.world.player.position.x, this.world.player.position.z));
+    this.sound.update(new Date().getHours(), this.home.inside ? 0 : Math.max(...this.blueprint.coastline) - Math.hypot(this.world.player.position.x, this.world.player.position.z));
     this.camera.update(this.world.player.position, delta);
+    this.rendering.followSun(this.home.inside ? { x: 0, z: 0 } : this.world.player.position);
     this.rendering.draw(elapsed);
     this.animationFrame = requestAnimationFrame(this.renderFrame);
   };
   private movePlayer(delta: number): void {
-    if (this.home.blocked) return;
+    if (this.home.blocked || this.voyage.blocked) return;
     const input = this.input.read();
     if (this.home.resting) {
       if (Math.hypot(input.x, input.z) > 0) this.home.stand();
@@ -187,7 +204,8 @@ export class PersonalIslandScene {
   }
   private updateLife(delta: number): void {
     const action = this.input.consumeAction();
-    const homeLabel = this.home.label();
+    if (this.voyage.blocked) return;
+    const homeLabel = this.blueprint.exploration?.region === 'home' ? this.home.label() : null;
     if (this.home.inside || homeLabel !== null) {
       if (action) this.home.activate();
       if (this.actionButton !== null) {
@@ -197,14 +215,17 @@ export class PersonalIslandScene {
       return;
     }
     const update = this.life.step(this.world.player.position, delta, action);
+    this.world.exploration?.select(update.target?.point ?? null);
+    if (action && update.target?.kind === 'explore') this.voyage.activate(update.target.id);
+    if (this.disposed) return;
     this.portal = { destinationId: update.target?.destination ?? null,
       progress: update.target?.kind === 'portal' ? update.progress : 0 };
     this.callbacks.onPortalProgress(this.portal);
     if (this.actionButton !== null) {
-      const label = update.target?.kind === 'portal' ? 'Останься у таблички…'
+      const label = update.target?.kind === 'portal' ? `Играть · ${update.target.label}`
         : update.target?.label ?? 'Подойди к дереву или жителю';
       if (this.actionButton.textContent !== label) this.actionButton.textContent = label;
-      this.actionButton.disabled = update.target === null || update.target.kind === 'portal';
+      this.actionButton.disabled = update.target === null;
     }
     if (this.journalLabel !== null) {
       const text = `Яблоки ${this.life.fruit} · Сад ${this.life.planted}/3`;
@@ -226,7 +247,8 @@ export class PersonalIslandScene {
     if (this.toast !== null && this.time > this.toastUntil) this.toast.hidden = true;
     if (this.home.inside) return;
     const time = this.reduced.matches ? 0 : this.time;
-    animateResident(this.world.guide, time + 1.7, 0, this.reduced.matches);
+    if (this.world.guide.visible) animateResident(this.world.guide, time + 1.7, 0, this.reduced.matches);
+    this.world.exploration?.animate(time, this.world.player.position, this.reduced.matches);
     this.world.landscape.time.value = time * islandArt.motion.oceanWave;
     this.world.landscape.foam.opacity = 0.45 + Math.sin(time * 1.3) * 0.12;
     const shore = this.world.root.getObjectByName(islandArt.names.shore);
@@ -235,9 +257,10 @@ export class PersonalIslandScene {
     this.world.player.scale.setScalar(1 + (this.reduced.matches ? 0 : Math.sin(remaining * Math.PI) * 0.09));
 
   }
-  private syncInput(): void { this.input.setEnabled(!this.paused && !this.home.blocked); }
+  private syncInput(): void { this.input.setEnabled(!this.paused && !this.home.blocked && !this.voyage?.blocked); }
   private changeContext(inside: boolean): void {
     this.world.root.visible = !inside;
+    this.voyage.setIndoors(inside);
     this.scene.background = new THREE.Color(inside ? 0xe1d9c6 : this.blueprint.palette.sky);
     this.scene.fog = inside ? null : new THREE.Fog(this.blueprint.palette.sky, islandArt.render.fogNear, islandArt.render.fogFar);
     this.camera.setIndoors(inside); this.rendering.setIndoors(inside); this.sound.setIndoors(inside);

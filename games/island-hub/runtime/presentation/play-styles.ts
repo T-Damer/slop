@@ -1,3 +1,4 @@
+import './voyage.css';
 import { islandHomeStyles } from './home-styles.ts';
 import { personalIslandStyles } from './styles.ts';
 

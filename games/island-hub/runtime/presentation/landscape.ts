@@ -1,3 +1,4 @@
+import { voyageArt } from './voyage-art.ts';
 import * as THREE from 'three';
 import type { IslandBlueprint } from '../domain/types.ts';
 import { villagePaths, villageRoutes } from '../domain/village-paths.ts';
@@ -18,13 +19,30 @@ export function createLandscape(blueprint: IslandBlueprint): IslandLandscape {
     new THREE.MeshStandardMaterial({ color: blueprint.palette.sand, roughness: 1 }));
   sand.position.y = -0.46;
   sand.receiveShadow = true;
-  const grassGeometry = new THREE.ShapeGeometry(shape);
+  const grassShape = islandShape(blueprint.coastline);
+  if (blueprint.exploration) {
+    const pond = blueprint.exploration.pond;
+    const hole = new THREE.Path();
+    hole.absellipse(pond.x / 0.91, -pond.z / 0.91, pond.rx / 0.91, pond.rz / 0.91, 0, Math.PI * 2, true);
+    grassShape.holes.push(hole);
+  }
+  const grassGeometry = new THREE.ShapeGeometry(grassShape, 48);
   grassGeometry.rotateX(-Math.PI / 2);
   const grass = new THREE.Mesh(grassGeometry,
     new THREE.MeshStandardMaterial({ color: blueprint.palette.grass, roughness: 1 }));
   grass.position.y = islandArt.ground;
   grass.scale.set(0.91, 1, 0.91);
   grass.receiveShadow = true;
+  grass.material.onBeforeCompile = (shader) => {
+    shader.vertexShader = `varying vec2 meadowPoint;\n${shader.vertexShader}`
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nmeadowPoint = position.xz;');
+    shader.fragmentShader = `varying vec2 meadowPoint;\n${shader.fragmentShader}`
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float meadow = sin(meadowPoint.x * 0.63) * sin(meadowPoint.y * 0.41)
+          + sin(meadowPoint.x * 1.73 + meadowPoint.y * 1.27) * 0.24;
+        diffuseColor.rgb += meadow * ${voyageArt.groundContrast};`);
+  };
+  grass.material.customProgramCacheKey = () => voyageArt.shaderKey;
   const water = new THREE.MeshStandardMaterial({ color: blueprint.palette.ocean,
     roughness: 0.35, metalness: 0.08 });
   const time = { value: 0 };

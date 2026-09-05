@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "area": "island.exploration-neighbors-voyages",
+  "problem": "The home/audio slice still lacks an explorable world, neighbors with requests and meaningful journeys.",
+  "stateOwner": "games/island-hub/runtime/domain/voyage.ts",
+  "existingOwnersChecked": ["games/island-hub/DESIGN.md", "games/island-hub/runtime/domain/life.ts", "games/island-hub/runtime/domain/walking.ts", "games/island-hub/runtime/presentation/atelier.ts", "games/island-hub/runtime/storage/home-repository.ts"],
+  "reuseDecision": "Extend the current deterministic generator with an additive envelope. Reuse shared proximity selection, pooled Three.js geometry, resident limbs, home/audio lifecycle and explicit state reducers. Native dialog supplies accessible focus handling; no new package or second game router. Reviewed Three.js InstancedMesh and Raycaster documentation before extending rendering.",
+  "nonGoals": ["Copy Nintendo assets, text, music or branding", "Change billiards or release refs", "Claim full island multiplayer, full NPC schedules or infinite quest content"],
+  "acceptance": ["Existing island/home saves survive unchanged", "Three reproducible regions have reachable docks and targets", "Four requests validate resources and award once", "Collectibles, discoveries, deliveries and travel survive reload", "Keyboard/touch dialogue, journal/map and boat travel work", "Types, production build, bundle limits and browser evidence pass without gate relaxation"]
+}

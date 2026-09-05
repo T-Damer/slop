@@ -60,6 +60,7 @@
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json",
-    "quality/changes/island-home-audio.json"
+    "quality/changes/island-home-audio.json",
+    "quality/changes/island-voyages.json"
   ]
 }

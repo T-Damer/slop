@@ -1,3 +1,4 @@
+import { inspectIslandVoyages } from './browser-quality/island-voyages.mjs';
 import { inspectIslandHome } from './browser-quality/island-home.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -116,6 +117,7 @@ try {
   await waitForExpression(cdp, `window.__SLOP_ISLAND_QA__.scene().simulationTime > ${overviewStart + 0.8}`, walkingTimeoutMs);
   await captureScreenshot(cdp, path.join(output, 'overview.png'));
   reports.push({ homeAndAudio: await inspectIslandHome(cdp, output) });
+  reports.push({ voyages: await inspectIslandVoyages(cdp, output) });
 } catch (error) {
   failures.push(error instanceof Error ? error.stack : String(error));
   reports.push({ failureState: await snapshot().catch(() => null) });

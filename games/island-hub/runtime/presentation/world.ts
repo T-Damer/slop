@@ -1,3 +1,5 @@
+import { VoyageScenery } from './voyage-scenery.ts';
+import { createWildTree } from './voyage-props.ts';
 import * as THREE from 'three';
 import type { IslandBlueprint } from '../domain/types.ts';
 import { islandLifeRules, islandLifeTargets, type IslandJournal } from '../domain/life.ts';
@@ -13,10 +15,13 @@ export function createIslandWorld(blueprint: IslandBlueprint) {
   const landscape = createLandscape(blueprint);
   const root = landscape.root;
   const scenery = new THREE.Group();
-  scenery.add(createIslandHouse(atelier, blueprint));
+  const isHome = !blueprint.exploration || blueprint.exploration.region === 'home';
+  if (isHome) scenery.add(createIslandHouse(atelier, blueprint));
   const fruits = new Map<string, THREE.Group>();
   for (const tree of blueprint.trees) {
-    scenery.add(createIslandTree(atelier, tree, blueprint.season));
+    const wild = tree.id.startsWith('wild:');
+    scenery.add(wild ? createWildTree(atelier, tree, blueprint) : createIslandTree(atelier, tree, blueprint.season));
+    if (wild) continue;
     const fruit = createTreeFruit(atelier, tree);
     fruits.set(islandLifeRules.fruitPrefix + tree.id, fruit);
     root.add(fruit);
@@ -48,7 +53,11 @@ export function createIslandWorld(blueprint: IslandBlueprint) {
   const guide = createResident(atelier, 0xe4ac64);
   guide.position.set(blueprint.guideSpawn.x, islandArt.ground, blueprint.guideSpawn.z);
   guide.rotation.y = -0.4;
+  guide.visible = !blueprint.exploration;
   const animal = placeIslandObject(createCompanion(atelier, blueprint.animal.species), blueprint.animal);
+  animal.visible = isHome;
+  const exploration = blueprint.exploration ? new VoyageScenery(atelier, blueprint) : null;
+  if (exploration) root.add(exploration.root);
   const portals = new Map<string, THREE.Group>();
   for (const placement of blueprint.portals) {
     const portal = createIslandPortal(atelier, placement);
@@ -58,7 +67,7 @@ export function createIslandWorld(blueprint: IslandBlueprint) {
   }
   root.add(player, guide, animal);
   return {
-    root, player, guide, animal, portals, landscape,
+    root, player, guide, animal, portals, landscape, exploration,
     applyJournal(journal: IslandJournal): void {
       const completed = new Set(journal.completed);
       for (const [id, fruit] of fruits) fruit.visible = !completed.has(id);

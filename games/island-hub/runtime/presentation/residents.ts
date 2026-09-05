@@ -22,14 +22,14 @@ export function createResident(atelier: IslandAtelier, shirt: number): THREE.Gro
   return root;
 }
 
-function createLimb(atelier: IslandAtelier, root: THREE.Group, side: number, arm: boolean): void {
+export function createLimb(atelier: IslandAtelier, root: THREE.Group, side: number, arm: boolean, skin: number = islandArt.palette.skin): void {
   const p = islandArt.palette;
   const body = islandArt.character;
   const pivot = new THREE.Group();
   pivot.name = arm ? (side < 0 ? islandArt.names.leftArm : islandArt.names.rightArm)
     : side < 0 ? islandArt.names.leftLeg : islandArt.names.rightLeg;
   pivot.position.set(side * (arm ? body.shoulderX : body.hipX), arm ? body.shoulderY : body.hipY, 0);
-  atelier.part(pivot, arm ? p.skin : 0x576c78, arm ? body.arm : body.leg,
+  atelier.part(pivot, arm ? skin : 0x576c78, arm ? body.arm : body.leg,
     [0, arm ? -0.12 : -0.1, 0], 'round');
   if (!arm) {
     atelier.part(pivot, p.timber, body.shoe, [0, -0.28, 0.035], 'round');
@@ -38,7 +38,7 @@ function createLimb(atelier: IslandAtelier, root: THREE.Group, side: number, arm
   root.add(pivot);
 }
 
-function addFace(atelier: IslandAtelier, root: THREE.Group, y: number, z: number, spacing: number): void {
+export function addFace(atelier: IslandAtelier, root: THREE.Group, y: number, z: number, spacing: number): void {
   const eyes = new THREE.Group();
   eyes.name = islandArt.names.eyes;
   eyes.position.y = y;

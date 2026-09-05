@@ -1,3 +1,5 @@
+import { voyageArt } from './voyage-art.ts';
+import type { IslandPoint } from '../domain/types.ts';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -44,7 +46,12 @@ export class IslandRendering {
     Object.assign(sun.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: 1, far: 40 });
     sun.shadow.bias = settings.shadowBias;
     sun.shadow.normalBias = settings.normalBias;
-    scene.add(hemisphere, sun);
+    scene.add(hemisphere, sun, sun.target);
+  }
+  public followSun(point: IslandPoint): void {
+    const origin = voyageArt.sunOffset;
+    this.sun.position.set(point.x + origin.x, origin.y, point.z + origin.z);
+    this.sun.target.position.set(point.x, 0, point.z);
   }
   public setIndoors(indoors: boolean): void {
     this.sun.intensity = indoors ? 0.8 : islandArt.render.sunIntensity;

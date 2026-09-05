@@ -1,3 +1,4 @@
+import type { VoyageLayout } from './voyage-registry.ts';
 import type {
   islandCameraModes,
   islandDestinationIds,
@@ -72,6 +73,8 @@ export interface IslandPortalPlacement extends IslandPoint {
 }
 
 export interface IslandBlueprint {
+  /** Derived exploration envelope; the persisted v1 core remains unchanged. */
+  readonly exploration?: VoyageLayout;
   readonly schemaVersion: 1;
   readonly islandId: string;
   readonly seed: number;

@@ -1,3 +1,4 @@
+import { voyageRules } from './voyage-registry.ts';
 import { createProximityWorldState, stepProximityWorld } from '../../../shared/proximity-world/domain/rules.ts';
 import { proximityInteractionStatuses, type ProximityWorldDefinition,
   type ProximityWorldState } from '../../../shared/proximity-world/domain/types.ts';
@@ -15,7 +16,7 @@ export const islandLifeRules = {
 export interface IslandJournal { readonly completed: ReadonlyArray<string> }
 export interface IslandLifeTarget {
   readonly id: string; readonly point: IslandPoint;
-  readonly kind: 'fruit' | 'garden' | 'guide' | 'pet' | 'portal';
+  readonly kind: 'fruit' | 'garden' | 'guide' | 'pet' | 'portal' | 'explore';
   readonly label: string; readonly destination?: IslandDestinationId;
 }
 export interface IslandLifeUpdate {
@@ -26,9 +27,9 @@ export interface IslandLifeUpdate {
 
 export function islandLifeTargets(blueprint: IslandBlueprint): ReadonlyArray<IslandLifeTarget> {
   return [
-    ...blueprint.trees.map((tree): IslandLifeTarget => ({ id: islandLifeRules.fruitPrefix + tree.id,
+    ...blueprint.trees.filter((tree) => !tree.id.startsWith('wild:')).map((tree): IslandLifeTarget => ({ id: islandLifeRules.fruitPrefix + tree.id,
       point: tree, kind: 'fruit', label: 'Собрать яблоко' })),
-    ...Array.from({ length: islandLifeRules.gardenBeds }, (_, index): IslandLifeTarget => ({
+    ...Array.from({ length: blueprint.exploration && blueprint.exploration.region !== 'home' ? 0 : islandLifeRules.gardenBeds }, (_, index): IslandLifeTarget => ({
       id: islandLifeRules.gardenPrefix + index,
       point: { x: blueprint.activityZone.x + (index - 1) * islandLifeRules.gardenSpacing,
         z: blueprint.activityZone.z }, kind: 'garden', label: 'Посадить цветы · 1 яблоко',
@@ -46,19 +47,22 @@ export class IslandLife {
   private readonly definition: ProximityWorldDefinition;
   private world: ProximityWorldState;
   private readonly completed: Set<string>;
+  private readonly manualPortals: boolean;
 
-  public constructor(blueprint: IslandBlueprint, journal: IslandJournal = { completed: [] }) {
-    this.targets = islandLifeTargets(blueprint);
+  public constructor(blueprint: IslandBlueprint, journal: IslandJournal = { completed: [] }, external: ReadonlyArray<IslandLifeTarget> = []) {
+    this.manualPortals = external.length > 0;
+    this.targets = [...islandLifeTargets(blueprint).filter((target) => (!external.length || target.kind !== 'guide')
+      && (!blueprint.exploration || blueprint.exploration.region === 'home' || target.kind !== 'pet')), ...external];
+    const extent = Math.max(islandRules.baseRadius, ...blueprint.coastline) * 2;
     this.definition = {
-      bounds: { minimumX: -islandRules.baseRadius * 2, maximumX: islandRules.baseRadius * 2,
-        minimumZ: -islandRules.baseRadius * 2, maximumZ: islandRules.baseRadius * 2 },
+      bounds: { minimumX: -extent, maximumX: extent, minimumZ: -extent, maximumZ: extent },
       movementSpeed: 0,
       interactions: this.targets.map((target) => ({ id: target.id, position: target.point,
-        radius: target.kind === 'portal' ? islandRules.portalRadius : islandLifeRules.actionRadius,
-        durationMs: target.kind === 'portal' ? islandRules.portalHoldSeconds * 1000
+        radius: target.kind === 'portal' ? islandRules.portalRadius : target.kind === 'explore' ? voyageRules.interactRadius : islandLifeRules.actionRadius,
+        durationMs: target.kind === 'portal' ? (this.manualPortals ? islandLifeRules.actionDurationMs : islandRules.portalHoldSeconds * 1000)
           : islandLifeRules.actionDurationMs, repeatable: false, cooldownMs: 0 })),
     };
-    const allowed = new Set(this.targets.filter((target) => target.kind !== 'portal').map((target) => target.id));
+    const allowed = new Set(this.targets.filter((target) => target.kind !== 'portal' && target.kind !== 'explore').map((target) => target.id));
     this.completed = new Set(journal.completed.filter((id) => allowed.has(id)));
     // Never restore more paid plantings than the number of legitimately harvested trees.
     const harvested = [...this.completed].filter((id) => id.startsWith(islandLifeRules.fruitPrefix)).length;
@@ -75,6 +79,13 @@ export class IslandLife {
   public get fruit(): number {
     return [...this.completed].filter((id) => id.startsWith(islandLifeRules.fruitPrefix)).length - this.planted;
   }
+  public dismissExternal(id: string): void {
+    const runtime = this.world.interactions[id];
+    if (runtime && this.targets.some((target) => target.id === id && target.kind === 'explore')) {
+      this.world = { ...this.world, activeInteractionId: null, interactions: { ...this.world.interactions,
+        [id]: { ...runtime, progressMs: 0, status: proximityInteractionStatuses.completed } } };
+    }
+  }
   public resetProgress(): void {
     this.world = { ...this.world, activeInteractionId: null,
       interactions: Object.fromEntries(Object.entries(this.world.interactions)
@@ -85,15 +96,16 @@ export class IslandLife {
     const sample = { moveX: 0, moveZ: 0, deltaMs: 0 };
     this.world = stepProximityWorld(this.definition, { ...this.world, playerPosition: position }, sample).state;
     const target = this.targets.find((entry) => entry.id === this.world.activeInteractionId) ?? null;
-    const duration = target?.kind === 'portal' ? islandRules.portalHoldSeconds * 1000
+    const duration = target?.kind === 'portal' ? (this.manualPortals ? islandLifeRules.actionDurationMs : islandRules.portalHoldSeconds * 1000)
       : islandLifeRules.actionDurationMs;
     const result = { target, progress: 0, message: null, changed: false, destination: null };
-    if (target === null) return result;
+    if (target === null || target.kind === 'explore') return result;
     if (interact && target.kind === 'garden' && this.fruit === 0) {
       return { ...result, message: islandLifeRules.messages.empty };
     }
+    if (target.kind === 'portal' && this.manualPortals && !interact) return result;
     const deltaMs = target.kind === 'portal'
-      ? Math.min(100, Math.max(0, Number.isFinite(seconds) ? seconds * 1000 : 0))
+      ? this.manualPortals ? duration : Math.min(100, Math.max(0, Number.isFinite(seconds) ? seconds * 1000 : 0))
       : interact ? duration : 0;
     this.world = stepProximityWorld(this.definition, this.world, { ...sample, deltaMs }).state;
     const runtime = this.world.interactions[target.id];

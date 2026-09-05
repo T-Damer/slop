@@ -1,3 +1,6 @@
+import { createVoyageWorld } from '../domain/voyage-world.ts';
+import type { VoyageState } from '../domain/voyage-registry.ts';
+import { loadVoyage, saveVoyage, clearVoyage } from '../storage/voyage-repository.ts';
 import {
   createAndSaveIslandSnapshot,
   loadIslandSnapshot,
@@ -166,7 +169,12 @@ class PersonalIslandApp {
     });
   }
 
-  private mountWorld(snapshot: IslandSnapshot): void {
+  private mountWorld(snapshot: IslandSnapshot, arrivalState?: VoyageState): void {
+    this.menuFocus?.destroy(); this.menuFocus = null;
+    this.scene?.destroy(); this.scene = null;
+    const voyage = arrivalState ? { state: arrivalState, warning: false } : loadVoyage(snapshot.blueprint);
+    let world = createVoyageWorld(snapshot.blueprint, voyage.state.region);
+    if (arrivalState) world = { ...world, playerSpawn: { x: world.exploration!.dock.x, z: world.exploration!.dock.z - 1.8 } };
     document.title = 'Мой остров · SLOP';
     this.root.innerHTML = renderIslandShell(snapshot, this.options.games);
     const host = this.root.querySelector<HTMLElement>('.island-canvas-host');
@@ -174,13 +182,17 @@ class PersonalIslandApp {
       throw new Error('Personal Island canvas host is missing.');
     }
     const home = loadHome(snapshot.blueprint.islandId);
-    this.scene = new PersonalIslandScene(host, this.root, snapshot.blueprint, {
+    this.scene = new PersonalIslandScene(host, this.root, world, {
+      onVoyageChanged: (state) => saveVoyage(snapshot.blueprint, state),
+      onTravel: (state) => this.mountWorld(snapshot, state),
       onPortalProgress: (progress) => this.renderPortalProgress(progress),
       onLaunchGame: (destinationId) => this.options.onLaunchGame(destinationId),
       onHomeChanged: (state) => saveHome(snapshot.blueprint.islandId, state),
       onSoundChanged: saveSoundMix,
-      onJournalChanged: (journal) => saveIslandJournal(snapshot.blueprint.islandId, journal),
-    }, loadIslandJournal(snapshot.blueprint.islandId), home.state, loadSoundMix());
+      onJournalChanged: (journal) => voyage.state.region === 'home' && saveIslandJournal(snapshot.blueprint.islandId, journal),
+    }, voyage.state.region === 'home' ? loadIslandJournal(snapshot.blueprint.islandId) : { completed: [] }, home.state, loadSoundMix(), voyage.state);
+    if (arrivalState) this.root.querySelector('.personal-island')?.classList.add('voyage-arrival');
+    if (voyage.warning) this.scene.notify("Дневник открыт в безопасном режиме. Прежняя запись сохранена для восстановления.");
     if (home.warning) this.scene.notify("Дом загружен в безопасном режиме; прежнее сохранение не удалено.");
     this.menuFocus = new IslandMenuFocus(this.root, () => this.setMenuOpen(false));
     this.menuFocus.setOpen(false);
@@ -205,7 +217,7 @@ class PersonalIslandApp {
 
   private async regenerate(): Promise<void> {
     if (this.snapshot !== null) {
-      clearIslandJournal(this.snapshot.blueprint.islandId); clearHome(this.snapshot.blueprint.islandId);
+      clearIslandJournal(this.snapshot.blueprint.islandId); clearHome(this.snapshot.blueprint.islandId); clearVoyage(this.snapshot.blueprint.islandId);
     }
     await this.repository.clear();
     if (this.disposed) {
