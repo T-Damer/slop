@@ -10,16 +10,7 @@ export interface BilliardsRoomLightV2 {
 
 export interface BilliardsCueSkinV2 {
   readonly id: string;
-  readonly shaftLight: string;
-  readonly shaftMid: string;
-  readonly shaftDark: string;
-  readonly buttLight: string;
-  readonly buttDark: string;
-  readonly wrap: string;
-  readonly ferrule: string;
   readonly tip: string;
-  readonly grainFrequency: number;
-  readonly gloss: number;
 }
 
 export interface BilliardsTableSkinV2 {
@@ -51,15 +42,6 @@ export const classicPocketClubSkinV2: BilliardsTableSkinV2 = {
   },
   cue: {
     id: 'house-cue-walnut',
-    shaftLight: '#f1d3a3',
-    shaftMid: '#c08a4b',
-    shaftDark: '#573019',
-    buttLight: '#8d4825',
-    buttDark: '#22100b',
-    wrap: '#17100d',
-    ferrule: '#eee7d6',
     tip: '#3d8aa0',
-    grainFrequency: 17,
-    gloss: 0.62,
   },
 };

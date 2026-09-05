@@ -30,32 +30,15 @@ export const billiardsView = {
     railWidth: 52,
     cornerRadius: 34,
   },
-  ballShadowOffset: 4,
-  cueLength: 255,
   cueGap: 22,
   aimGuideWidth: 2,
-  devicePixelRatioLimit: 2,
 } as const;
 
 export const billiardsPalette = {
-  pageTop: '#102941',
-  pageBottom: '#071522',
-  panel: 'rgba(10, 25, 39, 0.88)',
-  panelBorder: 'rgba(255, 255, 255, 0.12)',
-  text: '#f7f2e8',
-  muted: '#aab9c5',
-  accent: '#f5c35b',
-  accentDark: '#b77a1d',
-  felt: '#18735f',
-  feltDark: '#0b463b',
-  rail: '#694027',
-  railDark: '#2f1c14',
   sight: '#ead9ab',
   pocket: '#050505',
   guide: 'rgba(255, 255, 255, 0.76)',
   objectGuide: 'rgba(245, 195, 91, 0.72)',
-  foul: '#ff8f7d',
-  success: '#8de7b4',
 } as const;
 
 export const billiardsBallColors: Readonly<Record<number, string>> = {
@@ -85,11 +68,7 @@ export const billiardsCopy = {
   shoot: 'Удар',
   restart: 'Новая партия',
   power: 'Сила',
-  sideSpin: 'Боковое вращение',
-  followSpin: 'Накат / оттяжка',
   angle: 'Направление',
-  spin: 'Вращение битка',
-  spinHint: 'Перетащи точку по шару',
   soundOn: 'Включить звук',
   soundOff: 'Выключить звук',
   controls: 'Клик: фиксация · Стрелки: угол · Колесо: сила · Space: удар · Esc: смена прицела',
@@ -125,5 +104,5 @@ export const billiardsFeedbackTuning = {
 export const billiardsInputTuning = {
   angleStep: 0.009, fineAngleStep: 0.0025, angleRadiansPerPixel: 0.012,
   maximumWheelStep: 0.12, wheelPixelsPerPower: 700, wheelLinePixels: 16,
-  spinKeyStep: 0.1, degreesToRadians: Math.PI / 180,
+  degreesToRadians: Math.PI / 180,
 } as const;
