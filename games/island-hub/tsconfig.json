@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["runtime/**/*.ts"],
+  "include": ["runtime/**/*.ts", "../../types/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
