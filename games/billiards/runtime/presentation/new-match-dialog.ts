@@ -48,6 +48,7 @@ export function bindNewMatchDialog(view: BilliardsViewElements, controller: Bill
     dialog.close();
   };
   view.restart.addEventListener('click', open);
+  open();
   dialog.addEventListener('submit', submit);
   dialog.addEventListener('keydown', escape);
   dialog.addEventListener('close', close);

@@ -1,4 +1,4 @@
-import { bindNewMatchDialog } from './new-match-dialog.ts';
+import { bindLazyNewMatch } from './new-match-loader.ts';
 import type { Accessor, Setter } from 'solid-js';
 
 import type { BilliardsAudioEngine } from './audio.ts';
@@ -34,7 +34,7 @@ export function bindBilliardsControlsV2(
     bindKeyboard(options),
     bindWheel(options),
     bindActions(options),
-    bindNewMatchDialog(options.view, options.controller),
+    bindLazyNewMatch(options.view, options.controller),
     bindAudioUnlock(options),
   ];
   return () => {

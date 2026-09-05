@@ -1,3 +1,4 @@
+import { waitForBilliardsStartup } from './browser-quality/billiards-startup.mjs';
 import { verifyGraphicsMenu, verifyCamera, verifyPocketJourney } from './browser-quality/billiards-camera.mjs';
 import { verifyPresetRoundtrip } from './browser-quality/billiards-presets.mjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -88,7 +89,7 @@ async function inspectViewport({
     `Boolean(document.querySelector(${JSON.stringify(ui.rootSelector)}))`,
     20000,
   );
-  await waitForExpression(cdp, `Boolean(${ui.qaExpression})`, 20000);
+  await waitForBilliardsStartup(cdp, ui, directory, runtimeErrors);
   await delay(700);
   const settings = await verifyGraphicsMenu(cdp, directory);
   const layout = await evaluate(cdp, createLayoutExpression(ui));
@@ -298,7 +299,7 @@ function readPerformance(cdp) {
 function collectRuntimeErrors(cdp) {
   const errors = [];
   cdp.on('Runtime.exceptionThrown', (params) => {
-    errors.push(params.exceptionDetails?.text ?? 'Runtime exception');
+    errors.push(params.exceptionDetails?.exception?.description ?? params.exceptionDetails?.text ?? 'Runtime exception');
   });
   cdp.on('Runtime.consoleAPICalled', (params) => {
     if (params.type === 'error' || params.type === 'assert') {
