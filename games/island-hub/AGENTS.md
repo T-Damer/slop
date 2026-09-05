@@ -2,6 +2,8 @@
 
 Read the root `AGENTS.md` first.
 
+Product direction and acceptance live in [DESIGN.md](DESIGN.md). For island work, read sections 01, 03 and 24, then the relevant system section and section 25. This is the target design, not a list of implemented features; preserve existing saves and the independent billiards work.
+
 - `runtime/domain/**` owns preferences, seeds and `IslandBlueprint`; it must remain deterministic and platform-independent.
 - `runtime/storage/**` implements `IslandRepository`; presentation code never reads or writes `localStorage` directly.
 - `runtime/application/**` creates and restores versioned snapshots.
