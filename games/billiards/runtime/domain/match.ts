@@ -1,3 +1,4 @@
+import { tablePreset, type BilliardsPresetId } from './table-presets.ts';
 import { isFiniteVec2 } from './geometry.ts';
 import {
   billiardsBallIds,
@@ -126,9 +127,9 @@ export function positionCueBall(
   };
 }
 
-export function restartMatch(match: BilliardsMatchState): BilliardsMatchState {
+export function restartMatch(match: BilliardsMatchState, presetId: BilliardsPresetId = tablePreset(match.table).id): BilliardsMatchState {
   const names = [match.players[0].name, match.players[1].name] as const;
-  return { ...createInitialMatch(names), revision: match.revision + 1 };
+  return { ...createInitialMatch(names, presetId), revision: match.revision + 1 };
 }
 
 function shotRejectionReason(

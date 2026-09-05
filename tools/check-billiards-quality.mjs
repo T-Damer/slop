@@ -1,3 +1,4 @@
+import { verifyPresetRoundtrip } from './browser-quality/billiards-presets.mjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -113,6 +114,8 @@ async function inspectViewport({
       failures.push('Web Audio did not unlock for the shot.');
     }
   }
+  interactions.presets = await verifyPresetRoundtrip(cdp, ui, directory, () => runBreakShot(cdp, ui, directory));
+  failures.push(...interactions.presets.failures);
   for (const runtimeError of runtimeErrors) {
     failures.push(`Browser error: ${runtimeError}`);
   }
@@ -203,7 +206,7 @@ function createLayoutExpression(ui) {
     if (!(restart instanceof HTMLButtonElement)) failures.push('Restart control is missing.');
     if (!(room instanceof HTMLElement) || getComputedStyle(room).backgroundImage === 'none') failures.push('The authored billiards-room backdrop is missing.');
     if (smokeWisps.length !== ${ui.expectedSmokeWisps}) failures.push('The restrained smoke layer is incomplete.');
-    for (const [label, element] of [['power', power], ['angle', angle], ['spin', spin], ['sound', sound]]) {
+    for (const [label, element] of [['power', power], ['angle', angle], ['sound', sound]]) {
       if (!(element instanceof HTMLElement)) {
         failures.push('The ' + label + ' control is missing.');
         continue;
@@ -213,6 +216,8 @@ function createLayoutExpression(ui) {
         failures.push('The ' + label + ' control is not visibly rendered.');
       }
     }
+    if (spin && spin.getBoundingClientRect().width !== 0) failures.push('Spin control must remain hidden in the local preset.');
+    if (![shoot, restart, sound].filter(Boolean).every((element) => element === shoot || element.querySelector('[data-phosphor]'))) failures.push('Non-Phosphor action icon.');
     if (slotRows.length !== ${ui.expectedPlayerSlotRows}) failures.push('Player ball-slot rows are incomplete.');
     if (slotRows.some((row) => row.querySelectorAll(${JSON.stringify(ui.ballSlotSelector)}).length !== ${ui.expectedSlotsPerPlayer})) {
       failures.push('A player ball-slot row has the wrong number of slots.');

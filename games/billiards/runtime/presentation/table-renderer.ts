@@ -1,4 +1,4 @@
-import { billiardsTableModel } from '../domain/table-model.ts';
+import { billiardsTableModel, type BilliardsTableModel } from '../domain/table-model.ts';
 import { worldLengthToCanvas, worldToCanvas } from './coordinates.ts';
 import { drawDiamond, roundedRect } from './drawing.ts';
 import { billiardsPalette, billiardsView } from './registry.ts';
@@ -23,7 +23,7 @@ export function drawBilliardsBackdrop(context: CanvasRenderingContext2D): void {
   context.fillRect(0, 0, billiardsView.canvasWidth, billiardsView.canvasHeight);
 }
 
-export function drawBilliardsTable(context: CanvasRenderingContext2D): void {
+export function drawBilliardsTable(context: CanvasRenderingContext2D, model: BilliardsTableModel = billiardsTableModel): void {
   const table = billiardsView.table;
   context.save();
   context.shadowColor = 'rgba(0, 0, 0, 0.76)';
@@ -53,8 +53,8 @@ export function drawBilliardsTable(context: CanvasRenderingContext2D): void {
   context.fill();
   drawFeltLighting(context);
   drawFeltGrain(context);
-  drawCushionBevels(context);
-  drawPockets(context);
+  drawCushionBevels(context, model);
+  drawPockets(context, model);
   drawRailSights(context);
 }
 
@@ -202,32 +202,34 @@ function drawFeltGrain(context: CanvasRenderingContext2D): void {
   context.restore();
 }
 
-function drawCushionBevels(context: CanvasRenderingContext2D): void {
-  const table = billiardsView.table;
+function drawCushionBevels(context: CanvasRenderingContext2D, model: BilliardsTableModel): void {
   context.save();
-  context.strokeStyle = 'rgba(98, 255, 155, 0.2)';
-  context.lineWidth = 7;
-  roundedRect(context, table.left + 8, table.top + 8, table.width - 16, table.height - 16, 17);
-  context.stroke();
-  context.strokeStyle = 'rgba(0, 17, 10, 0.58)';
-  context.lineWidth = 5;
-  roundedRect(context, table.left + 15, table.top + 15, table.width - 30, table.height - 30, 13);
-  context.stroke();
+  context.lineCap = 'butt';
+  for (const cushion of model.cushions) {
+    const start = worldToCanvas(cushion.start), end = worldToCanvas(cushion.end);
+    // Rubber lies OUTSIDE the playable plane. Its lit nose is on the CCD boundary.
+    const shift = { x: -cushion.inwardNormal.x * 5, y: -cushion.inwardNormal.y * 5 };
+    context.strokeStyle = '#063c2e'; context.lineWidth = 10;
+    context.beginPath(); context.moveTo(start.x + shift.x, start.y + shift.y);
+    context.lineTo(end.x + shift.x, end.y + shift.y); context.stroke();
+    context.strokeStyle = 'rgba(125,239,172,.35)'; context.lineWidth = 2;
+    context.beginPath(); context.moveTo(start.x, start.y); context.lineTo(end.x, end.y); context.stroke();
+  }
   context.restore();
 }
 
-function drawPockets(context: CanvasRenderingContext2D): void {
-  for (const pocket of billiardsTableModel.pockets) {
+function drawPockets(context: CanvasRenderingContext2D, model: BilliardsTableModel): void {
+  for (const pocket of model.pockets) {
     const center = worldToCanvas(pocket.center);
-    const radius = worldLengthToCanvas(pocket.radius) * 1.04;
-    const rim = context.createRadialGradient(center.x, center.y, radius * 0.4, center.x, center.y, radius * 1.5);
+    const radius = worldLengthToCanvas(pocket.radius);
+    const rim = context.createRadialGradient(center.x, center.y, radius * 0.4, center.x, center.y, radius * 1.1);
     rim.addColorStop(0, '#000000');
     rim.addColorStop(0.62, billiardsPalette.pocket);
     rim.addColorStop(0.78, '#5c5d5a');
     rim.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
     context.fillStyle = rim;
     context.beginPath();
-    context.arc(center.x, center.y, radius * 1.42, 0, fullCircle);
+    context.arc(center.x, center.y, radius * 1.1, 0, fullCircle);
     context.fill();
   }
 }

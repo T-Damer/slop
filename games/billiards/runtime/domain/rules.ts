@@ -26,6 +26,10 @@ export function resolveCompletedShot(
   if (eightPocketed && match.phase === billiardsMatchPhases.break && billiardsRules.eightOnBreakReracks) {
     return rerackMatch({ ...match, table }, billiardsMessages.rerack);
   }
+  // Attribute the actual pot to the shooter, separately from group ownership.
+  table = { ...table, balls: table.balls.map((ball) =>
+    ball.id !== billiardsBallIds.cue && trace.pocketedBallIds.includes(ball.id)
+      ? { ...ball, pocketedBy: current } : ball) };
   const foul = detectFoul(match, trace);
   if (eightPocketed) {
     const legalEight = trace.eligibleForEightAtStart && foul === null;

@@ -41,10 +41,10 @@ export function findFirstCollision(
       earliest = chooseEarlier(earliest, pocketCollision(ball, pocket, maximumTime));
     }
     for (const cushion of tableModel.cushions) {
-      earliest = chooseEarlier(earliest, cushionCollision(ball, cushion, maximumTime));
+      earliest = chooseEarlier(earliest, cushionCollision(ball, cushion, maximumTime, tableModel.ballRadius));
     }
     for (const jaw of tableModel.jaws) {
-      earliest = chooseEarlier(earliest, jawCollision(ball, jaw, maximumTime));
+      earliest = chooseEarlier(earliest, jawCollision(ball, jaw, maximumTime, tableModel.ballRadius));
     }
   }
   for (let leftIndex = 0; leftIndex < activeBalls.length; leftIndex += 1) {
@@ -52,7 +52,7 @@ export function findFirstCollision(
       const left = activeBalls[leftIndex];
       const right = activeBalls[rightIndex];
       if (left !== undefined && right !== undefined) {
-        earliest = chooseEarlier(earliest, ballCollision(left, right, maximumTime));
+        earliest = chooseEarlier(earliest, ballCollision(left, right, maximumTime, tableModel.ballRadius));
       }
     }
   }
@@ -63,10 +63,11 @@ export function ballCollision(
   left: BilliardsBallState,
   right: BilliardsBallState,
   maximumTime: number,
+  radius: number = billiardsPhysics.ballRadius,
 ): BilliardsCollisionEvent | null {
   const relativePosition = subtractVec2(right.position, left.position);
   const relativeVelocity = subtractVec2(right.velocity, left.velocity);
-  const diameter = billiardsPhysics.ballRadius * 2;
+  const diameter = radius * 2;
   const time = movingCircleTime(relativePosition, relativeVelocity, diameter, maximumTime);
   return time === null ? null : {
     kind: billiardsCollisionKinds.ball,
@@ -80,13 +81,14 @@ function cushionCollision(
   ball: BilliardsBallState,
   cushion: BilliardsCushionLine,
   maximumTime: number,
+  radius: number,
 ): BilliardsCollisionEvent | null {
   const normalSpeed = dotVec2(ball.velocity, cushion.inwardNormal);
   if (normalSpeed >= -billiardsPhysics.velocityEpsilon) {
     return null;
   }
   const distance = dotVec2(subtractVec2(ball.position, cushion.start), cushion.inwardNormal);
-  const time = (billiardsPhysics.ballRadius - distance) / normalSpeed;
+  const time = (radius - distance) / normalSpeed;
   if (!isCandidateTime(time, maximumTime)) {
     return null;
   }
@@ -109,12 +111,13 @@ function jawCollision(
   ball: BilliardsBallState,
   jaw: BilliardsJawPoint,
   maximumTime: number,
+  radius: number,
 ): BilliardsCollisionEvent | null {
   const relativePosition = subtractVec2(ball.position, jaw.point);
   const time = movingCircleTime(
     relativePosition,
     ball.velocity,
-    billiardsPhysics.ballRadius,
+    radius,
     maximumTime,
   );
   return time === null ? null : {
@@ -131,7 +134,17 @@ function pocketCollision(
   maximumTime: number,
 ): BilliardsCollisionEvent | null {
   const relativePosition = subtractVec2(ball.position, pocket.center);
-  const time = movingCircleTime(relativePosition, ball.velocity, pocket.radius, maximumTime);
+  let time = movingCircleTime(relativePosition, ball.velocity, pocket.radius, maximumTime);
+  if (time !== null && pocket.mouth !== undefined) {
+    const { center, outwardNormal } = pocket.mouth;
+    const speed = dotVec2(ball.velocity, outwardNormal);
+    if (speed <= billiardsPhysics.velocityEpsilon) return null;
+    const distance = dotVec2(subtractVec2(ball.position, center), outwardNormal);
+    time = Math.max(time, -distance / speed, 0);
+    const impact = addVec2(relativePosition, scaleVec2(ball.velocity, time));
+    if (!isCandidateTime(time, maximumTime)
+      || lengthSquaredVec2(impact) > pocket.radius ** 2 + billiardsPhysics.separationEpsilon) return null;
+  }
   return time === null ? null : {
     kind: billiardsCollisionKinds.pocket,
     time,

@@ -113,7 +113,8 @@ function createBilliardsAppV2(): HTMLElement {
     document.title = `${billiardsCopy.title} · SLOP`;
     installQaBridge(controller, renderer, frameLoop, quality, snapshot, portrait);
     frameLoop.start();
-    void controller.start(location.href);
+    // Public game is local-only for now; retain the optional SDK behind its adapter.
+    void controller.start(location.origin);
     view.canvas.focus({ preventScroll: true });
   });
 

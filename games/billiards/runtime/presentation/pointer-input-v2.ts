@@ -15,6 +15,7 @@ export interface BilliardsPointerInputOptions {
 class BilliardsPointerGesture {
   private pointerId: number | null = null;
   private stroke: ManualCueStroke | null = null;
+  private placing = false;
 
   public constructor(private readonly options: BilliardsPointerInputOptions) {}
 
@@ -42,10 +43,14 @@ class BilliardsPointerGesture {
     const point = this.point(event);
     if (point === null) return;
     const { controller, canvas, snapshot } = this.options;
+    if (!snapshot().canInteract) return;
     const mode = snapshot().interaction.mode;
     if (mode === modes.placingCueBall) {
       controller.setPlacementPreview(canvasToWorld(point));
-      this.focusAction();
+      this.placing = true;
+      this.pointerId = event.pointerId;
+      event.preventDefault();
+      canvas.setPointerCapture(event.pointerId);
       return;
     }
     if (mode === modes.aimLocked) {
@@ -61,6 +66,13 @@ class BilliardsPointerGesture {
 
   public up = (event: PointerEvent): void => {
     if (this.pointerId !== event.pointerId) return;
+    if (this.placing) {
+      this.move(event);
+      this.options.controller.confirmCuePlacement();
+      this.release();
+      this.focusAction();
+      return;
+    }
     if (this.stroke !== null) {
       this.move(event);
       if (this.stroke === null) return; // Contact already executed the shot exactly once.
@@ -84,6 +96,7 @@ class BilliardsPointerGesture {
     const id = this.pointerId;
     this.pointerId = null;
     this.stroke = null;
+    this.placing = false;
     if (id !== null && this.options.canvas.hasPointerCapture(id)) {
       this.options.canvas.releasePointerCapture(id);
     }

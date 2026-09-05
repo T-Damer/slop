@@ -1,7 +1,8 @@
+import { tableModelFor, type BilliardsTableModel } from '../domain/table-model.ts';
 import type { BilliardsQualityMode } from './adaptive-quality-v2.ts';
 import { BilliardsBallRendererV2 } from './ball-renderer-v2.ts';
 import type { BilliardsControllerSnapshotV2 } from './controller-v2.ts';
-import { drawBilliardsCueStrikeV2, drawBilliardsCueV2 } from './cue-renderer-v2.ts';
+import { drawBilliardsCueStrikeV2, drawBilliardsCueV2, isCueTextureReady } from './cue-renderer-v2.ts';
 import {
   BilliardsEffectsRenderer,
   type BilliardsEffectsDebugSnapshot,
@@ -27,6 +28,7 @@ export interface BilliardsCanvasRenderStateV2 {
 
 export interface BilliardsCanvasDebugV2 {
   readonly staticSceneBuildCount: number;
+  readonly sceneDrawCount: number;
   readonly quality: BilliardsQualityMode;
   readonly ballRendering: ReturnType<BilliardsBallRendererV2['debugSnapshot']>;
   readonly effects: BilliardsEffectsDebugSnapshot;
@@ -38,8 +40,13 @@ export class BilliardsCanvasRendererV2 {
   private readonly balls = new BilliardsBallRendererV2();
   private skin: BilliardsTableSkinV2 = classicPocketClubSkinV2;
   private staticSceneBuildCount = 0;
+  private model: BilliardsTableModel | null = null;
   private staticSceneDirty = true;
   private quality: BilliardsQualityMode = 'high';
+  private previous: BilliardsControllerSnapshotV2 | null = null;
+  private hadEffects = false;
+  private cueReady = false;
+  private sceneDrawCount = 0;
 
   public constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -62,12 +69,22 @@ export class BilliardsCanvasRendererV2 {
   }
 
   public draw(state: BilliardsCanvasRenderStateV2, nowMs: number): void {
+    const effects = this.effects.debugSnapshot(nowMs);
+    const activeEffects = effects.activeImpacts > 0 || effects.cueStrikeActive;
+    if (this.previous === state.snapshot && this.quality === state.quality
+      && !activeEffects && !this.hadEffects && this.cueReady && !this.staticSceneDirty) return;
+    this.previous = state.snapshot; this.hadEffects = activeEffects;
+    this.cueReady = isCueTextureReady(); this.sceneDrawCount += 1;
     this.quality = state.quality;
-    this.ensureStaticScene();
+    const model = tableModelFor(state.snapshot.match.table);
+    if (this.model !== model) { this.model = model; this.staticSceneDirty = true; }
+    this.ensureStaticScene(model);
     const context = this.context;
     context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     context.drawImage(this.staticCanvas, 0, 0);
     const snapshot = state.snapshot;
+    const skin = { ...this.skin, cue: { ...this.skin.cue,
+      tip: snapshot.match.turnIndex === 0 ? '#67b5f6' : '#ee746c' } };
     const placing = snapshot.match.ballInHand
       || snapshot.interaction.mode === billiardsInteractionModes.placingCueBall;
     if (!placing && snapshot.match.activeShot === null && snapshot.match.winnerIndex === null) {
@@ -81,7 +98,7 @@ export class BilliardsCanvasRendererV2 {
           angleRadians: snapshot.angleRadians,
           power: snapshot.power,
           interaction: snapshot.interaction,
-          skin: this.skin,
+          skin,
           quality: state.quality,
         });
       }
@@ -90,7 +107,7 @@ export class BilliardsCanvasRendererV2 {
       drawBilliardsCueStrikeV2(
         context,
         this.effects.cueAnimation(nowMs),
-        this.skin,
+        skin,
         state.quality,
       );
     }
@@ -102,6 +119,7 @@ export class BilliardsCanvasRendererV2 {
         placement.position,
         placement.valid,
         this.skin,
+        model.ballRadius,
       );
     }
     this.effects.draw(context, nowMs);
@@ -110,19 +128,20 @@ export class BilliardsCanvasRendererV2 {
   public debugSnapshot(nowMs: number): BilliardsCanvasDebugV2 {
     return {
       staticSceneBuildCount: this.staticSceneBuildCount,
+      sceneDrawCount: this.sceneDrawCount,
       quality: this.quality,
       ballRendering: this.balls.debugSnapshot(),
       effects: this.effects.debugSnapshot(nowMs),
     };
   }
 
-  private ensureStaticScene(): void {
+  private ensureStaticScene(model: BilliardsTableModel): void {
     if (!this.staticSceneDirty) return;
     const context = this.staticCanvas.getContext('2d');
     if (context === null) throw new Error('Static billiards canvas is unavailable.');
     context.clearRect(0, 0, this.staticCanvas.width, this.staticCanvas.height);
     drawBilliardsBackdrop(context);
-    drawBilliardsTable(context);
+    drawBilliardsTable(context, model);
     drawTableMarkings(context);
     this.staticSceneBuildCount += 1;
     this.staticSceneDirty = false;

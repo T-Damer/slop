@@ -1,3 +1,4 @@
+import { tablePreset } from '../domain/table-presets.ts';
 import { isFiniteVec2 } from '../domain/geometry.ts';
 import { canPlaceCueBall } from '../domain/rack.ts';
 import { billiardsBallIds, billiardsPhysics, billiardsRules } from '../domain/registry.ts';
@@ -68,7 +69,7 @@ export class BilliardsShotInteraction {
     const cue = match.table.balls.find((ball) => ball.id === billiardsBallIds.cue && !ball.pocketed);
     if (cue === undefined) return;
     const delta = { x: point.x - cue.position.x, y: point.y - cue.position.y };
-    if (Math.hypot(delta.x, delta.y) < billiardsPhysics.ballRadius) return;
+    if (Math.hypot(delta.x, delta.y) < tablePreset(match.table).ballRadius) return;
     this.setAngle(Math.atan2(delta.y, delta.x));
   }
 

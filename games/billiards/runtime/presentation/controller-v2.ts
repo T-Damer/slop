@@ -1,3 +1,4 @@
+import { tablePreset, type BilliardsPresetId } from '../domain/table-presets.ts';
 import { createInitialMatch, positionCueBall, restartMatch, startMatchShot } from '../domain/match.ts';
 import { billiardsMatchPhases } from '../domain/registry.ts';
 import { previewShot } from '../domain/shot.ts';
@@ -33,6 +34,7 @@ export class BilliardsGameControllerV2 {
   private sequence = 0;
   private feedbackRevision = 0;
   private disposed = false;
+  private paused = false;
   private pendingRevision: number | null = null;
   private readonly playback = new BilliardsMatchPlayback();
   private readonly listeners = new Set<SnapshotListener>();
@@ -98,7 +100,7 @@ export class BilliardsGameControllerV2 {
   }
 
   public advance(deltaSeconds: number): void {
-    if (this.disposed || this.session.mode === 'colyseus' || this.match.activeShot === null) return;
+    if (this.disposed || this.paused || this.session.mode === 'colyseus' || this.match.activeShot === null) return;
     const result = this.playback.advance(this.match, deltaSeconds);
     if (result.match === this.match) return;
     this.match = result.match;
@@ -163,10 +165,18 @@ export class BilliardsGameControllerV2 {
     return true;
   }
 
-  public restart(): void {
+  public setPaused(value: boolean): void {
+    if (value) this.shot.cancelManualStroke();
+    this.paused = value;
+    this.playback.reset();
+    this.emit();
+  }
+
+  public restart(presetId: BilliardsPresetId = tablePreset(this.match.table).id): void {
     if (this.disposed || this.pendingRevision !== null || !this.ownsTurn()) return;
+    if (this.session.mode === 'colyseus' && presetId !== tablePreset(this.match.table).id) return;
     const command = createRestartWireCommand(this.nextSequence(), this.match.revision);
-    this.acceptOrAwait(restartMatch(this.match));
+    this.acceptOrAwait(restartMatch(this.match, presetId));
     this.playback.reset();
     this.shot.reset(this.match.ballInHand);
     this.session.sendRestart(command);
@@ -184,14 +194,15 @@ export class BilliardsGameControllerV2 {
   }
 
   private canInteract(): boolean {
-    return !this.disposed && this.pendingRevision === null && this.ownsTurn()
+    return !this.disposed && !this.paused && this.pendingRevision === null && this.ownsTurn()
       && this.connection.state !== states.connecting
       && this.match.phase !== billiardsMatchPhases.finished
       && this.match.activeShot === null && isTableAtRest(this.match.table);
   }
 
   private createShotCommand(clientSequence: number): BilliardsShotCommand {
-    const { angleRadians, power, sideSpin, followSpin } = this.shot.snapshot();
+    const { angleRadians, power } = this.shot.snapshot();
+    const sideSpin = 0, followSpin = 0;
     return { schemaVersion: 1, angleRadians, power, sideSpin, followSpin, clientSequence };
   }
 

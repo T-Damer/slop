@@ -79,6 +79,7 @@ export const billiardsPhysics = {
   maximumShotSpeed: 430,
   minimumShotSpeed: 34,
   maximumGuideDistance: 280,
+  objectGuideDistance: 24,
   maximumShotSteps: 120 * 24,
 } as const;
 

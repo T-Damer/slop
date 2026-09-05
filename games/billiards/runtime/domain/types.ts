@@ -1,3 +1,4 @@
+import type { BilliardsPresetId } from './table-presets.ts';
 import type {
   billiardsBallKinds,
   billiardsCollisionKinds,
@@ -25,15 +26,21 @@ export interface BilliardsBallState {
   readonly sideSpin: number;
   readonly followSpin: number;
   readonly pocketed: boolean;
+  /** Actual shooter, including a pot on a foul; not ownership of the ball group. */
+  readonly pocketedBy?: 0 | 1;
 }
 
 export interface BilliardsTableState {
+  /** Omitted in legacy v1 snapshots: American preset. */
+  readonly presetId?: BilliardsPresetId;
   readonly schemaVersion: 1;
   readonly step: number;
   readonly balls: ReadonlyArray<BilliardsBallState>;
 }
 
 export interface BilliardsPocket {
+  /** Capture is behind the mouth, so a large pocket circle cannot bypass its jaws. */
+  readonly mouth?: { readonly center: Vec2; readonly outwardNormal: Vec2 };
   readonly id: string;
   readonly center: Vec2;
   readonly radius: number;

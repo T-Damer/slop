@@ -1,3 +1,4 @@
+import { tableModelFor } from './table-model.ts';
 import {
   addVec2,
   clampNumber,
@@ -60,7 +61,7 @@ export function previewShot(
   }
   const maximumTime = billiardsPhysics.maximumGuideDistance
     / Math.max(billiardsPhysics.minimumShotSpeed, vectorSpeed(cue.velocity));
-  const collision = findFirstCollision(movingTable.balls, maximumTime);
+  const collision = findFirstCollision(movingTable.balls, maximumTime, tableModelFor(table));
   const end = collision === null
     ? addVec2(
       cue.position,
@@ -109,7 +110,7 @@ function createObjectPath(
   });
   return [
     objectBall.position,
-    addVec2(objectBall.position, scaleVec2(direction, billiardsPhysics.maximumGuideDistance * 0.34)),
+    addVec2(objectBall.position, scaleVec2(direction, billiardsPhysics.objectGuideDistance)),
   ];
 }
 

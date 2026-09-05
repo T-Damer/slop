@@ -38,11 +38,12 @@ export function updateBilliardsView(
     panel.classList.toggle('is-active', match.turnIndex === playerIndex);
     panel.classList.toggle('is-winner', winnerIndex === playerIndex);
     view.playerNames[playerIndex].textContent = player.name;
-    view.playerGroups[playerIndex].textContent = groupLabel(player.group);
+    view.playerGroups[playerIndex].textContent = `${groupLabel(player.group)} · забито ${match.table.balls.filter((ball) => ball.pocketed && ball.pocketedBy === playerIndex).length}`;
+    panel.setAttribute('aria-current', String(match.turnIndex === playerIndex));
     updatePocketSlots(
       view.pocketSlots[playerIndex],
       match.table.balls,
-      player.group,
+      playerIndex,
     );
   }
 
@@ -68,6 +69,7 @@ export function updateBilliardsView(
   view.spinPad.setAttribute('aria-disabled', String(controlsDisabled));
   view.shoot.disabled = controlsDisabled;
   view.sound.setAttribute('aria-pressed', String(soundEnabled));
+  view.sound.dataset.muted = String(!soundEnabled);
   view.sound.setAttribute(
     'aria-label',
     soundEnabled ? billiardsCopy.soundOff : billiardsCopy.soundOn,
@@ -81,12 +83,9 @@ export function normalizeDegrees(value: number): number {
 function updatePocketSlots(
   slots: ReadonlyArray<HTMLElement>,
   balls: ReadonlyArray<BilliardsBallState>,
-  group: unknown,
+  playerIndex: 0 | 1,
 ): void {
-  const groupValue = typeof group === 'string' ? group : null;
-  const pocketed = balls
-    .filter((ball) => ball.pocketed && ball.id !== 0 && ball.id !== 8)
-    .filter((ball) => groupValue === null || (groupValue === 'solids' ? ball.kind === 'solid' : groupValue === 'stripes' ? ball.kind === 'stripe' : true))
+  const pocketed = balls.filter((ball) => ball.pocketed && ball.pocketedBy === playerIndex)
     .sort((left, right) => left.id - right.id);
 
   slots.forEach((slot, index) => {
@@ -97,6 +96,9 @@ function updatePocketSlots(
       ball !== undefined && ballDisplayKind(ball.kind) === 'stripe',
     );
     slot.textContent = ball === undefined ? '' : String(ball.id);
+    slot.hidden = ball === undefined;
+    slot.setAttribute('aria-label', ball === undefined ? '' : `Забил игрок ${playerIndex + 1}: шар ${ball.id}`);
+    slot.title = ball === undefined ? '' : `Шар ${ball.id} · забил ${playerIndex + 1}-й игрок`;
     if (ball === undefined) {
       slot.style.removeProperty('--slot-color');
     } else {
@@ -106,11 +108,9 @@ function updatePocketSlots(
 }
 
 function groupLabel(group: unknown): string {
-  if (group === null || group === undefined) {
-    return 'Open';
-  }
-  const value = String(group);
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  if (group === 'solids') return 'Сплошные';
+  if (group === 'stripes') return 'Полосатые';
+  return 'Открытый стол';
 }
 
 function connectionBadge(state: string): string {

@@ -1,3 +1,4 @@
+import { tablePreset, billiardsPresetIds } from '../domain/table-presets.ts';
 import type { BilliardsQualityMode } from './adaptive-quality-v2.ts';
 import type { BilliardsControllerSnapshotV2 } from './controller-v2.ts';
 import { billiardsInteractionModes } from './interaction-state-v2.ts';
@@ -17,10 +18,14 @@ export function updateBilliardsViewV2(
     soundEnabled,
   );
   const interaction = snapshot.interaction;
+  const preset = tablePreset(snapshot.match.table).id;
+  view.root.dataset.preset = preset;
+  view.root.dataset.turn = String(snapshot.match.turnIndex);
+  view.restart.title = `Новая партия · ${preset === billiardsPresetIds.russian ? 'Русский пресет' : 'Американский'}`;
   view.root.dataset.interactionMode = interaction.mode;
   view.root.dataset.quality = quality;
   view.root.dataset.billiardsPortrait = String(portrait);
-  view.root.dataset.billiardsBuild = 'controls-authority-v3';
+  view.root.dataset.billiardsBuild = 'table-presets-v1';
   view.root.dataset.canInteract = String(snapshot.canInteract);
   view.power.disabled = view.sideSpin.disabled = view.followSpin.disabled = !snapshot.canInteract;
   view.spinPad.setAttribute('aria-disabled', String(!snapshot.canInteract));
@@ -42,7 +47,7 @@ export function updateBilliardsViewV2(
     view.hint.textContent = interaction.placementPreview === null
       ? 'Выберите место для полупрозрачного битка'
       : interaction.placementPreview.valid
-        ? 'Нажмите «Поставить биток», чтобы подтвердить позицию'
+        ? 'Кликните или коснитесь свободного места для установки битка'
         : 'В этом месте биток поставить нельзя';
     return;
   }

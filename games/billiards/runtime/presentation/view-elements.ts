@@ -1,3 +1,5 @@
+import { phosphorIcon } from '../../../shared/game-shell/phosphor.ts';
+import { billiardsBallIds } from '../domain/registry.ts';
 import { billiardsCopy, billiardsUiAttributes, billiardsUiIds } from './registry.ts';
 
 export interface BilliardsViewElements {
@@ -55,7 +57,7 @@ export function createBilliardsViewElements(): BilliardsViewElements {
             aria-label="${billiardsCopy.soundOn}"
             aria-pressed="false"
             title="${billiardsCopy.soundOn}"
-          ><span aria-hidden="true">♬</span></button>
+          >${phosphorIcon('sound')}</button>
         </div>
       </header>
       <section class="billiards-scoreboard" aria-label="Счёт и очередь хода">
@@ -89,7 +91,7 @@ export function createBilliardsViewElements(): BilliardsViewElements {
             title="${billiardsCopy.restart}"
             aria-label="${billiardsCopy.restart}"
             ${billiardsUiAttributes.restart}
-          >↻</button>
+          >${phosphorIcon('restart')}</button>
         </div>
         <p class="billiards-controls-copy billiards-table-hint" aria-live="polite">${billiardsCopy.controls}</p>
       </section>
@@ -101,17 +103,17 @@ export function createBilliardsViewElements(): BilliardsViewElements {
 function playerCard(index: 0 | 1): string {
   return `
     <article class="billiards-player" data-billiards-player data-player-index="${index}">
-      <div class="billiards-avatar" aria-hidden="true">${index + 1}</div>
+      <div class="billiards-avatar" aria-hidden="true">${phosphorIcon('player')}</div>
       <div class="billiards-player-copy">
         <div class="billiards-player-name"></div>
         <div class="billiards-player-group"></div>
         <div class="billiards-pocketed-balls" data-player-ball-slots="${index}">
-          ${Array.from({ length: 7 }, (_, slot) => `
+          ${Array.from({ length: billiardsBallIds.allObjects.length }, (_, slot) => `
             <span
               class="billiards-ball-slot"
               data-billiards-pocket-slot
               data-ball-slot="${slot}"
-              aria-hidden="true"
+              role="img"
             ></span>
           `).join('')}
         </div>
@@ -185,8 +187,8 @@ function spinControl(): string {
         <span class="billiards-spin-dot" data-spin-dot aria-hidden="true"></span>
       </div>
       <div class="billiards-spin-values" aria-live="polite">
-        <span>↔ <output data-output-for="side-spin">0%</output></span>
-        <span>↕ <output data-output-for="follow-spin">0%</output></span>
+        <span>Бок. <output data-output-for="side-spin">0%</output></span>
+        <span>Нак. <output data-output-for="follow-spin">0%</output></span>
       </div>
       <input class="billiards-hidden-control" data-control="side-spin" type="range" min="-1" max="1" value="0" step="0.01" />
       <input class="billiards-hidden-control" data-control="follow-spin" type="range" min="-1" max="1" value="0" step="0.01" />

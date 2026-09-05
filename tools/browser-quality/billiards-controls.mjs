@@ -1,3 +1,4 @@
+import { chooseNewMatch, verifyNewMatchPause } from './billiards-presets.mjs';
 import { delay, evaluate, waitForExpression } from './cdp-client.mjs';
 
 export async function clickAt(cdp, point) {
@@ -39,12 +40,8 @@ export async function verifyAimControls(cdp, ui) {
   await waitForExpression(cdp, `document.querySelector(${JSON.stringify(ui.rootSelector)})?.dataset.shotActive === 'true'`, 3000);
   const executed = await read();
   if (executed.match.revision !== locked.match.revision + 1) failures.push('Manual gesture did not execute exactly one shot.');
-  const restart = await evaluate(cdp, `(() => {
-    const rect = document.querySelector(${JSON.stringify(ui.restartSelector)}).getBoundingClientRect();
-    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-  })()`);
-  await clickAt(cdp, restart);
-  await waitForExpression(cdp, `document.querySelector(${JSON.stringify(ui.rootSelector)})?.dataset.shotActive === 'false'`, 3000);
+  await verifyNewMatchPause(cdp, ui);
+  await chooseNewMatch(cdp, ui);
   return { locked: locked.interaction.mode, gesture, failures };
 }
 

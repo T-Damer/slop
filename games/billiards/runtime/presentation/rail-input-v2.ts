@@ -15,11 +15,14 @@ export function bindBilliardsRailInputV2(options: BilliardsRailInputOptions): ()
   let angleCoordinate = 0;
   const power = (event: PointerEvent): void => {
     const rect = options.view.powerRail.getBoundingClientRect();
-    options.controller.setPower(clamp(1 - (event.clientY - rect.top) / Math.max(1, rect.height), 0));
+    const portrait = options.view.root.dataset.billiardsPortrait === 'true';
+    options.controller.setPower(clamp(portrait ? (event.clientX - rect.left) / Math.max(1, rect.width)
+      : 1 - (event.clientY - rect.top) / Math.max(1, rect.height), 0));
   };
   const angle = (event: PointerEvent, beginning: boolean): void => {
-    if (!beginning) options.controller.adjustAngle((event.clientY - angleCoordinate) * tuning.angleRadiansPerPixel);
-    angleCoordinate = event.clientY;
+    const coordinate = options.view.root.dataset.billiardsPortrait === 'true' ? event.clientX : event.clientY;
+    if (!beginning) options.controller.adjustAngle((coordinate - angleCoordinate) * tuning.angleRadiansPerPixel);
+    angleCoordinate = coordinate;
   };
   const spin = (event: PointerEvent): void => {
     const rect = options.view.spinPad.getBoundingClientRect();

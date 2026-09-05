@@ -1,3 +1,4 @@
+import { phosphorIcon } from '../../../shared/game-shell/phosphor.ts';
 import {
   mountPersonalIsland,
   unmountPersonalIsland,
@@ -205,7 +206,7 @@ function renderGameShell(): string {
       type="button"
       aria-label="${hubCopy.back}"
       ${hubUiAttributes.action}="${hubUiActions.home}"
-    >⌂</button>
+    >${phosphorIcon('house')}</button>
     <div class="slop-game-host">
       <div class="slop-game-loading">${hubCopy.loading}</div>
     </div>

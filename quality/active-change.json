@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "area": "compact-web-build-and-pages",
-  "problem": "The working game exceeds the existing client and base bundle ratchets. Embedded CSS bypasses CSS minification; an unused engine remote-subgame namespace registry prevents dead code elimination.",
+  "area": "billiards-geometric-presets-and-materials",
+  "problem": "Add a selectable Russian geometry preset, with the existing 8-ball rules explicitly retained, and improve material readability and pot attribution without expanding the server.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
@@ -18,17 +18,19 @@
     "games/billiards/runtime/network/colyseus-session.ts",
     "games/billiards/runtime/domain/match.ts",
     "games/billiards/runtime/presentation/pocket-club.css",
-    "games/traffic-jam/project.config.json"
+    "games/traffic-jam/project.config.json",
+    "games/billiards/runtime/domain/table-model.ts",
+    "games/billiards/runtime/domain/collision.ts",
+    "games/billiards/runtime/domain/rules.ts",
+    "games/billiards/runtime/presentation/ball-renderer-v2.ts"
   ],
-  "reuseDecision": "Use Vite native CSS extraction/minification without changing visual rules. Keep the pinned Modoki build and all checks. Apply one hash-checked opt-in engine entry patch that omits the unused OTA namespace registry in the static SLOP profile, while leaving the engine source registry and game router intact. No minifier dependency, arbitrary dist deletion, in-browser decompression or budget increases.",
+  "reuseDecision": "Extend the canonical table model and CCD: profiles live per table, never global mutable physics. Retain the American baseline and legacy wire defaults. Reuse the existing native dialog and licensed Phosphor SVG subset; cache graphics instead of adding a second engine.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
-    "Copy Miniclip code, branding, textures, sounds, table artwork, or proprietary assets",
-    "Replace the existing Personal Island, Parking Jam, Junkyard Station, Modoki, or Three.js foundations",
-    "Turn the billiards presentation into a second physics or scoring implementation",
-    "Provision or claim a live multiplayer hosting service without an actual endpoint",
-    "Modify gameplay, island lighting or online transport",
-    "Enable remotely downloaded Modoki OTA subgames in the static Pages profile"
+    "Full pyramid rules or tournament-accurate certification",
+    "Server deployment or new online features",
+    "Changing other games or overwriting concurrent island work",
+    "Relaxing size or quality budgets"
   ],
   "acceptance": [
     "Every games/**/*.ts file has one architecture owner and all static and dynamic relative imports resolve through declared dependencies",
@@ -37,7 +39,6 @@
     "SolidJS mounts the billiards interface and Canvas 2D renders project-authored table, balls, guide, cue, and responsive controls",
     "The browser contract executes a real break shot, observes movement, waits for rest, and captures every required viewport without runtime errors",
     "The Colyseus adapter remains optional and lazy while billiards.proto preserves a versioned transport-neutral message contract",
-    "Pocket Club visibly renders seven potted-ball slots per player, a left vertical cue/power control, a right vertical direction control, and a circular spin control at every required viewport",
     "Ball markings roll over a lit spherical surface according to table displacement rather than rotating as flat discs",
     "A first user gesture unlocks project-authored Web Audio cues for cue strikes, ball contacts, cushion contacts, and pocket drops without external sound files",
     "Source checks, strict typecheck, production build, bundle ratchet, and all browser contracts pass before publication",
@@ -50,7 +51,12 @@
     "All previous raw/gzip/Brotli limits remain byte-for-byte unchanged and pass",
     "Extracted CSS is included in total/base byte accounting and loads before the lazy game mounts",
     "Compact engine preparation rejects an unrecognized engine revision, modified entry point or explicit OTA configuration",
-    "All four production browser suites and two-client Colyseus integration pass before publishing stable"
+    "All four production browser suites and two-client Colyseus integration pass before publishing stable",
+    "Russian and American games can coexist without changing global physics; legacy wire snapshots default to American geometry.",
+    "The new-game dialog does not reset state until confirmed; cancel and Escape return focus and preserve an in-progress game.",
+    "Both presets use the same geometry for rack, placement, collision, preview and visible pockets. Narrow pockets reject oblique shots but accept centered shots.",
+    "HUD pots show the actual shooter rather than infer group ownership, including wrong-group and foul pots.",
+    "Server source is unchanged; the shipped route remains local while the optional Colyseus adapter is retained."
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json",

@@ -1,3 +1,4 @@
+import { bindNewMatchDialog } from './new-match-dialog.ts';
 import type { Accessor, Setter } from 'solid-js';
 
 import type { BilliardsAudioEngine } from './audio.ts';
@@ -33,6 +34,7 @@ export function bindBilliardsControlsV2(
     bindKeyboard(options),
     bindWheel(options),
     bindActions(options),
+    bindNewMatchDialog(options.view, options.controller),
     bindAudioUnlock(options),
   ];
   return () => {
@@ -42,6 +44,7 @@ export function bindBilliardsControlsV2(
 
 function bindKeyboard(options: BilliardsControlInputOptionsV2): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
+    if (options.view.root.querySelector('dialog[open]') !== null) return;
     if (isEditableTarget(event.target) || event.ctrlKey || event.metaKey || event.altKey) return;
     const active = document.activeElement;
     if (active !== document.body && !options.view.root.contains(active)) return;
@@ -85,18 +88,15 @@ function bindActions(options: BilliardsControlInputOptionsV2): () => void {
     void options.audio.unlock().then(() => { options.view.root.dataset.audioState = options.audio.state(); });
     options.controller.primaryAction();
   };
-  const restart = (): void => options.controller.restart();
   const sound = (): void => {
     void options.audio.unlock().then(() => { options.view.root.dataset.audioState = options.audio.state(); });
     options.setSoundEnabled(options.audio.toggle());
     options.view.root.dataset.audioState = options.audio.state();
   };
   options.view.shoot.addEventListener('click', shoot);
-  options.view.restart.addEventListener('click', restart);
   options.view.sound.addEventListener('click', sound);
   return () => {
     options.view.shoot.removeEventListener('click', shoot);
-    options.view.restart.removeEventListener('click', restart);
     options.view.sound.removeEventListener('click', sound);
   };
 }

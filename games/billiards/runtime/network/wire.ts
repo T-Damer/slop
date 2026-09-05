@@ -1,3 +1,4 @@
+import { isBilliardsPresetId } from '../domain/table-presets.ts';
 import {
   billiardsBallIds,
   billiardsBallKinds,
@@ -85,6 +86,7 @@ function isTableState(value: unknown): value is BilliardsTableState {
   if (
     !isRecord(value)
     || value.schemaVersion !== 1
+    || (value.presetId !== undefined && !isBilliardsPresetId(value.presetId))
     || !isNonNegativeSafeInteger(value.step)
     || !Array.isArray(value.balls)
     || value.balls.length !== expectedBallIds.size
@@ -105,7 +107,8 @@ function isBallState(value: unknown): value is BilliardsBallState {
     && isVec2(value.velocity)
     && isFiniteNumber(value.sideSpin)
     && isFiniteNumber(value.followSpin)
-    && typeof value.pocketed === 'boolean';
+    && typeof value.pocketed === 'boolean'
+    && (value.pocketedBy === undefined || value.pocketedBy === 0 || value.pocketedBy === 1);
 }
 
 function isPlayerTuple(value: unknown): value is BilliardsMatchState['players'] {

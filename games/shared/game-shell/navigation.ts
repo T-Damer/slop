@@ -1,8 +1,8 @@
+import { phosphorIcon } from './phosphor.ts';
 const gameNavigationUi = {
   styleId: 'slop-game-navigation-style',
   className: 'slop-game-nav',
   labelPrefix: 'Back to game hub from',
-  arrow: '←',
 } as const;
 
 const gameNavigationStyles = `
@@ -43,7 +43,7 @@ export function mountGameNavigation(
   const link = document.createElement('a');
   link.className = gameNavigationUi.className;
   link.href = resolveHubUrl();
-  link.textContent = gameNavigationUi.arrow;
+  link.innerHTML = phosphorIcon('house');
   link.setAttribute('aria-label', `${gameNavigationUi.labelPrefix} ${gameName}`);
   parent.append(link);
   return () => link.remove();

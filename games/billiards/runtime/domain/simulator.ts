@@ -13,7 +13,7 @@ import {
   billiardsCollisionKinds,
   billiardsPhysics,
 } from './registry.ts';
-import { billiardsTableModel } from './table-model.ts';
+import { tableModelFor, type BilliardsTableModel } from './table-model.ts';
 import type {
   BilliardsBallState,
   BilliardsCollisionEvent,
@@ -22,14 +22,8 @@ import type {
   Vec2,
 } from './types.ts';
 
-const cushionsById = new Map(
-  billiardsTableModel.cushions.map((cushion) => [cushion.id, cushion]),
-);
-const jawsById = new Map(
-  billiardsTableModel.jaws.map((jaw) => [jaw.id, jaw]),
-);
-
 export function simulateFixedStep(table: BilliardsTableState): BilliardsSimulationStep {
+  const model = tableModelFor(table);
   let balls: ReadonlyArray<BilliardsBallState> = table.balls.map(cloneBall);
   let remaining = billiardsPhysics.fixedStepSeconds;
   const events: BilliardsCollisionEvent[] = [];
@@ -38,7 +32,7 @@ export function simulateFixedStep(table: BilliardsTableState): BilliardsSimulati
     iteration < billiardsPhysics.maximumCollisionIterations && remaining > 0;
     iteration += 1
   ) {
-    const event = findFirstCollision(balls, remaining);
+    const event = findFirstCollision(balls, remaining, model);
     if (event === null) {
       balls = advanceBalls(balls, remaining);
       remaining = 0;
@@ -49,7 +43,7 @@ export function simulateFixedStep(table: BilliardsTableState): BilliardsSimulati
       balls = advanceBalls(balls, eventTime);
       remaining -= eventTime;
     }
-    balls = resolveCollision(balls, event);
+    balls = resolveCollision(balls, event, model);
     events.push({ ...event, time: eventTime });
     if (eventTime <= billiardsPhysics.collisionEpsilonSeconds) {
       remaining = Math.max(0, remaining - billiardsPhysics.collisionEpsilonSeconds);
@@ -60,7 +54,7 @@ export function simulateFixedStep(table: BilliardsTableState): BilliardsSimulati
   }
   return {
     table: {
-      schemaVersion: 1,
+      ...table,
       step: table.step + 1,
       balls: applyMotionDecay(balls),
     },
@@ -111,12 +105,13 @@ export function settleStoppedBalls(table: BilliardsTableState): BilliardsTableSt
 function resolveCollision(
   balls: ReadonlyArray<BilliardsBallState>,
   event: BilliardsCollisionEvent,
+  model: BilliardsTableModel,
 ): ReadonlyArray<BilliardsBallState> {
   if (event.kind === billiardsCollisionKinds.ball) {
     return resolveBallBall(balls, event.leftBallId, event.rightBallId);
   }
   if (event.kind === billiardsCollisionKinds.cushion) {
-    const cushion = cushionsById.get(event.cushionId);
+    const cushion = model.cushions.find((item) => item.id === event.cushionId);
     return cushion === undefined
       ? balls
       : updateBall(balls, event.ballId, (ball) => resolveStaticBounce(
@@ -127,7 +122,7 @@ function resolveCollision(
       ));
   }
   if (event.kind === billiardsCollisionKinds.jaw) {
-    const jaw = jawsById.get(event.jawId);
+    const jaw = model.jaws.find((item) => item.id === event.jawId);
     return jaw === undefined
       ? balls
       : updateBall(balls, event.ballId, (ball) => {

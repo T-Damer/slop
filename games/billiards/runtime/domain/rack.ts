@@ -1,3 +1,5 @@
+import { billiardsPresetIds, tablePreset, type BilliardsPresetId } from './table-presets.ts';
+import { tableModelFor } from './table-model.ts';
 import { distanceVec2 } from './geometry.ts';
 import {
   billiardsBallIds,
@@ -26,9 +28,10 @@ const rackRows: ReadonlyArray<ReadonlyArray<number>> = [
   [13, 6, 14, 7, 15],
 ];
 
-export function createInitialTable(): BilliardsTableState {
+export function createInitialTable(presetId: BilliardsPresetId = billiardsPresetIds.american): BilliardsTableState {
+  const preset = tablePreset({ presetId });
   const balls: BilliardsBallState[] = [createBall(billiardsBallIds.cue, cueHeadSpot())];
-  const diameter = billiardsPhysics.ballRadius * 2;
+  const diameter = preset.ballRadius * 2;
   const rowAdvance = diameter * Math.sqrt(3) / 2;
   const apex = { x: billiardsPhysics.tableWidth * 0.18, y: 0 };
   for (let rowIndex = 0; rowIndex < rackRows.length; rowIndex += 1) {
@@ -43,7 +46,7 @@ export function createInitialTable(): BilliardsTableState {
       }
     }
   }
-  return { schemaVersion: 1, step: 0, balls };
+  return { schemaVersion: 1, presetId, step: 0, balls };
 }
 
 export function createInitialPlayers(
@@ -57,11 +60,12 @@ export function createInitialPlayers(
 
 export function createInitialMatch(
   names: readonly [string, string] = ['Игрок 1', 'Игрок 2'],
+  presetId: BilliardsPresetId = billiardsPresetIds.american,
 ): BilliardsMatchState {
   return {
     schemaVersion: 1,
     revision: 0,
-    table: createInitialTable(),
+    table: createInitialTable(presetId),
     players: createInitialPlayers(names),
     turnIndex: 0,
     phase: billiardsMatchPhases.break,
@@ -76,7 +80,7 @@ export function rerackMatch(match: BilliardsMatchState, status: string): Billiar
   return {
     ...match,
     revision: match.revision + 1,
-    table: createInitialTable(),
+    table: createInitialTable(tablePreset(match.table).id),
     phase: billiardsMatchPhases.break,
     winnerIndex: null,
     ballInHand: false,
@@ -90,7 +94,7 @@ export function restoreCueBall(table: BilliardsTableState): BilliardsTableState 
   if (cue === undefined || !cue.pocketed) {
     return table;
   }
-  const position = findCuePlacement(table.balls) ?? cueHeadSpot();
+  const position = findCuePlacement(table) ?? cueHeadSpot();
   return {
     ...table,
     balls: table.balls.map((ball) => ball.id === billiardsBallIds.cue ? {
@@ -108,7 +112,8 @@ export function canPlaceCueBall(
   table: BilliardsTableState,
   position: Vec2,
 ): boolean {
-  const radius = billiardsPhysics.ballRadius;
+  const radius = tablePreset(table).ballRadius;
+  if (![position.x, position.y].every(Number.isFinite)) return false;
   if (
     position.x < billiardsTableBounds.left + radius
     || position.x > billiardsTableBounds.right - radius
@@ -117,6 +122,8 @@ export function canPlaceCueBall(
   ) {
     return false;
   }
+  if (tableModelFor(table).pockets.some((pocket) =>
+    distanceVec2(position, pocket.center) <= pocket.radius + billiardsPhysics.separationEpsilon)) return false;
   return table.balls.every((ball) =>
     ball.id === billiardsBallIds.cue
     || ball.pocketed
@@ -150,21 +157,18 @@ export function ballKindForId(id: number): BilliardsBallKind {
     : billiardsBallKinds.stripe;
 }
 
-function findCuePlacement(balls: ReadonlyArray<BilliardsBallState>): Vec2 | null {
+function findCuePlacement(table: BilliardsTableState): Vec2 | null {
+  const radius = tablePreset(table).ballRadius;
   const width = billiardsPhysics.tableWidth * 0.42;
-  const height = billiardsPhysics.tableHeight - billiardsPhysics.ballRadius * 4;
+  const height = billiardsPhysics.tableHeight - radius * 4;
   for (let column = 0; column < billiardsRules.cuePlacementColumns; column += 1) {
     for (let row = 0; row < billiardsRules.cuePlacementRows; row += 1) {
       const position = {
-        x: billiardsTableBounds.left + billiardsPhysics.ballRadius * 2
+        x: billiardsTableBounds.left + radius * 2
           + width * column / Math.max(1, billiardsRules.cuePlacementColumns - 1),
         y: -height / 2 + height * row / Math.max(1, billiardsRules.cuePlacementRows - 1),
       };
-      if (balls.every((ball) =>
-        ball.id === billiardsBallIds.cue
-        || ball.pocketed
-        || distanceVec2(ball.position, position) >= billiardsPhysics.ballRadius * 2.05,
-      )) {
+      if (canPlaceCueBall(table, position)) {
         return position;
       }
     }

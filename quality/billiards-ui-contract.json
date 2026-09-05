@@ -20,7 +20,7 @@
   "playerSlotsSelector": ".billiards-pocketed-balls",
   "ballSlotSelector": ".billiards-ball-slot",
   "expectedPlayerSlotRows": 2,
-  "expectedSlotsPerPlayer": 7,
+  "expectedSlotsPerPlayer": 15,
   "expectedBallRenderMode": "spherical-roll",
   "roomBackdropSelector": ".billiards-room-backdrop",
   "smokeSelector": ".billiards-smoke-wisp",

@@ -22,6 +22,17 @@
       "maximumBytes": 4000,
       "sha256": "b31b5c71d9d7bf28893b1c6d6583102f846e90a54eacb5b2c9a2a5ed221daed0",
       "promptSummary": "Original blue-versus-red luxury pool scoreboard frame with dark metal, wood, gold trim, avatar medallions, and seven ball slots per player."
+    },
+    {
+      "id": "house-cue",
+      "path": "games/billiards/runtime/presentation/assets/house-cue.svg",
+      "license": "project-authored",
+      "source": "Original SLOP vector art; shape inspired by the user reference, not copied pixels.",
+      "promptSummary": "Tapered maple and walnut house cue, wood fibres, pointed inlays, brass rings, woven wrap, lacquer shading.",
+      "runtimeUse": "Locally loaded cue texture, same body for both players; tip color rendered separately.",
+      "bytes": 1651,
+      "maximumBytes": 4000,
+      "sha256": "5e9253cbf2f715469d7f928e6ddfa8450a2e68c667a29186acaf3610bc773af4"
     }
   ]
 }

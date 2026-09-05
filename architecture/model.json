@@ -30,7 +30,8 @@
       "kind": "shared-presentation",
       "path": "games/shared/game-shell",
       "owns": [
-        "standalone game return navigation"
+        "standalone game return navigation",
+        "shared licensed Phosphor SVG subset"
       ],
       "dependsOn": []
     },
@@ -201,7 +202,8 @@
       ],
       "dependsOn": [
         "billiards-domain",
-        "billiards-network"
+        "billiards-network",
+        "game-shell-navigation"
       ]
     },
     {
@@ -237,7 +239,8 @@
         "island-presentation",
         "parking-presentation",
         "junkyard-presentation",
-        "billiards-presentation"
+        "billiards-presentation",
+        "game-shell-navigation"
       ]
     },
     {
