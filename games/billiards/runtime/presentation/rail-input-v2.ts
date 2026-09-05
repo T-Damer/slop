@@ -24,18 +24,10 @@ export function bindBilliardsRailInputV2(options: BilliardsRailInputOptions): ()
     if (!beginning) options.controller.adjustAngle((coordinate - angleCoordinate) * tuning.angleRadiansPerPixel);
     angleCoordinate = coordinate;
   };
-  const spin = (event: PointerEvent): void => {
-    const rect = options.view.spinPad.getBoundingClientRect();
-    options.controller.setSpin(
-      clamp((event.clientX - rect.left) / Math.max(1, rect.width) * 2 - 1, -1),
-      clamp(1 - (event.clientY - rect.top) / Math.max(1, rect.height) * 2, -1),
-    );
-  };
   const removers = [
     bindCapturedControl(options.view.powerRail, options, power),
     bindCapturedControl(options.view.angleRail, options, angle),
-    bindCapturedControl(options.view.spinPad, options, spin),
-    bindRangeInputs(options), bindSpinKeyboard(options),
+    bindRangeInputs(options),
   ];
   return () => removers.forEach((remove) => remove());
 }
@@ -93,8 +85,6 @@ function bindRangeInputs(options: BilliardsRailInputOptions): () => void {
   const bindings: ReadonlyArray<readonly [HTMLInputElement, (value: number) => void]> = [
     [options.view.power, (value) => options.controller.setPower(value)],
     [options.view.angle, (value) => options.controller.setAngleRadians(value * tuning.degreesToRadians)],
-    [options.view.sideSpin, (value) => options.controller.setSideSpin(value)],
-    [options.view.followSpin, (value) => options.controller.setFollowSpin(value)],
   ];
   const removers = bindings.map(([element, update]) => {
     const onInput = (): void => update(Number(element.value));
@@ -102,25 +92,6 @@ function bindRangeInputs(options: BilliardsRailInputOptions): () => void {
     return () => element.removeEventListener('input', onInput);
   });
   return () => removers.forEach((remove) => remove());
-}
-
-function bindSpinKeyboard(options: BilliardsRailInputOptions): () => void {
-  const key = (event: KeyboardEvent): void => {
-    const { sideSpin, followSpin } = options.snapshot();
-    const step = tuning.spinKeyStep;
-    switch (event.code) {
-      case 'ArrowLeft': options.controller.setSideSpin(sideSpin - step); break;
-      case 'ArrowRight': options.controller.setSideSpin(sideSpin + step); break;
-      case 'ArrowUp': options.controller.setFollowSpin(followSpin + step); break;
-      case 'ArrowDown': options.controller.setFollowSpin(followSpin - step); break;
-      case 'Home': options.controller.setSpin(0, 0); break;
-      default: return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  options.view.spinPad.addEventListener('keydown', key);
-  return () => options.view.spinPad.removeEventListener('keydown', key);
 }
 
 function clamp(value: number, minimum: number): number {

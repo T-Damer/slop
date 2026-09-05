@@ -48,25 +48,15 @@ export function updateBilliardsView(
   }
 
   setRangeValue(view.power, snapshot.power);
-  setRangeValue(view.sideSpin, snapshot.sideSpin);
-  setRangeValue(view.followSpin, snapshot.followSpin);
   view.powerOutput.value = `${Math.round(snapshot.power * 100)}%`;
-  view.sideSpinOutput.value = formatSignedPercent(snapshot.sideSpin);
-  view.followSpinOutput.value = formatSignedPercent(snapshot.followSpin);
   view.angleOutput.value = `${normalizeDegrees(snapshot.angleRadians * radiansToDegrees)}°`;
 
   view.root.style.setProperty('--billiards-power-percent', `${snapshot.power * 100}%`);
   view.root.style.setProperty('--billiards-angle-position', `${normalizeDegrees(snapshot.angleRadians * radiansToDegrees) / fullCircleDegrees * 100}%`);
-  view.root.style.setProperty('--billiards-spin-left', `${(snapshot.sideSpin + 1) * 50}%`);
-  view.root.style.setProperty('--billiards-spin-top', `${(1 - snapshot.followSpin) * 50}%`);
-  view.spinPad.setAttribute('aria-valuetext', `${formatSignedPercent(snapshot.sideSpin)} / ${formatSignedPercent(snapshot.followSpin)}`);
   setRangeValue(view.angle, normalizeDegrees(snapshot.angleRadians * radiansToDegrees));
 
   const controlsDisabled = match.activeShot !== null || winnerIndex !== null;
   view.power.disabled = controlsDisabled;
-  view.sideSpin.disabled = controlsDisabled;
-  view.followSpin.disabled = controlsDisabled;
-  view.spinPad.setAttribute('aria-disabled', String(controlsDisabled));
   view.shoot.disabled = controlsDisabled;
   view.sound.setAttribute('aria-pressed', String(soundEnabled));
   view.sound.dataset.muted = String(!soundEnabled);
@@ -122,9 +112,4 @@ function connectionBadge(state: string): string {
 
 function setRangeValue(control: HTMLInputElement, value: number): void {
   control.value = String(value);
-}
-
-function formatSignedPercent(value: number): string {
-  const percentage = Math.round(value * 100);
-  return `${percentage > 0 ? '+' : ''}${percentage}%`;
 }

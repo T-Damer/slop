@@ -17,14 +17,8 @@ export interface BilliardsViewElements {
   readonly angleRail: HTMLElement;
   readonly power: HTMLInputElement;
   readonly angle: HTMLInputElement;
-  readonly sideSpin: HTMLInputElement;
-  readonly followSpin: HTMLInputElement;
   readonly powerOutput: HTMLOutputElement;
   readonly angleOutput: HTMLOutputElement;
-  readonly sideSpinOutput: HTMLOutputElement;
-  readonly followSpinOutput: HTMLOutputElement;
-  readonly spinPad: HTMLElement;
-  readonly spinDot: HTMLElement;
   readonly shoot: HTMLButtonElement;
   readonly restart: HTMLButtonElement;
   readonly smokeLayer: HTMLElement;
@@ -80,7 +74,6 @@ export function createBilliardsViewElements(): BilliardsViewElements {
         </div>
       </section>
       <section class="billiards-controls" aria-label="Настройки удара">
-        ${spinControl()}
         <div class="billiards-actions">
           <button class="billiards-button" type="button" ${billiardsUiAttributes.shoot}>
             ${billiardsCopy.shoot}
@@ -168,34 +161,6 @@ function angleControl(): string {
   `;
 }
 
-function spinControl(): string {
-  return `
-    <div class="billiards-spin-control">
-      <div class="billiards-spin-copy">
-        <strong>${billiardsCopy.spin}</strong>
-        <span>${billiardsCopy.spinHint}</span>
-      </div>
-      <div
-        class="billiards-spin-pad"
-        data-spin-pad
-        role="slider"
-        tabindex="0"
-        aria-label="${billiardsCopy.spin}"
-        aria-valuetext="Без вращения"
-      >
-        <span class="billiards-spin-crosshair" aria-hidden="true"></span>
-        <span class="billiards-spin-dot" data-spin-dot aria-hidden="true"></span>
-      </div>
-      <div class="billiards-spin-values" aria-live="polite">
-        <span>Бок. <output data-output-for="side-spin">0%</output></span>
-        <span>Нак. <output data-output-for="follow-spin">0%</output></span>
-      </div>
-      <input class="billiards-hidden-control" data-control="side-spin" type="range" min="-1" max="1" value="0" step="0.01" />
-      <input class="billiards-hidden-control" data-control="follow-spin" type="range" min="-1" max="1" value="0" step="0.01" />
-    </div>
-  `;
-}
-
 function smokeLayer(): string {
   return `
     <div class="billiards-smoke-layer" data-billiards-smoke aria-hidden="true">
@@ -235,14 +200,8 @@ function collectElements(root: HTMLElement): BilliardsViewElements {
     angleRail: required(root, '[data-billiards-angle-rail]', HTMLElement),
     power: control(root, 'power'),
     angle: control(root, 'angle'),
-    sideSpin: control(root, 'side-spin'),
-    followSpin: control(root, 'follow-spin'),
     powerOutput: output(root, 'power'),
     angleOutput: output(root, 'angle'),
-    sideSpinOutput: output(root, 'side-spin'),
-    followSpinOutput: output(root, 'follow-spin'),
-    spinPad: required(root, '[data-spin-pad]', HTMLElement),
-    spinDot: required(root, '[data-spin-dot]', HTMLElement),
     shoot: required(root, `[${billiardsUiAttributes.shoot}]`, HTMLButtonElement),
     restart: required(root, `[${billiardsUiAttributes.restart}]`, HTMLButtonElement),
     smokeLayer: required(root, '[data-billiards-smoke]', HTMLElement),

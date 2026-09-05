@@ -33,6 +33,10 @@ export function bindNewMatchDialog(view: BilliardsViewElements, controller: Bill
     dialog.showModal();
     radio?.focus();
   };
+  const escape = (event: KeyboardEvent): void => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault(); event.stopPropagation(); dialog.close();
+  };
   const close = (): void => { controller.setPaused(false); view.restart.focus({ preventScroll: true }); };
   const submit = (event: SubmitEvent): void => {
     event.preventDefault();
@@ -45,10 +49,12 @@ export function bindNewMatchDialog(view: BilliardsViewElements, controller: Bill
   };
   view.restart.addEventListener('click', open);
   dialog.addEventListener('submit', submit);
+  dialog.addEventListener('keydown', escape);
   dialog.addEventListener('close', close);
   return () => {
     view.restart.removeEventListener('click', open);
     dialog.removeEventListener('submit', submit);
+    dialog.removeEventListener('keydown', escape);
     dialog.removeEventListener('close', close);
     if (dialog.open) { dialog.close(); controller.setPaused(false); }
     dialog.remove();

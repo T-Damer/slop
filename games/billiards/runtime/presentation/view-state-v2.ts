@@ -27,8 +27,7 @@ export function updateBilliardsViewV2(
   view.root.dataset.billiardsPortrait = String(portrait);
   view.root.dataset.billiardsBuild = 'table-presets-v1';
   view.root.dataset.canInteract = String(snapshot.canInteract);
-  view.power.disabled = view.sideSpin.disabled = view.followSpin.disabled = !snapshot.canInteract;
-  view.spinPad.setAttribute('aria-disabled', String(!snapshot.canInteract));
+  view.power.disabled = !snapshot.canInteract;
   view.angle.disabled = !snapshot.canInteract;
   view.root.dataset.placementValid = String(
     interaction.placementPreview?.valid === true,
