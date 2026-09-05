@@ -5,22 +5,10 @@ import { billiardsPalette, billiardsView } from './registry.ts';
 
 const fullCircle = Math.PI * 2;
 
+/** The room is the existing authored SVG backdrop beneath this transparent layer.
+ * Keep only the table here instead of shipping a second floor/furniture renderer. */
 export function drawBilliardsBackdrop(context: CanvasRenderingContext2D): void {
-  const room = context.createRadialGradient(640, 320, 90, 640, 360, 760);
-  room.addColorStop(0, '#5b351d');
-  room.addColorStop(0.42, '#2c1b15');
-  room.addColorStop(1, '#0e0a0a');
-  context.fillStyle = room;
-  context.fillRect(0, 0, billiardsView.canvasWidth, billiardsView.canvasHeight);
-  drawHerringboneFloor(context);
-  drawLampGlow(context, 78, 62, 152);
-  drawLampGlow(context, 1202, 66, 150);
-  drawLoungeFurniture(context);
-  const vignette = context.createRadialGradient(640, 350, 260, 640, 350, 760);
-  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.58)');
-  context.fillStyle = vignette;
-  context.fillRect(0, 0, billiardsView.canvasWidth, billiardsView.canvasHeight);
+  context.clearRect(0, 0, billiardsView.canvasWidth, billiardsView.canvasHeight);
 }
 
 export function drawBilliardsTable(context: CanvasRenderingContext2D, model: BilliardsTableModel = billiardsTableModel): void {
@@ -68,78 +56,6 @@ export function drawTableMarkings(context: CanvasRenderingContext2D): void {
   context.beginPath();
   context.moveTo(headX, table.top + 20);
   context.lineTo(headX, table.top + table.height - 20);
-  context.stroke();
-  context.restore();
-}
-
-function drawHerringboneFloor(context: CanvasRenderingContext2D): void {
-  context.save();
-  context.globalAlpha = 0.34;
-  for (let row = -1; row < 12; row += 1) {
-    for (let column = -3; column < 18; column += 1) {
-      const x = column * 82 + (row % 2) * 42;
-      const y = row * 72;
-      context.save();
-      context.translate(x, y);
-      context.rotate((column + row) % 2 === 0 ? 0.62 : -0.62);
-      const plank = context.createLinearGradient(-46, 0, 46, 0);
-      plank.addColorStop(0, 'rgba(25, 10, 6, 0.84)');
-      plank.addColorStop(0.5, 'rgba(126, 65, 31, 0.56)');
-      plank.addColorStop(1, 'rgba(30, 12, 7, 0.86)');
-      context.fillStyle = plank;
-      context.fillRect(-48, -12, 96, 24);
-      context.strokeStyle = 'rgba(5, 2, 2, 0.72)';
-      context.strokeRect(-48, -12, 96, 24);
-      context.restore();
-    }
-  }
-  context.restore();
-}
-
-function drawLampGlow(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  radius: number,
-): void {
-  const glow = context.createRadialGradient(x, y, 2, x, y, radius);
-  glow.addColorStop(0, 'rgba(255, 218, 137, 0.88)');
-  glow.addColorStop(0.18, 'rgba(255, 158, 64, 0.28)');
-  glow.addColorStop(1, 'rgba(255, 122, 31, 0)');
-  context.fillStyle = glow;
-  context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-  context.beginPath();
-  context.arc(x, y, 11, 0, fullCircle);
-  context.fillStyle = '#ffd98a';
-  context.fill();
-  context.strokeStyle = '#59351f';
-  context.lineWidth = 5;
-  context.stroke();
-}
-
-function drawLoungeFurniture(context: CanvasRenderingContext2D): void {
-  context.save();
-  context.globalAlpha = 0.62;
-  roundedRect(context, 1174, 156, 150, 142, 30);
-  context.fillStyle = '#321b16';
-  context.fill();
-  context.strokeStyle = '#7b472c';
-  context.lineWidth = 5;
-  context.stroke();
-  for (const y of [190, 236]) {
-    for (const x of [1204, 1250, 1296]) {
-      context.beginPath();
-      context.arc(x, y, 5, 0, fullCircle);
-      context.fillStyle = '#8b5131';
-      context.fill();
-    }
-  }
-  context.beginPath();
-  context.arc(1218, 612, 54, 0, fullCircle);
-  context.fillStyle = '#20120e';
-  context.fill();
-  context.strokeStyle = '#8d5934';
-  context.lineWidth = 6;
   context.stroke();
   context.restore();
 }
