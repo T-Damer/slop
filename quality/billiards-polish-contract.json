@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "powerSelector": "[data-billiards-power-rail]",
+  "powerOutputSelector": "[data-billiards-power-output]",
+  "angleSelector": "[data-billiards-angle-rail]",
+  "angleOutputSelector": "[data-billiards-angle-output]",
+  "soundSelector": "[data-billiards-sound]",
+  "playerSelector": "[data-billiards-player]",
+  "activePlayerSelector": "[data-billiards-player][data-active=\"true\"]",
+  "pocketSlotSelector": "[data-billiards-pocket-slot]",
+  "expectedPlayers": 2,
+  "expectedPocketSlots": 14,
+  "minimumSideControlWidthPx": 38,
+  "minimumSideControlHeightPx": 108,
+  "minimumScoreboardHeightPx": 52,
+  "controlProbePowerRatio": 0.28,
+  "controlProbeAngleRatio": 0.73,
+  "minimumAudioVoices": 1,
+  "minimumRollingLabels": 1,
+  "interactionTimeoutMs": 20000
+}

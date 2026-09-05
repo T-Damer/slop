@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "activeChangeContractPath": "quality/active-change.json",
+  "code": {
+    "defaultMaximumLines": 320,
+    "defaultMaximumBytes": 16000,
+    "maximumFunctionLines": 80,
+    "duplicateBlockMinimumLines": 12,
+    "forbiddenGenericOwners": [
+      "constants.ts",
+      "utils.ts",
+      "helpers.ts"
+    ],
+    "forbiddenSuppressions": [
+      "@ts-ignore",
+      "@ts-expect-error",
+      "eslint-disable",
+      "biome-ignore",
+      "as any"
+    ]
+  },
+  "assets": {
+    "recipeDirectory": "quality/assets",
+    "requireRuntimeUseDeclaration": true,
+    "requireSha256": true,
+    "forbidExternalUris": true
+  },
+  "runtime": {
+    "rawRatchetBytes": 3735000,
+    "gzipRatchetBytes": 1356000,
+    "brotliRatchetBytes": 1150000,
+    "largestJavaScriptRatchetBytes": 900000,
+    "targetBrotliBytes": 700000,
+    "optionalBundles": [
+      {
+        "id": "pocket-club-client",
+        "match": {
+          "pathPattern": "^assets/app-[A-Za-z0-9_-]+\\.js$",
+          "contentMarkers": ["slop-billiards-root"]
+        },
+        "minimumMatches": 1,
+        "maximumMatches": 1,
+        "rawRatchetBytes": 90000,
+        "gzipRatchetBytes": 28000,
+        "brotliRatchetBytes": 25000
+      },
+      {
+        "id": "pocket-club-colyseus",
+        "match": {
+          "pathPattern": "^assets/colyseus-session-[A-Za-z0-9_-]+\\.js$",
+          "contentMarkers": []
+        },
+        "minimumMatches": 1,
+        "maximumMatches": 1,
+        "rawRatchetBytes": 230000,
+        "gzipRatchetBytes": 71000,
+        "brotliRatchetBytes": 62000
+      }
+    ]
+  },
+  "ui": {
+    "requiredViewports": [
+      { "id": "small-phone", "width": 360, "height": 640 },
+      { "id": "phone", "width": 390, "height": 844 },
+      { "id": "tall-phone", "width": 412, "height": 915 },
+      { "id": "tablet-portrait", "width": 768, "height": 1024 },
+      { "id": "tablet-landscape", "width": 1024, "height": 768 },
+      { "id": "desktop", "width": 1366, "height": 768 }
+    ],
+    "minimumTouchTargetPx": 44,
+    "maximumHorizontalOverflowPx": 0,
+    "maximumCriticalOverlapPx": 96,
+    "minimumCanvasViewportShare": 0.7,
+    "performance": {
+      "maximumDomContentLoadedMs": 4000,
+      "maximumLoadMs": 4000,
+      "maximumFirstPaintMs": 4000,
+      "maximumFirstContentfulPaintMs": 4000,
+      "maximumHeapBytes": 140000000
+    }
+  }
+}

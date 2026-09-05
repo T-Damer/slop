@@ -1,0 +1,16 @@
+{
+  "build": {
+    "webDeployMode": "none",
+    "webBucket": "",
+    "webBasePath": "/slop/",
+    "webCdnUrlMap": "",
+    "appleTeamId": "",
+    "debugBuild": false
+  },
+  "app": {
+    "appId": "io.tdamer.slop.arcade",
+    "appName": "Slop Games",
+    "version": "0.3.0",
+    "buildNumber": 3
+  }
+}

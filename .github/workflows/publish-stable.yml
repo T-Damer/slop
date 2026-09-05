@@ -1,0 +1,199 @@
+name: Publish stable
+
+on:
+  push:
+    branches:
+      - stable
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-stable
+  cancel-in-progress: false
+
+env:
+  MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
+  HUB_PROJECT_PATH: games/traffic-jam
+  QUALITY_REPORT_DIR: quality-artifacts
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Check out stable
+        uses: actions/checkout@v5
+
+      - name: Check out pinned Modoki
+        uses: actions/checkout@v5
+        with:
+          repository: lsgmasa33/modoki-engine
+          ref: ${{ env.MODOKI_COMMIT }}
+          path: .modoki-engine
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            .modoki-engine/package-lock.json
+            games/traffic-jam/package-lock.json
+            games/billiards/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/requirements-assets.txt
+
+      - name: Install pinned Modoki toolchain
+        working-directory: .modoki-engine
+        run: npm ci --no-audit --no-fund
+
+      - name: Install locked game-hub runtime
+        working-directory: ${{ env.HUB_PROJECT_PATH }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install locked Pocket Club client runtime
+        working-directory: games/billiards
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Install Pocket Club server dependencies
+        working-directory: services/billiards
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Test real Colyseus clients
+        working-directory: services/billiards
+        run: npm test
+
+      - name: Install locked asset toolchain
+        run: python -m pip install --disable-pip-version-check -r tools/requirements-assets.txt
+
+      - name: Reproduce source assets
+        run: npm run assets:reproduce
+
+      - name: Verify source contracts
+        run: npm run check
+
+      - name: Prepare compact static web profile
+        run: node tools/prepare-web-engine.mjs
+
+      - name: Build the Slop game hub for Pages
+        working-directory: .modoki-engine
+        env:
+          MODOKI_PROJECT: ${{ github.workspace }}/${{ env.HUB_PROJECT_PATH }}
+        run: npm run build -- --target web
+
+      - name: Stamp exact build identity
+        run: node tools/build-identity.mjs write "${HUB_PROJECT_PATH}/dist" "$GITHUB_SHA"
+
+      - name: Enforce the hub web bundle ratchet
+        run: npm run web:budget
+
+      - name: Verify Pages artifact
+        run: test -f "${HUB_PROJECT_PATH}/dist/index.html"
+
+      - name: Test the candidate before publication
+        env:
+          EXPECTED_DEPLOYMENT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/candidate-site/slop"
+          cp -R "${HUB_PROJECT_PATH}/dist/." "${RUNNER_TEMP}/candidate-site/slop/"
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory "${RUNNER_TEMP}/candidate-site" >"${RUNNER_TEMP}/candidate-http.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/slop/ >/dev/null; then break; fi
+            sleep 1
+          done
+          npm run hub:quality -- http://127.0.0.1:4173/slop/
+          npm run ui:quality -- http://127.0.0.1:4173/slop/
+          npm run junkyard:quality -- http://127.0.0.1:4173/slop/
+          npm run billiards:quality -- http://127.0.0.1:4173/slop/
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.HUB_PROJECT_PATH }}/dist
+
+      - name: Upload build quality report
+        uses: actions/upload-artifact@v4
+        with:
+          name: slop-hub-build-quality-${{ github.sha }}
+          path: quality-artifacts
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: stable-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  browser-quality:
+    env:
+      EXPECTED_DEPLOYMENT_SHA: ${{ github.sha }}
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out stable quality harness
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Wait for the exact Pages commit
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: node tools/build-identity.mjs verify "$PAGE_URL" "$GITHUB_SHA"
+
+      - name: Run deployed game hub contract
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npm run hub:quality -- "$PAGE_URL"
+
+      - name: Run deployed Parking Jam contract
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npm run ui:quality -- "$PAGE_URL"
+
+      - name: Run deployed Junkyard Station contract
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npm run junkyard:quality -- "$PAGE_URL"
+
+      - name: Run deployed Pocket Club contract
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npm run billiards:quality -- "$PAGE_URL"
+
+      - name: Upload deployed browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slop-hub-pages-quality-${{ github.sha }}
+          path: quality-artifacts
+          if-no-files-found: warn
+          retention-days: 14

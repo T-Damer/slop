@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "note": "Blender is not installed in the execution container; these GLBs were generated with trimesh and can be opened/refined in Blender.",
+  "assets": [
+    {
+      "path": "games/traffic-jam/runtime/assets/models/compact-car.glb",
+      "generator": "trimesh procedural GLB generator",
+      "blender_compatible": true,
+      "mesh_count": 14,
+      "triangle_count": 584,
+      "bounds": [
+        [
+          -1.0900000023841858,
+          -1.600000023841858,
+          0.08999999761581423
+        ],
+        [
+          1.0900000023841858,
+          1.6850000017881392,
+          1.4049999997019769
+        ]
+      ],
+      "license": "project-authored"
+    },
+    {
+      "path": "games/traffic-jam/runtime/assets/models/passenger.glb",
+      "generator": "trimesh procedural GLB generator",
+      "blender_compatible": true,
+      "mesh_count": 7,
+      "triangle_count": 848,
+      "bounds": [
+        [
+          -0.4592490980782912,
+          -0.27000001072883606,
+          0.09999999761581418
+        ],
+        [
+          0.4592490980782912,
+          0.27000001072883606,
+          1.87
+        ]
+      ],
+      "license": "project-authored"
+    }
+  ]
+}

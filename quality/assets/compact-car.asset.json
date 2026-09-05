@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "compact-car",
+  "path": "games/traffic-jam/runtime/assets/models/compact-car.glb",
+  "license": "project-authored",
+  "units": "meters",
+  "upAxis": "Z",
+  "forwardAxis": "+Y",
+  "originPolicy": "ground-center",
+  "runtimeUse": "source reference; procedural runtime fallback remains active until the GLB loader is separately validated",
+  "generator": {
+    "path": "tools/generate-traffic-assets.py",
+    "version": "1.0.0",
+    "sourceGitBlobSha": "8412b3dec0e529430a8ef2240c51b2d1728260b6"
+  },
+  "requiredNodes": [
+    "car_body",
+    "car_cabin",
+    "car_roof",
+    "car_hood",
+    "wheel_0",
+    "wheel_1",
+    "wheel_2",
+    "wheel_3"
+  ],
+  "sha256": "6f662975c111e2f6535cf9ef9c8cf048d2d66f1d38addc3e7777abcfa7b31d0e",
+  "budgets": {
+    "maximumBytes": 12000,
+    "maximumMeshes": 16,
+    "maximumMaterials": 16,
+    "maximumTriangles": 700
+  }
+}

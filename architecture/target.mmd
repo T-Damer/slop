@@ -1,0 +1,39 @@
+flowchart LR
+    Task[AI or human change contract] --> Search[Search · reuse · extend · compose]
+    Search --> SharedDomain[Reusable pure gameplay domains]
+    Search --> GameDomain[Game-specific pure domain]
+    Search --> Presentation[Runtime-specific presentation]
+    SharedDomain --> GameDomain
+    GameDomain --> Tests[Seed sweeps · invariants · replay]
+
+    Profile[Player profile + typed preferences] --> Generator[Deterministic island generator]
+    Generator --> Blueprint[Versioned IslandBlueprint]
+    Blueprint --> Repository[IslandRepository]
+    Blueprint --> IslandScene[Personal 3D island]
+    IslandScene --> Hub[Typed registry and lazy game lifecycle]
+    Hub --> Games[Parking Jam · Junkyard Station · Pocket Club]
+    Hub --> Runtime[Thin Modoki / Three.js adapters]
+    Runtime --> Build[Compact browser artifact]
+
+    Quality[Machine quality contract] --> OwnershipGate[Complete module ownership · dynamic imports · cycle detection]
+    Quality --> CodeGate[Strict types · focused owners · debt ratchet]
+    Quality --> AssetGate[Recipe · provenance · GLB validation]
+    Quality --> UiGate[Onboarding · island · six viewports · real interactions]
+    Quality --> BudgetGate[Raw · gzip · brotli · JS ratchet]
+    Quality --> WorkflowGate[Read-only source workflows · no staged delivery payloads]
+    OwnershipGate --> CI[Reviewable reports]
+    CodeGate --> CI
+    AssetGate --> CI
+    UiGate --> CI
+    BudgetGate --> CI
+    WorkflowGate --> CI
+    Build --> CI
+
+    SharedDomain -. forbidden .-> Three[Three.js · DOM · Modoki]
+    GameDomain -. forbidden .-> Three
+
+    Games --> BilliardsPresentation[Pocket Club SolidJS and Canvas presentation]
+    BilliardsPresentation --> BilliardsDomain[Deterministic fixed-step CCD and 8-ball rules]
+    BilliardsPresentation --> BilliardsNetwork[Optional Colyseus session adapter]
+    BilliardsNetwork --> Proto[Versioned Protobuf contract]
+    BilliardsNetwork --> BilliardsDomain

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "area": "island.home-and-audio",
+  "problem": "Implement DESIGN.md P0-A/P0-B: the island is silent and its cottage is only a facade.",
+  "stateOwner": "games/island-hub/runtime/domain/home.ts",
+  "existingOwnersChecked": [
+    "games/island-hub/DESIGN.md",
+    "games/island-hub/runtime/presentation/scene.ts",
+    "games/island-hub/runtime/presentation/atelier.ts",
+    "games/island-hub/runtime/domain/walking.ts",
+    "games/billiards/runtime/presentation/audio.ts",
+    "games/shared/player-movement/input.ts"
+  ],
+  "reuseDecision": "Extend the existing Three.js scene, resident rig, pooled model primitives and obstacle walker. Native Web Audio is sufficient for this first original score and effects pass; no new runtime dependency. Only the active island owns this context, disconnected on handoff; do not import the billiards effect engine or alter the billiards agent's files. An additive validated home sidecar preserves the existing IslandBlueprint and harvest journal. HomeEditor owns cancellable drafts.",
+  "nonGoals": [
+    "Complete all 72 sound assets or final sampled orchestral music",
+    "Claim P0-C/P0-D or the full V0 finished",
+    "Regenerate saved islands",
+    "Rewrite billiards, routing, main/stable or raise budgets"
+  ],
+  "acceptance": [
+    "Pure tests reject blocked exits, inaccessible furniture, invalid storage and item duplication",
+    "Home placement cancel/undo/save/reload tested through browser inputs",
+    "Surface footsteps and independent sound gains tested with a real AudioContext analyser",
+    "Focus/pause and scene disposal stop scheduled sounds and remove handlers",
+    "Full production build and existing source/bundle/browser gates remain enabled"
+  ],
+  "assetProvenance": {
+    "license": "project-authored",
+    "externalAssets": [],
+    "sources": [
+      "games/island-hub/runtime/presentation/home-models.ts",
+      "games/island-hub/runtime/presentation/audio-score.ts",
+      "games/island-hub/runtime/presentation/audio-voices.ts"
+    ],
+    "note": "Original parametric Three.js models and note/synthesis recipes, no copied game recordings, models or music."
+  }
+}

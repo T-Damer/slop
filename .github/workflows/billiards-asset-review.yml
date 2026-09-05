@@ -1,0 +1,26 @@
+name: Billiards asset review
+on:
+  pull_request:
+    branches: [main]
+    paths: ['tools/review-billiards-audio.mjs', '.github/workflows/billiards-asset-review.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Acquire licensed reference for asset review
+        run: node tools/review-billiards-audio.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: billiards-audio-review
+          path: quality-artifacts/audio-review
+          if-no-files-found: warn
+          retention-days: 7

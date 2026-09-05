@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "area": "island.exploration-neighbors-voyages",
+  "problem": "The island-life slice needs a substantially larger and less uniform home world: residential space, river crossings, beach, forest, cave approach, shrubs and authored destinations must join the existing neighbors, requests and voyages without resetting saved homes or interfering with Pocket Club.",
+  "stateOwner": "games/island-hub/runtime/domain/voyage.ts",
+  "existingOwnersChecked": [
+    "games/island-hub/DESIGN.md",
+    "games/island-hub/EXPANSION-PLAN.md",
+    "games/island-hub/runtime/domain/life.ts",
+    "games/island-hub/runtime/domain/walking.ts",
+    "games/island-hub/runtime/domain/voyage-layout.ts",
+    "games/island-hub/runtime/domain/voyage-world.ts",
+    "games/island-hub/runtime/domain/village-paths.ts",
+    "games/island-hub/runtime/presentation/atelier.ts",
+    "games/island-hub/runtime/presentation/voyage-scenery.ts",
+    "games/island-hub/runtime/presentation/voyage-notebook.ts",
+    "games/island-hub/runtime/storage/home-repository.ts"
+  ],
+  "reuseDecision": "Keep the persisted v1 core untouched and extend the deterministic voyage envelope. VoyageLayout owns river, bridge and resident-house geometry so walking, surfaces, rendering and map UI consume one source. Reuse shared proximity selection, pooled/instanced Three.js geometry, existing resident rigs, home/audio lifecycle and explicit state reducers. New shrubs and rocks are derived decorations; no second world save, router or dependency is introduced.",
+  "nonGoals": [
+    "Copy Nintendo assets, text, characters, music or branding",
+    "Change billiards or release refs",
+    "Reset or move the player's persisted cottage, furniture or old core objects",
+    "Claim full island multiplayer, full NPC schedules, enterable caves or finished resident interiors in this slice"
+  ],
+  "acceptance": [
+    "Existing island/home/journal/voyage saves survive unchanged",
+    "Three reproducible regions have reachable docks and targets",
+    "The home exploration envelope has useful radius >= 32 and preserves every persisted core identifier",
+    "Three resident cottages, a residential street, forest, orchard, cave approach, river cascade and larger beach are authored landmarks",
+    "A meandering river and pond block movement except through the same two river bridges plus pond bridge that are rendered and classified as wood",
+    "Trees, shrubs, flowers and rocks are deterministically clustered by district and cannot block required paths, houses, discoveries or docks",
+    "Five requests validate resources/discoveries and award once; the forest quest requires the named forest and cave discoveries",
+    "Collectibles, discoveries, deliveries and travel survive reload",
+    "The notebook map renders the expanded coast, river, bridges and resident homes and computes discovery totals dynamically",
+    "Keyboard/touch dialogue, journal/map and boat travel work",
+    "Types, production build, unchanged bundle limits and browser evidence pass without gate relaxation"
+  ]
+}

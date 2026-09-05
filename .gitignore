@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.modoki-engine/
+quality-artifacts/
+.DS_Store
+*.log

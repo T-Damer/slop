@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "three": ["./.modoki-engine/node_modules/@types/three/index.d.ts"],
+      "three/*": ["./.modoki-engine/node_modules/@types/three/*"]
+    },
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "useDefineForClassFields": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "typeRoots": [".modoki-engine/node_modules/@types"]
+  },
+  "include": ["games/**/*.ts", "types/**/*.d.ts"],
+  "exclude": ["games/**/dist", "games/**/node_modules"]
+}
