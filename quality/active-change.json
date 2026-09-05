@@ -26,9 +26,13 @@
     "games/billiards/runtime/presentation/app-v2.ts",
     "games/billiards/runtime/presentation/table-camera.ts",
     "games/shared/game-shell/graphics-settings.ts",
-    ".github/workflows/publish-stable.yml"
+    ".github/workflows/publish-stable.yml",
+    "games/billiards/runtime/presentation/pointer-input-v2.ts",
+    "games/billiards/runtime/presentation/rail-input-v2.ts",
+    "tools/browser-quality/billiards-camera.mjs",
+    "tools/browser-quality/cdp-client.mjs"
   ],
-  "reuseDecision": "Extend canonical canvas coordinates and captured pointer input. Use native Pointer Events, ResizeObserver and Web Animations; panzoom was reviewed but its independent gesture owner conflicts with cue input. Reuse the existing engine patch hook for a hash-guarded frame-driver lifecycle fix. Shared graphics preferences drive each renderer; domain outcomes alone authorize pot feedback. Mount the existing view before camera observation, create frame/quality dependencies before synchronous subscriptions, and use Solid cleanup for partial-start rollback. Load the existing QA bridge only on QA requests; no gameplay is moved out of budget accounting.",
+  "reuseDecision": "Extend canonical canvas coordinates and captured pointer input. Use native Pointer Events, ResizeObserver and Web Animations; panzoom was reviewed but its independent gesture owner conflicts with cue input. Reuse the existing engine patch hook for a hash-guarded frame-driver lifecycle fix. Shared graphics preferences drive each renderer; domain outcomes alone authorize pot feedback. Mount the existing view before camera observation, create frame/quality dependencies before synchronous subscriptions, and use Solid cleanup for partial-start rollback. Load the existing QA bridge only on QA requests; no gameplay is moved out of budget accounting. Route-owned native AbortSignals replace mirrored input listener removal lists without changing gestures. The trusted pinch harness uses finite, viewport-intersected canvas coordinates, presses fingers separately and records the exact attempted coordinates on failure.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
     "Full pyramid rules or online/server hosting",
@@ -66,7 +70,9 @@
     "Frame-driver tests cover tab resume, suspended event loop, genuinely dropped RAF, duplicate generation rejection and balanced ref counts; no watchdog errors are hidden.",
     "Published build has zero overlap between both rollers and shot action on all six viewports; tested source and artifact identity match.",
     "Cold mount, saved graphics settings, immediate subscriptions, partial-start cleanup and route remount do not access uninitialized owners.",
-    "Publish stable only after exact-candidate checks; verify served HTML SHA and browser contracts after deployment."
+    "Publish stable only after exact-candidate checks; verify served HTML SHA and browser contracts after deployment.",
+    "Pinch uses two real captured touch pointers on visible canvas, changes scale, releases both pointers and does not change shot revision. Invalid or obscured geometry fails with diagnostics; no synthetic gameplay command substitutes for touch.",
+    "Unmount aborts all route-owned pointer and roller listeners while preserving capture-phase ordering and explicit gesture cancellation."
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json",

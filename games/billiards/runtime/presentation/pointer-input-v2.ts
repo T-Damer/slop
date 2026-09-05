@@ -18,7 +18,9 @@ class BilliardsPointerGesture {
   private stroke: ManualCueStroke | null = null;
   private placing = false;
 
-  public constructor(private readonly options: BilliardsPointerInputOptions) {}
+  private readonly options: BilliardsPointerInputOptions;
+
+  public constructor(options: BilliardsPointerInputOptions) { this.options = options; }
 
   public move = (event: PointerEvent): void => {
     if (!event.isPrimary || (this.pointerId !== null && this.pointerId !== event.pointerId)) return;
@@ -114,30 +116,23 @@ class BilliardsPointerGesture {
 }
 
 export function bindBilliardsPointerInputV2(options: BilliardsPointerInputOptions): () => void {
+  const events = new AbortController();
+  const listeners = { signal: events.signal };
   const gesture = new BilliardsPointerGesture(options);
   const { canvas } = options;
   const onContextMenu = (event: MouseEvent): void => event.preventDefault();
-  canvas.addEventListener(cameraTuning.cancelGestureEvent, gesture.cancel);
-  canvas.addEventListener('pointerdown', gesture.down);
-  canvas.addEventListener('pointermove', gesture.move);
-  canvas.addEventListener('pointerup', gesture.up);
-  canvas.addEventListener('pointercancel', gesture.cancel);
-  canvas.addEventListener('lostpointercapture', gesture.lostCapture);
-  canvas.addEventListener('contextmenu', onContextMenu);
-  window.addEventListener('blur', gesture.cancel);
-  window.addEventListener('resize', gesture.cancel);
-  document.addEventListener('visibilitychange', gesture.cancel);
+  canvas.addEventListener(cameraTuning.cancelGestureEvent, gesture.cancel, listeners);
+  canvas.addEventListener('pointerdown', gesture.down, listeners);
+  canvas.addEventListener('pointermove', gesture.move, listeners);
+  canvas.addEventListener('pointerup', gesture.up, listeners);
+  canvas.addEventListener('pointercancel', gesture.cancel, listeners);
+  canvas.addEventListener('lostpointercapture', gesture.lostCapture, listeners);
+  canvas.addEventListener('contextmenu', onContextMenu, listeners);
+  window.addEventListener('blur', gesture.cancel, listeners);
+  window.addEventListener('resize', gesture.cancel, listeners);
+  document.addEventListener('visibilitychange', gesture.cancel, listeners);
   return () => {
     gesture.cancel();
-    canvas.removeEventListener(cameraTuning.cancelGestureEvent, gesture.cancel);
-    canvas.removeEventListener('pointerdown', gesture.down);
-    canvas.removeEventListener('pointermove', gesture.move);
-    canvas.removeEventListener('pointerup', gesture.up);
-    canvas.removeEventListener('pointercancel', gesture.cancel);
-    canvas.removeEventListener('lostpointercapture', gesture.lostCapture);
-    canvas.removeEventListener('contextmenu', onContextMenu);
-    window.removeEventListener('blur', gesture.cancel);
-    window.removeEventListener('resize', gesture.cancel);
-    document.removeEventListener('visibilitychange', gesture.cancel);
+    events.abort();
   };
 }

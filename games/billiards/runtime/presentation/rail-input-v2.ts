@@ -50,6 +50,8 @@ function bindCapturedControl(
   options: BilliardsRailInputOptions,
   update: (event: PointerEvent, beginning: boolean) => void,
 ): () => void {
+  const events = new AbortController();
+  const listeners = { signal: events.signal };
   let pointerId: number | null = null;
   const cancel = (): void => {
     const id = pointerId;
@@ -74,22 +76,16 @@ function bindCapturedControl(
     update(event, false);
     cancel();
   };
-  element.addEventListener('pointerdown', down);
-  element.addEventListener('pointermove', move);
-  element.addEventListener('pointerup', up);
-  element.addEventListener('pointercancel', cancel);
-  element.addEventListener('lostpointercapture', cancel);
-  window.addEventListener('blur', cancel);
-  window.addEventListener('resize', cancel);
+  element.addEventListener('pointerdown', down, listeners);
+  element.addEventListener('pointermove', move, listeners);
+  element.addEventListener('pointerup', up, listeners);
+  element.addEventListener('pointercancel', cancel, listeners);
+  element.addEventListener('lostpointercapture', cancel, listeners);
+  window.addEventListener('blur', cancel, listeners);
+  window.addEventListener('resize', cancel, listeners);
   return () => {
     cancel();
-    element.removeEventListener('pointerdown', down);
-    element.removeEventListener('pointermove', move);
-    element.removeEventListener('pointerup', up);
-    element.removeEventListener('pointercancel', cancel);
-    element.removeEventListener('lostpointercapture', cancel);
-    window.removeEventListener('blur', cancel);
-    window.removeEventListener('resize', cancel);
+    events.abort();
   };
 }
 

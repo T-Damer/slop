@@ -24,17 +24,20 @@ export class BilliardsTableCamera {
   private readonly controller: BilliardsGameControllerV2;
   private readonly button: HTMLButtonElement;
   private readonly removeSettings: () => void;
+  private readonly events = new AbortController();
 
   public constructor(stage: HTMLElement, canvas: HTMLCanvasElement, controller: BilliardsGameControllerV2, button: HTMLButtonElement) {
     this.stage = stage; this.canvas = canvas; this.controller = controller; this.button = button;
     this.resize = new ResizeObserver(() => this.measure()); this.resize.observe(stage);
-    stage.addEventListener('pointerdown', this.down, true);
-    stage.addEventListener('pointermove', this.move, true);
-    stage.addEventListener('pointerup', this.up, true);
-    stage.addEventListener('pointercancel', this.cancel, true);
-    button.addEventListener('click', this.toggle);
-    window.addEventListener('blur', this.cancel);
-    document.addEventListener('visibilitychange', this.cancel);
+    const listeners = { signal: this.events.signal };
+    const captured = { ...listeners, capture: true };
+    stage.addEventListener('pointerdown', this.down, captured);
+    stage.addEventListener('pointermove', this.move, captured);
+    stage.addEventListener('pointerup', this.up, captured);
+    stage.addEventListener('pointercancel', this.cancel, captured);
+    button.addEventListener('click', this.toggle, listeners);
+    window.addEventListener('blur', this.cancel, listeners);
+    document.addEventListener('visibilitychange', this.cancel, listeners);
     this.removeSettings = graphicsSettings.subscribe(() => {
       if (!graphicsSettings.get().autoZoom || prefersReducedMotion()) this.overview();
     });
@@ -72,13 +75,7 @@ export class BilliardsTableCamera {
   public overview(): void { this.target = { ...tuning.centre, zoom: 1 }; }
   public dispose(): void {
     this.resize.disconnect(); this.removeSettings();
-    this.stage.removeEventListener('pointerdown', this.down, true);
-    this.stage.removeEventListener('pointermove', this.move, true);
-    this.stage.removeEventListener('pointerup', this.up, true);
-    this.stage.removeEventListener('pointercancel', this.cancel, true);
-    this.button.removeEventListener('click', this.toggle);
-    window.removeEventListener('blur', this.cancel);
-    document.removeEventListener('visibilitychange', this.cancel);
+    this.events.abort();
     this.pointers.clear();
   }
 

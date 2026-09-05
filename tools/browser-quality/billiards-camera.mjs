@@ -1,3 +1,4 @@
+import { exercisePinch } from './billiards-pinch.mjs';
 import { captureScreenshot, delay, evaluate, waitForExpression } from './cdp-client.mjs';
 import { clickControl } from './billiards-presets.mjs';
 
@@ -34,14 +35,7 @@ export async function verifyCamera(cdp, ui, directory) {
   if (zoomed.camera.zoom < 1.3) throw new Error('Explicit close-up did not enlarge the balls.');
   await captureScreenshot(cdp, `${directory}/close-up.png`);
   if (zoomed.camera.portrait) {
-    const rect = await evaluate(cdp, "(() => { const r=document.querySelector('.billiards-stage').getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; })()");
-    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 2 });
-    const touches = (dx, dy, distance) => [{ x: rect.x + dx - distance, y: rect.y + dy, id: 1 },
-      { x: rect.x + dx + distance, y: rect.y + dy, id: 2 }];
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: touches(0, 0, 30) });
-    await delay(30);
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: touches(12, -15, 48) });
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await exercisePinch(cdp, directory);
     const after = await evaluate(cdp, `${qa}.snapshot()`);
     if (after.controller.match.revision !== before.controller.match.revision || after.controller.match.activeShot !== null) {
       throw new Error('A two-finger camera gesture executed a gameplay command.');
