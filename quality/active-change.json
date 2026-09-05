@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "area": "billiards-mobile-camera-graphics-and-pocket-feedback",
-  "problem": "Mobile balls are too small; graphics settings are absent; a suspended frame driver reports a stall on resume; pocketed balls disappear without a visual return to the player.",
+  "problem": "Mobile balls are too small; graphics settings are absent; a suspended frame driver reports a stall on resume; pocketed balls disappear without a visual return to the player. Release candidate fails during UI startup and exceeds the unchanged client bundle ratchet.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
@@ -22,9 +22,13 @@
     "games/billiards/runtime/domain/table-model.ts",
     "games/billiards/runtime/domain/collision.ts",
     "games/billiards/runtime/domain/rules.ts",
-    "games/billiards/runtime/presentation/ball-renderer-v2.ts"
+    "games/billiards/runtime/presentation/ball-renderer-v2.ts",
+    "games/billiards/runtime/presentation/app-v2.ts",
+    "games/billiards/runtime/presentation/table-camera.ts",
+    "games/shared/game-shell/graphics-settings.ts",
+    ".github/workflows/publish-stable.yml"
   ],
-  "reuseDecision": "Extend canonical canvas coordinates and captured pointer input. Use native Pointer Events, ResizeObserver and Web Animations; panzoom was reviewed but its independent gesture owner conflicts with cue input. Reuse the existing engine patch hook for a hash-guarded frame-driver lifecycle fix. Shared graphics preferences drive each renderer; domain outcomes alone authorize pot feedback.",
+  "reuseDecision": "Extend canonical canvas coordinates and captured pointer input. Use native Pointer Events, ResizeObserver and Web Animations; panzoom was reviewed but its independent gesture owner conflicts with cue input. Reuse the existing engine patch hook for a hash-guarded frame-driver lifecycle fix. Shared graphics preferences drive each renderer; domain outcomes alone authorize pot feedback. Mount the existing view before camera observation, create frame/quality dependencies before synchronous subscriptions, and use Solid cleanup for partial-start rollback. Load the existing QA bridge only on QA requests; no gameplay is moved out of budget accounting.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
     "Full pyramid rules or online/server hosting",
@@ -60,7 +64,9 @@
     "Graphics menu is keyboard accessible and saved; auto/high/balanced/low affects real renderer quality across routes.",
     "Pocket animations consume semantic pocket events exactly once, preserve shot ownership, exclude cue scratches from HUD rewards and cancel cleanly on restart/unmount.",
     "Frame-driver tests cover tab resume, suspended event loop, genuinely dropped RAF, duplicate generation rejection and balanced ref counts; no watchdog errors are hidden.",
-    "Published build has zero overlap between both rollers and shot action on all six viewports; tested source and artifact identity match."
+    "Published build has zero overlap between both rollers and shot action on all six viewports; tested source and artifact identity match.",
+    "Cold mount, saved graphics settings, immediate subscriptions, partial-start cleanup and route remount do not access uninitialized owners.",
+    "Publish stable only after exact-candidate checks; verify served HTML SHA and browser contracts after deployment."
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json",
