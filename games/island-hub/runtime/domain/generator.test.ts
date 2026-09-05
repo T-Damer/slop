@@ -68,3 +68,5 @@ test('every island contains every local game portal', () => {
 
 // Island walking and life regressions share the existing island test entry point.
 import './life.test.ts';
+
+import './home.test.ts';

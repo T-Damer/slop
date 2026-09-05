@@ -8,6 +8,7 @@ import { islandArt } from './art-direction.ts';
 /** HDR bloom before output conversion; quality changes never affect simulation. */
 export class IslandRendering {
   public readonly renderer: THREE.WebGLRenderer;
+  private readonly sky: THREE.HemisphereLight;
   private readonly sun: THREE.DirectionalLight;
   private readonly composer: EffectComposer;
   private readonly bloom: UnrealBloomPass;
@@ -35,7 +36,7 @@ export class IslandRendering {
     this.composer.addPass(this.renderPass);
     this.composer.addPass(this.bloom);
     this.composer.addPass(this.output);
-    const hemisphere = new THREE.HemisphereLight(0xfff8ec, settings.groundLight, settings.skyIntensity);
+    const hemisphere = this.sky = new THREE.HemisphereLight(0xfff8ec, settings.groundLight, settings.skyIntensity);
     const sun = this.sun = new THREE.DirectionalLight(settings.sun, settings.sunIntensity);
     sun.position.set(-9, 16, 8);
     sun.castShadow = true;
@@ -44,6 +45,10 @@ export class IslandRendering {
     sun.shadow.bias = settings.shadowBias;
     sun.shadow.normalBias = settings.normalBias;
     scene.add(hemisphere, sun);
+  }
+  public setIndoors(indoors: boolean): void {
+    this.sun.intensity = indoors ? 0.8 : islandArt.render.sunIntensity;
+    this.sky.intensity = indoors ? 1.5 : islandArt.render.skyIntensity;
   }
   public resize(width: number, height: number): void {
     this.width = Math.max(1, width);

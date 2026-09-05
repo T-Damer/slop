@@ -2,15 +2,15 @@ name: Island quality
 on:
   push:
     branches: [feature/core-traffic]
-    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', 'tools/build-island-preview.mjs', 'tools/browser-quality/island-preview/**', '.github/workflows/island-quality.yml']
+    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', 'tools/browser-quality/island-home.mjs', 'tools/build-island-preview.mjs', 'tools/browser-quality/island-preview/**', '.github/workflows/island-quality.yml']
   pull_request:
     branches: [main]
-    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', 'tools/build-island-preview.mjs', 'tools/browser-quality/island-preview/**', '.github/workflows/island-quality.yml']
+    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', 'tools/browser-quality/island-home.mjs', 'tools/build-island-preview.mjs', 'tools/browser-quality/island-preview/**', '.github/workflows/island-quality.yml']
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: island-quality-${{ github.ref }}
+  group: island-quality-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   island-browser:
@@ -40,7 +40,7 @@ jobs:
       - name: Island types and deterministic gameplay
         run: |
           node .modoki-engine/node_modules/typescript/bin/tsc -p games/island-hub/tsconfig.json --noEmit
-          node --experimental-strip-types --test games/island-hub/runtime/domain/generator.test.ts
+          node --experimental-strip-types --test games/island-hub/runtime/domain/generator.test.ts games/island-hub/runtime/storage/home-repository.test.ts
           npm run architecture:check
           npm run change:check
       - name: Prepare compact static web profile

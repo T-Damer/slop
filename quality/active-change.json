@@ -53,6 +53,7 @@
     "All four production browser suites and two-client Colyseus integration pass before publishing stable"
   ],
   "parallelChanges": [
-    "quality/changes/island-cozy.json"
+    "quality/changes/island-cozy.json",
+    "quality/changes/island-home-audio.json"
   ]
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { IslandBlueprint, IslandPoint } from '../domain/types.ts';
+import type { IslandBlueprint } from '../domain/types.ts';
+import { villagePaths, villageRoutes } from '../domain/village-paths.ts';
 import { islandArt } from './art-direction.ts';
 import type { IslandAtelier } from './atelier.ts';
 
@@ -81,21 +82,8 @@ function decorateWater(material: THREE.MeshStandardMaterial, time: { value: numb
   material.customProgramCacheKey = () => 'island-water-v1';
 }
 
-const villagePaths = { crossroads: { x: 1.2, z: 0.8 }, houseBypass: 2.6,
-  doorOffset: 1.65, step: 0.32, width: 0.83, thickness: 0.008, elevation: 0.007 } as const;
-
 export function addVillagePaths(a: IslandAtelier, root: THREE.Group, blueprint: IslandBlueprint): void {
-  const crossroads: IslandPoint = villagePaths.crossroads;
-  const routes: IslandPoint[][] = [
-    [crossroads, blueprint.playerSpawn],
-    [crossroads, { x: blueprint.house.x + Math.sin(blueprint.house.rotation) * villagePaths.doorOffset,
-      z: blueprint.house.z + Math.cos(blueprint.house.rotation) * villagePaths.doorOffset }],
-    [crossroads, blueprint.activityZone],
-    ...blueprint.portals.map((portal) => portal.x < blueprint.house.x
-      ? [crossroads, { x: blueprint.house.x - villagePaths.houseBypass, z: crossroads.z },
-        { x: blueprint.house.x - villagePaths.houseBypass, z: portal.z }, portal]
-      : [crossroads, portal]),
-  ];
+  const routes = villageRoutes(blueprint);
   for (const route of routes) for (let segment = 1; segment < route.length; segment += 1) {
     const origin = route[segment - 1];
     const destination = route[segment];

@@ -1,3 +1,4 @@
+import { islandHomeStyles } from './home-styles.ts';
 import { personalIslandStyles } from './styles.ts';
 
 export const islandPlayStyles = `
@@ -39,6 +40,6 @@ export function installIslandStyles(id: string): void {
   if (document.getElementById(id) !== null) return;
   const style = document.createElement('style');
   style.id = id;
-  style.textContent = personalIslandStyles + islandPlayStyles;
+  style.textContent = personalIslandStyles + islandPlayStyles + islandHomeStyles;
   document.head.append(style);
 }

@@ -30,6 +30,11 @@ export function walkOnIsland(
   position: IslandPoint, input: IslandPoint, delta: number, running: boolean,
   blueprint: IslandBlueprint,
 ): IslandPoint {
+  return walkWithObstacles(position, input, delta, running, (point) => canWalkOnIsland(point, blueprint));
+}
+
+export function walkWithObstacles(position: IslandPoint, input: IslandPoint, delta: number,
+  running: boolean, allowed: (point: IslandPoint) => boolean): IslandPoint {
   if (![input.x, input.z, delta].every(Number.isFinite)) return position;
   const magnitude = Math.max(1, Math.hypot(input.x, input.z));
   const distance = Math.min(islandWalking.maximumDelta, Math.max(0, delta))
@@ -40,9 +45,9 @@ export function walkOnIsland(
   let next = position;
   for (let index = 0; index < steps; index += 1) {
     const horizontal = { x: next.x + x / steps, z: next.z };
-    if (canWalkOnIsland(horizontal, blueprint)) next = horizontal;
+    if (allowed(horizontal)) next = horizontal;
     const vertical = { x: next.x, z: next.z + z / steps };
-    if (canWalkOnIsland(vertical, blueprint)) next = vertical;
+    if (allowed(vertical)) next = vertical;
   }
   return next;
 }

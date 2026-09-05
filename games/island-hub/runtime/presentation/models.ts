@@ -132,6 +132,7 @@ export function createPortalLabel(text: string): THREE.Sprite {
 export function disposeIslandObject(root: THREE.Object3D): void {
   const resources = new Set<{ dispose(): void }>();
   root.traverse((object) => {
+    if (object instanceof THREE.InstancedMesh) resources.add(object);
     if (object instanceof THREE.Mesh) resources.add(object.geometry);
     if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Sprite)) return;
     for (const material of Array.isArray(object.material) ? object.material : [object.material]) {

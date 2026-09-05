@@ -27,6 +27,7 @@ class IslandInputController implements IslandMovementInput {
     window.addEventListener('keydown', this.keyDown);
     window.addEventListener('keyup', this.keyUp);
     root.addEventListener('click', this.click);
+    root.addEventListener('keydown', this.fieldKey, true);
   }
   public read(): MovementVector { return this.movement?.read() ?? { x: 0, z: 0 }; }
   public consumeAction(): boolean { const action = this.action; this.action = false; return action; }
@@ -47,7 +48,12 @@ class IslandInputController implements IslandMovementInput {
     window.removeEventListener('keydown', this.keyDown);
     window.removeEventListener('keyup', this.keyUp);
     this.root.removeEventListener('click', this.click);
+    this.root.removeEventListener('keydown', this.fieldKey, true);
   }
+  private readonly fieldKey = (event: KeyboardEvent): void => {
+    if (event.code !== 'Escape' && (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement
+      || event.target instanceof HTMLTextAreaElement)) event.stopPropagation();
+  };
   private readonly keyDown = (event: KeyboardEvent): void => {
     if (!this.enabled || event.repeat || event.target instanceof HTMLInputElement
       || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement
