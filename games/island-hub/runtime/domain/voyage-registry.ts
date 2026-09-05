@@ -3,6 +3,7 @@ import type { IslandAnimalId, IslandPoint } from './types.ts';
 export const voyageRules = {
   version: 1, home: 'home', interactRadius: 1.55, discoveryRadius: 2.4,
   homeRadius: 25, awayRadius: 19, coreRadius: 10.5, coastlineSamples: 96,
+  dockWidth: 1.8, dockLength: 3.5, bridgeApron: 0.5,
   treeCount: 38, flowerCount: 44, placementAttempts: 240, clearance: 1.35,
   pathClearance: 1, siteClearance: 2.1, dockClearance: 2.4, beachScale: 0.89,
   visitedLimit: 64, inventoryLimit: 99, dialogueHistoryLimit: 10000,

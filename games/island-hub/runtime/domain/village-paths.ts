@@ -1,3 +1,4 @@
+import { voyageRules } from './voyage-registry.ts';
 import type { IslandBlueprint, IslandPoint } from './types.ts';
 import { isPointInsideIsland } from './generator.ts';
 export const villagePaths = { crossroads: { x: 1.2, z: 0.8 }, houseBypass: 2.6,
@@ -17,6 +18,15 @@ export function villageRoutes(blueprint: IslandBlueprint): ReadonlyArray<Readonl
 }
 export type IslandSurface = 'grass' | 'sand' | 'path' | 'wood';
 export function islandSurface(point: IslandPoint, blueprint: IslandBlueprint): IslandSurface {
+  const layout = blueprint.exploration;
+  if (layout) {
+    const { dock, pond } = layout;
+    const onDock = Math.abs(point.x - dock.x) <= voyageRules.dockWidth / 2
+      && point.z >= dock.z && point.z <= dock.z + voyageRules.dockLength;
+    const onBridge = Math.abs(point.z - pond.z) <= pond.bridgeHalfWidth
+      && Math.abs(point.x - pond.x) <= pond.rx + voyageRules.bridgeApron;
+    if (onDock || onBridge) return 'wood';
+  }
   for (const route of villageRoutes(blueprint)) for (let i = 1; i < route.length; i += 1) {
     const a = route[i - 1]!;
     const b = route[i]!;

@@ -1,3 +1,4 @@
+import { islandSurface } from './village-paths.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildIslandBlueprint } from './generator.ts';
@@ -139,4 +140,38 @@ test('expanded-island game entrances require explicit intent rather than acciden
   const portal = world.portals[0]!;
   for (let i = 0; i < 30; i += 1) assert.equal(life.step(portal, 0.1, false).destination, null);
   assert.equal(life.step(portal, 0.1, true).destination, portal.destinationId);
+});
+
+test('the archipelago finale requires its predecessor, both journeys and conserved sea glass', () => {
+  let state = createVoyageState();
+  const finale = 'little-archipelago';
+  assert.strictEqual(commandVoyage(state, world, neighbor('lumi'), { kind: 'accept', id: finale }).state, state);
+  state = commandVoyage(state, world, neighbor('lumi'), { kind: 'accept', id: 'familiar-paths' }).state;
+  for (const site of world.exploration!.sites.slice(0, 3)) state = observeVoyage(state, world, site.point);
+  state = commandVoyage(state, world, neighbor('lumi'), { kind: 'claim', id: 'familiar-paths' }).state;
+  state = commandVoyage(state, world, neighbor('lumi'), { kind: 'accept', id: finale }).state;
+  let current = world;
+  for (const region of ['shell', 'pine', 'home'] as const) {
+    state = commandVoyage(state, current, current.exploration!.dock, { kind: 'travel', region }).state;
+    current = createVoyageWorld(home, region);
+    if (region === 'shell') {
+      const glass = current.exploration!.pickups.find((entry) => entry.item === 'glass')!;
+      state = commandVoyage(state, current, glass.point, { kind: 'collect', id: glass.id }).state;
+    }
+  }
+  assert.equal(state.inventory.glass, 1);
+  const next = commandVoyage(state, current, neighbor('lumi'), { kind: 'claim', id: finale });
+  assert.equal(next.error, null); assert.equal(next.state.inventory.glass, 0);
+  assert.ok(next.state.claimed.includes(finale));
+  assert.strictEqual(commandVoyage(next.state, current, neighbor('lumi'), { kind: 'claim', id: finale }).state, next.state);
+  assert.deepEqual(validateVoyage(next.state, home), next.state);
+});
+
+test('pier and bridge use wooden footsteps from the same region geometry', () => {
+  for (const region of ['home', 'shell', 'pine'] as const) {
+    const current = createVoyageWorld(home, region); const layout = current.exploration!;
+    assert.equal(islandSurface(layout.dock, current), 'wood');
+    assert.equal(islandSurface(layout.pond, current), 'wood');
+    assert.notEqual(islandSurface({ x: layout.dock.x + 1.1, z: layout.dock.z }, current), 'wood');
+  }
 });

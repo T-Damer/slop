@@ -228,7 +228,10 @@ export class PersonalIslandScene {
       this.actionButton.disabled = update.target === null;
     }
     if (this.journalLabel !== null) {
-      const text = `Яблоки ${this.life.fruit} · Сад ${this.life.planted}/3`;
+      const layout = this.blueprint.exploration;
+      const text = layout && layout.region !== 'home'
+        ? `Места ${this.voyage.state.discovered.filter((id) => id.startsWith(layout.region + ':')).length}/${layout.sites.length} · Дневник находок`
+        : `Яблоки ${this.life.fruit} · Сад ${this.life.planted}/3`;
       if (this.journalLabel.textContent !== text) this.journalLabel.textContent = text;
     }
     if (update.changed) {

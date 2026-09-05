@@ -31,9 +31,12 @@ export function voyageHarness(cdp, output) {
       await delay(150);
     },
     key: async (code) => {
-      await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', code, key: code.startsWith('Key') ? code.slice(-1).toLowerCase() : code });
+      const virtualKey = code === 'Escape' ? 27 : code.startsWith('Key') ? code.charCodeAt(3) : 0;
+      const event = { code, key: code.startsWith('Key') ? code.slice(-1).toLowerCase() : code,
+        windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey };
+      await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', ...event });
       await delay(80);
-      await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', code, key: code.startsWith('Key') ? code.slice(-1).toLowerCase() : code });
+      await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...event });
     },
     walkTo: async (target) => {
       const before = await read();
