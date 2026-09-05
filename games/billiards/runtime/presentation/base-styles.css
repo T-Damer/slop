@@ -1,4 +1,3 @@
-export const billiardsBaseStyles = `
 #slop-billiards-root {
   --billiards-power-percent: 68%;
   --billiards-angle-position: 50%;
@@ -145,5 +144,3 @@ export const billiardsBaseStyles = `
   cursor: pointer;
 }
 .billiards-icon-button[aria-pressed="true"] { color: #7c6d5a; filter: saturate(.4); }
-
-`;

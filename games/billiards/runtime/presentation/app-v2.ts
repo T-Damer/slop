@@ -16,9 +16,8 @@ import {
 } from './controller-v2.ts';
 import { BilliardsEffectsRenderer } from './effects-renderer.ts';
 import { BilliardsFrameLoop } from './frame-loop-v2.ts';
-import { billiardsInteractionStylesV2 } from './interaction-styles-v2.ts';
 import { billiardsCopy, billiardsUiIds } from './registry.ts';
-import { billiardsStyles } from './styles.ts';
+import './pocket-club.css';
 import { createBilliardsViewElements } from './view-elements.ts';
 import { updateBilliardsViewV2 } from './view-state-v2.ts';
 
@@ -47,7 +46,6 @@ let disposeSolidRoot: (() => void) | null = null;
 
 export function mountBilliards(parent: HTMLElement): void {
   unmountBilliards();
-  installStyles();
   // The view owns one stable DOM element, not a reconciled JSX collection.
   // Keep Solid signals/lifecycle without shipping the unused DOM reconciler.
   createRoot((dispose) => {
@@ -194,12 +192,4 @@ function installQaBridge(
     lockAim: () => controller.lockAim(),
     unlockAim: () => controller.unlockAim(),
   };
-}
-
-function installStyles(): void {
-  if (document.getElementById(billiardsUiIds.style) !== null) return;
-  const style = document.createElement('style');
-  style.id = billiardsUiIds.style;
-  style.textContent = `${billiardsStyles}\n${billiardsInteractionStylesV2}`;
-  document.head.append(style);
 }

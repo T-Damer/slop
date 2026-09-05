@@ -1,4 +1,3 @@
-export const billiardsResponsiveStyles = `
 @media (max-width: 1080px) {
   .billiards-shell { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
   .billiards-stage { width: min(100%, calc((100dvh - 224px) * 16 / 9), 980px); }
@@ -67,6 +66,5 @@ export const billiardsResponsiveStyles = `
   .billiards-smoke-wisp,
   .billiards-dust-mote { animation: none; }
   .billiards-smoke-layer { opacity: .24; }
-  * { scroll-behavior: auto !important; }
+  #slop-billiards-root * { scroll-behavior: auto !important; }
 }
-`;

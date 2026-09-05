@@ -1,4 +1,3 @@
-export const billiardsInteractionStylesV2 = `
 #slop-billiards-root {
   background:
     radial-gradient(ellipse at 50% 42%, rgba(151, 90, 39, .18), transparent 44%),
@@ -116,4 +115,3 @@ export const billiardsInteractionStylesV2 = `
 @media (prefers-reduced-motion: reduce) {
   #slop-billiards-root * { animation: none !important; transition: none !important; }
 }
-`;

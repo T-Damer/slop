@@ -43,6 +43,8 @@ jobs:
           node --experimental-strip-types --test games/island-hub/runtime/domain/generator.test.ts
           npm run architecture:check
           npm run change:check
+      - name: Prepare compact static web profile
+        run: node tools/prepare-web-engine.mjs
       - name: Build actual production hub
         id: hub
         continue-on-error: true

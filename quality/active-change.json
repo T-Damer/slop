@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "area": "pocket-club-controls-authority-and-publication",
-  "problem": "Unfinished interaction migration leaves cue placement stuck, transient Colyseus messages unsent, stale pointer velocity capable of accidental shots, and CI blocked before build. Complete the existing PR without bypassing its quality or publication gates.",
+  "area": "compact-web-build-and-pages",
+  "problem": "The working game exceeds the existing client and base bundle ratchets. Embedded CSS bypasses CSS minification; an unused engine remote-subgame namespace registry prevents dead code elimination.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
@@ -16,15 +16,19 @@
     "tools/check-web-budget.mjs",
     "games/billiards/runtime/presentation/controller-v2.ts",
     "games/billiards/runtime/network/colyseus-session.ts",
-    "games/billiards/runtime/domain/match.ts"
+    "games/billiards/runtime/domain/match.ts",
+    "games/billiards/runtime/presentation/pocket-club.css",
+    "games/traffic-jam/project.config.json"
   ],
-  "reuseDecision": "Extend the existing deterministic match, canonical coordinates, shot interaction owner, Colyseus room adapter and browser harness. Keep one pointer sampler with injected event timestamps; no gesture dependency, copied game code, prototype interception, second physics implementation or new feature branch. Remove unreachable migration implementations. Keep an authoritative server boundary isolated from browser presentation.",
+  "reuseDecision": "Use Vite native CSS extraction/minification without changing visual rules. Keep the pinned Modoki build and all checks. Apply one hash-checked opt-in engine entry patch that omits the unused OTA namespace registry in the static SLOP profile, while leaving the engine source registry and game router intact. No minifier dependency, arbitrary dist deletion, in-browser decompression or budget increases.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
     "Copy Miniclip code, branding, textures, sounds, table artwork, or proprietary assets",
     "Replace the existing Personal Island, Parking Jam, Junkyard Station, Modoki, or Three.js foundations",
     "Turn the billiards presentation into a second physics or scoring implementation",
-    "Provision or claim a live multiplayer hosting service without an actual endpoint"
+    "Provision or claim a live multiplayer hosting service without an actual endpoint",
+    "Modify gameplay, island lighting or online transport",
+    "Enable remotely downloaded Modoki OTA subgames in the static Pages profile"
   ],
   "acceptance": [
     "Every games/**/*.ts file has one architecture owner and all static and dynamic relative imports resolve through declared dependencies",
@@ -42,7 +46,11 @@
     "Click/tap locks aim; mouse and touch pull/forward strokes use fresh projected velocity, reach contact, and cancel safely on capture loss, blur or orientation change",
     "Portrait coordinate round trips, keyboard repeat protection, server turn/revision/sequence authority and disposal races have regression tests",
     "Aim, power, spin, placement and stroke previews travel through direct Colyseus room messages; no prototype patch or no-op adapter remains",
-    "Publish only a tested commit and verify the deployed build identity rather than assuming an HTTP 200 is the new build"
+    "Publish only a tested commit and verify the deployed build identity rather than assuming an HTTP 200 is the new build",
+    "All previous raw/gzip/Brotli limits remain byte-for-byte unchanged and pass",
+    "Extracted CSS is included in total/base byte accounting and loads before the lazy game mounts",
+    "Compact engine preparation rejects an unrecognized engine revision, modified entry point or explicit OTA configuration",
+    "All four production browser suites and two-client Colyseus integration pass before publishing stable"
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json"

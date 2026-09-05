@@ -15,7 +15,7 @@ const requiredFiles = [
   'frame-loop-v2.ts',
   'guide-renderer-v2.ts',
   'interaction-state-v2.ts',
-  'interaction-styles-v2.ts',
+  'interaction-styles-v2.css',
   'pointer-input-v2.ts',
   'rail-input-v2.ts',
   'shot-interaction-v2.ts',
@@ -39,7 +39,7 @@ const frameLoop = sources.get('frame-loop-v2.ts') ?? '';
 const controller = sources.get('controller-v2.ts') ?? '';
 const pointer = sources.get('pointer-input-v2.ts') ?? '';
 const renderer = sources.get('canvas-renderer-v2.ts') ?? '';
-const styles = sources.get('interaction-styles-v2.ts') ?? '';
+const styles = sources.get('interaction-styles-v2.css') ?? '';
 
 expectIncludes(frameLoop, 'recoverWhenStalled', 'frame loop needs stall recovery');
 expectIncludes(frameLoop, 'visibilitychange', 'frame loop needs visibility recovery');

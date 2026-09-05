@@ -1,4 +1,3 @@
-export const billiardsScoreboardStyles = `
 .billiards-scoreboard {
   position: relative;
   min-height: 70px;
@@ -122,4 +121,3 @@ export const billiardsScoreboardStyles = `
   text-shadow: 0 2px 8px #000;
   box-shadow: inset 0 1px rgba(255,255,255,.05);
 }
-`;

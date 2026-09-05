@@ -82,6 +82,9 @@ jobs:
       - name: Verify source contracts
         run: npm run check
 
+      - name: Prepare compact static web profile
+        run: node tools/prepare-web-engine.mjs
+
       - name: Build the Slop game hub for Pages
         working-directory: .modoki-engine
         env:
