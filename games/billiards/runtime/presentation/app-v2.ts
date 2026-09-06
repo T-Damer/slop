@@ -1,24 +1,26 @@
 import { graphicsSettings, prefersReducedMotion } from '../../../shared/game-shell/graphics-settings.ts';
 import { BilliardsTableCamera } from './table-camera.ts';
 import { BilliardsPocketJourney } from './pocket-journey.ts';
-import {
-  createEffect,
-  createRoot,
-  createSignal,
-  onCleanup,
-} from 'solid-js';
+import { createRoot, onCleanup, type Setter } from 'solid-js';
 
-import { BilliardsAdaptiveQuality } from './adaptive-quality-v2.ts';
+import { BilliardsAdaptiveQuality, type BilliardsQualityMode } from './adaptive-quality-v2.ts';
 import { BilliardsAudioEngine } from './audio.ts';
 import { BilliardsCanvasRendererV2 } from './canvas-renderer-v2.ts';
 import { bindBilliardsControlsV2 } from './control-input-v2.ts';
-import { BilliardsGameControllerV2 } from './controller-v2.ts';
+import { BilliardsGameControllerV2, type BilliardsControllerSnapshotV2 } from './controller-v2.ts';
 import { BilliardsEffectsRenderer } from './effects-renderer.ts';
 import { BilliardsFrameLoop } from './frame-loop-v2.ts';
 import { billiardsCopy, billiardsUiIds } from './registry.ts';
 import './pocket-club.css';
 import { createBilliardsViewElements, type BilliardsViewElements } from './view-elements.ts';
 import { updateBilliardsViewV2 } from './view-state-v2.ts';
+
+interface BilliardsUiState {
+  snapshot: BilliardsControllerSnapshotV2;
+  soundEnabled: boolean;
+  qualityMode: BilliardsQualityMode;
+  portrait: boolean;
+}
 
 let disposeSolidRoot: (() => void) | null = null;
 
@@ -27,7 +29,6 @@ export function mountBilliards(parent: HTMLElement): void {
   createRoot((dispose) => {
     disposeSolidRoot = dispose;
     const view = createBilliardsViewElements();
-    // Attach before observing size or subscribing to synchronous state owners.
     parent.append(view.root);
     onCleanup(() => view.root.remove());
     try {
@@ -65,58 +66,67 @@ function createBilliardsAppV2(view: BilliardsViewElements): void {
   const renderer = new BilliardsCanvasRendererV2(view.canvas, effects, pockets);
   const quality = new BilliardsAdaptiveQuality();
   const orientation = matchMedia('(orientation: portrait)');
-  const [snapshot, setSnapshot] = createSignal(controller.snapshot());
-  const [soundEnabled, setSoundEnabled] = createSignal(audio.isEnabled());
-  const [qualityMode, setQualityMode] = createSignal(quality.mode());
-  const [portrait, setPortrait] = createSignal(orientation.matches);
+  const state: BilliardsUiState = {
+    snapshot: controller.snapshot(), soundEnabled: audio.isEnabled(),
+    qualityMode: quality.mode(), portrait: orientation.matches,
+  };
   const camera = new BilliardsTableCamera(view.stage, view.canvas, controller, view.zoom);
   cleanup.push(() => camera.dispose());
+  const renderView = (): void => synchronizeView(view, state, camera, pockets);
+  const refreshQuality = (): void => {
+    const mode = quality.mode();
+    if (mode === state.qualityMode) return;
+    state.qualityMode = mode;
+    renderView();
+  };
   const frameLoop = new BilliardsFrameLoop({ onFrame: (nowMs, deltaSeconds) => {
-    if (snapshot().match.activeShot !== null) quality.observe(deltaSeconds * 1000, nowMs);
+    if (state.snapshot.match.activeShot !== null) quality.observe(deltaSeconds * 1000, nowMs);
     camera.advance(deltaSeconds);
     controller.advance(deltaSeconds);
-    const mode = quality.mode();
-    if (mode !== qualityMode()) setQualityMode(mode);
-    pockets.synchronize(snapshot().match, view, nowMs);
-    if (quality.shouldRender(nowMs)) renderer.draw({ snapshot: snapshot(), quality: mode,
+    refreshQuality();
+    pockets.synchronize(state.snapshot.match, view, nowMs);
+    if (quality.shouldRender(nowMs)) renderer.draw({ snapshot: state.snapshot, quality: state.qualityMode,
       reducedMotion: prefersReducedMotion() }, nowMs);
   } });
 
   cleanup.push(() => frameLoop.stop());
-  // Every callback dependency above is initialized before eager subscriptions.
-  cleanup.push(controller.subscribe(setSnapshot));
+  renderView();
+  cleanup.push(controller.subscribe((snapshot) => { state.snapshot = snapshot; renderView(); }));
   cleanup.push(controller.subscribeFeedback((batch) => {
     const nowMs = performance.now();
     effects.consume(batch, nowMs);
     pockets.consume(batch, controller.snapshot().match, nowMs, (id) => renderer.ballSprite(id));
     audio.consume(batch);
   }));
-  cleanup.push(bindBilliardsControlsV2({ view, controller, snapshot, audio, setSoundEnabled }));
-  cleanup.push(bindOrientation(orientation, setPortrait));
-  cleanup.push(graphicsSettings.subscribe(() => setQualityMode(quality.mode())));
-
-  createEffect(() => {
-    updateBilliardsViewV2(
-      view,
-      snapshot(),
-      soundEnabled(),
-      qualityMode(),
-      portrait(),
-    );
-    camera.synchronize(snapshot());
-    pockets.synchronize(snapshot().match, view, performance.now());
-  });
+  const setSoundEnabled = ((enabled: boolean): void => {
+    state.soundEnabled = enabled;
+    renderView();
+  }) as Setter<boolean>;
+  cleanup.push(bindBilliardsControlsV2({ view, controller, snapshot: () => state.snapshot, audio, setSoundEnabled }));
+  cleanup.push(bindOrientation(orientation, (portrait) => { state.portrait = portrait; renderView(); }));
+  cleanup.push(graphicsSettings.subscribe(refreshQuality));
 
   document.title = `${billiardsCopy.title} · SLOP`;
   if (new URLSearchParams(location.search).get('qa') === '1') {
     void import('./qa-bridge-v2.ts').then(({ installQaBridge }) => {
-      if (!disposed) installQaBridge(controller, renderer, frameLoop, quality, snapshot, portrait, camera, pockets);
+      if (!disposed) installQaBridge(controller, renderer, frameLoop, quality,
+        () => state.snapshot, () => state.portrait, camera, pockets);
     });
   }
   frameLoop.start();
-  // Public game is local-only; the optional SDK remains behind its adapter.
   void controller.start(location.origin);
   view.canvas.focus({ preventScroll: true });
+}
+
+function synchronizeView(
+  view: BilliardsViewElements,
+  state: BilliardsUiState,
+  camera: BilliardsTableCamera,
+  pockets: BilliardsPocketJourney,
+): void {
+  updateBilliardsViewV2(view, state.snapshot, state.soundEnabled, state.qualityMode, state.portrait);
+  camera.synchronize(state.snapshot);
+  pockets.synchronize(state.snapshot.match, view, performance.now());
 }
 
 function bindOrientation(
@@ -125,10 +135,5 @@ function bindOrientation(
 ): () => void {
   const listener = (): void => update(media.matches);
   media.addEventListener('change', listener);
-  window.addEventListener('orientationchange', listener);
-  return () => {
-    media.removeEventListener('change', listener);
-    window.removeEventListener('orientationchange', listener);
-  };
+  return () => media.removeEventListener('change', listener);
 }
-

@@ -36,7 +36,7 @@
         "id": "pocket-club-client",
         "match": {
           "pathPattern": "^assets/app-[A-Za-z0-9_-]+\\.js$",
-          "contentMarkers": ["slop-billiards-root"]
+          "contentMarkers": ["Pocket Club"]
         },
         "minimumMatches": 1,
         "maximumMatches": 1,

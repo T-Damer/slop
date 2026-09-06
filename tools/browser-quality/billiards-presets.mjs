@@ -29,8 +29,12 @@ export async function verifyNewMatchPause(cdp, ui) {
   await delay(220);
   const during = await read();
   if (JSON.stringify(before.match) !== JSON.stringify(during.match)) throw new Error('The new-match dialog did not pause the table.');
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
+  await cdp.send('Input.dispatchKeyEvent', {
+    type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+  });
+  await cdp.send('Input.dispatchKeyEvent', {
+    type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27,
+  });
   await waitForExpression(cdp, "document.querySelector('.billiards-match-dialog')?.open === false", 3000);
   if ((await read()).match.revision !== before.match.revision) throw new Error('Cancelling the dialog changed the match.');
 }
