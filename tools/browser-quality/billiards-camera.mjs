@@ -32,23 +32,37 @@ export async function verifyCamera(cdp, ui, directory) {
   try {
     await settleCamera(cdp);
     const before = await evaluate(cdp, `${qa}.snapshot()`);
-    await clickControl(cdp, '[data-billiards-zoom]'); await settleCamera(cdp);
-    const zoomed = await evaluate(cdp, `${qa}.snapshot()`);
-    if (zoomed.camera.zoom < 1.3) throw new Error('Explicit close-up did not enlarge the balls.');
+
+    // Verify explicit close-up separately. Pinching from an already zoomed
+    // camera can legitimately hit the maximum scale and is not a useful test.
+    await clickControl(cdp, '[data-billiards-zoom]');
+    await settleCamera(cdp);
+    const closeUp = await evaluate(cdp, `${qa}.snapshot()`);
+    if (closeUp.camera.zoom < 1.3) throw new Error('Explicit close-up did not enlarge the balls.');
     await captureScreenshot(cdp, `${directory}/close-up.png`);
-    if (zoomed.camera.portrait) {
+
+    await clickControl(cdp, '[data-billiards-zoom]');
+    await settleCamera(cdp);
+    const overview = await evaluate(cdp, `${qa}.snapshot().camera`);
+    if (Math.abs(overview.zoom - 1) > 0.001) throw new Error('Overview failed to restore the whole table.');
+
+    let pinchZoom = null;
+    if (closeUp.camera.portrait) {
       await exercisePinch(cdp, directory);
       const after = await evaluate(cdp, `${qa}.snapshot()`);
       if (after.controller.match.revision !== before.controller.match.revision || after.controller.match.activeShot !== null) {
         throw new Error('A two-finger camera gesture executed a gameplay command.');
       }
-      if (after.camera.zoom <= zoomed.camera.zoom) throw new Error('Pinch did not change camera scale.');
+      if (after.camera.zoom < 1.2) throw new Error('Pinch did not enlarge the table from overview.');
       if (after.camera.multiTouch) throw new Error('The pinch gesture remained captured after release.');
+      pinchZoom = after.camera.zoom;
+      await captureScreenshot(cdp, `${directory}/pinch.png`);
+      await clickControl(cdp, '[data-billiards-zoom]');
+      await settleCamera(cdp);
+      const restored = await evaluate(cdp, `${qa}.snapshot().camera`);
+      if (Math.abs(restored.zoom - 1) > 0.001) throw new Error('Overview failed after the pinch gesture.');
     }
-    await clickControl(cdp, '[data-billiards-zoom]'); await settleCamera(cdp);
-    const restored = await evaluate(cdp, `${qa}.snapshot().camera`);
-    if (Math.abs(restored.zoom - 1) > 0.001) throw new Error('Overview failed to restore the whole table.');
-    return { enlargedBy: zoomed.camera.zoom, overview: restored.zoom, pinchTested: zoomed.camera.portrait };
+    return { enlargedBy: closeUp.camera.zoom, overview: 1, pinchZoom, pinchTested: closeUp.camera.portrait };
   } catch (error) {
     await recordCameraFailure(cdp, directory, error);
     throw error;
