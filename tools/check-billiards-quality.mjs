@@ -30,14 +30,13 @@ try {
   const viewportReports = [];
   for (const viewport of quality.ui.requiredViewports) {
     runtimeErrors.length = 0;
-    viewportReports.push(await inspectViewport({
-      cdp,
-      viewport,
-      ui,
-      outputRoot,
-      runtimeErrors,
-      exerciseShot: true,
-    }));
+    viewportReports.push(await inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors, exerciseShot: true })
+      .catch(async (error) => {
+        const failure = { id: viewport.id, failures: [String(error)], stack: error.stack };
+        await writeFile(path.join(outputRoot, viewport.id, 'failure.json'), JSON.stringify(failure, null, 2));
+        try { await captureScreenshot(cdp, path.join(outputRoot, viewport.id, 'failure.png')); } catch { /* retain original failure */ }
+        return failure;
+      }));
   }
   const failures = viewportReports.flatMap((report) =>
     report.failures.map((failure) => `${report.id}: ${failure}`),

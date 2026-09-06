@@ -22,3 +22,12 @@ validate and normalize viewport coordinates before dispatch, and always release
 touch emulation after the manual cue gesture. Pinch itself passed the first CI
 viewport. The subsequent recorded-pot setup now uses range keyboard controls
 instead of an obsolete absolute-position click on a relative crown.
+
+CI follow-up: manual cue input and pinch now pass; Home/Arrow range input in the
+production pot fixture reached power 1 rather than 0.35. The fixture now uses
+the actual crown wheel handler with its canonical per-event cap and sensitivity,
+awaiting each result and checking angle/revision remain unchanged. No QA state
+mutation or injected pot replaces the real shot. Fatal per-viewport diagnostics
+are retained while all six viewports are exercised; failures still fail CI.
+Island held-key navigation polls at 10 ms instead of 100 ms to avoid overshooting
+planned corners, and releases keys in a finally block. Gameplay is unchanged.

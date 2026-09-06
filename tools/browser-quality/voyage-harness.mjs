@@ -3,7 +3,7 @@ import { evaluate, waitForExpression, delay, captureScreenshot } from './cdp-cli
 import path from 'node:path';
 
 export const voyageQa = 'window.__SLOP_ISLAND_QA__.scene()';
-const timing = { timeout: 60000, grid: 0.5, clearance: 0.13, goalRadius: 0.45, stopMargin: 0.06 };
+const timing = { timeout: 60000, grid: 0.5, clearance: 0.13, goalRadius: 0.45, stopMargin: 0.06, movementPollMs: 10 };
 export function voyageHarness(cdp, output) {
   let mobile = false;
   const read = () => evaluate(cdp, voyageQa);
@@ -49,7 +49,9 @@ export function voyageHarness(cdp, output) {
           const positive = difference > 0;
           const code = axis === 'x' ? positive ? 'KeyD' : 'KeyA' : positive ? 'KeyS' : 'KeyW';
           await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', code, key: code.slice(-1).toLowerCase() });
-          try { await wait(`${voyageQa}.player.${axis} ${positive ? '>=' : '<='} ${point[axis] + (positive ? -timing.stopMargin : timing.stopMargin)}`); }
+          // Poll held keys more often than the default UI waits. At 100 ms a
+          // character can overshoot a corner into the next obstacle corridor.
+          try { await waitForExpression(cdp, `${voyageQa}.player.${axis} ${positive ? '>=' : '<='} ${point[axis] + (positive ? -timing.stopMargin : timing.stopMargin)}`, timing.timeout, timing.movementPollMs); }
           finally { await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', code, key: code.slice(-1).toLowerCase() }); }
         }
       }

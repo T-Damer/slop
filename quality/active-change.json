@@ -16,9 +16,12 @@
     "tools/browser-quality/billiards-pinch.mjs",
     "tools/check-billiards-quality.mjs",
     ".github/workflows/ci.yml",
-    ".github/workflows/publish-stable.yml"
+    ".github/workflows/publish-stable.yml",
+    "tools/browser-quality/voyage-harness.mjs",
+    "games/billiards/runtime/presentation/rail-input-v2.ts",
+    "games/billiards/runtime/presentation/registry.ts"
   ],
-  "reuseDecision": "Keep the existing gate and transfer 10 kB raw / 4 kB gzip / 3 kB Brotli from unused Colyseus allowance to the expanded local game. Base and aggregate limits and matching are unchanged. Extend the existing CDP client with actionable errors; repair actual gestures instead of skipping assertions.",
+  "reuseDecision": "Keep the existing gate and transfer 10 kB raw / 4 kB gzip / 3 kB Brotli from unused Colyseus allowance to the expanded local game. Base and aggregate limits and matching are unchanged. Extend the existing CDP client with actionable errors; repair actual gestures instead of skipping assertions. Use canonical wheel tuning for native crown input, polling its observable result after every event; no synthetic shot or state writes. Faster held-key polling in the existing island harness prevents test navigation from overshooting corners. Preserve fatal viewport errors with screenshots and continue collecting evidence; every error still fails the run.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
     "Changing main, game physics or club-pyramid scope; claiming tournament rules",
@@ -32,7 +35,9 @@
     "CDP failures retain method, arguments and error details, and continue to fail CI",
     "All six billiards viewports exercise crown controls, aim, actual shots, pause/restart, camera, graphics, audio, pocket feedback and both rule sets without runtime errors",
     "Hub, Parking Jam and Junkyard browser contracts continue to pass",
-    "Only a validated candidate is moved to stable; publication validates it again and verifies the deployed HTML commit identity"
+    "Only a validated candidate is moved to stable; publication validates it again and verifies the deployed HTML commit identity",
+    "The recorded-pot setup adjusts the relative crown with real wheel events; verifies target power, unchanged angle and unchanged match revision before the real shot.",
+    "Every required billiards viewport records fatal diagnostics without hiding failures. Held-key navigation releases keys even when the unchanged predicate times out."
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json",

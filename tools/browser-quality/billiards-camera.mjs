@@ -1,4 +1,6 @@
 import { writeFile } from 'node:fs/promises';
+import { billiardsInputTuning as input } from '../../games/billiards/runtime/presentation/registry.ts';
+import { billiardsRules } from '../../games/billiards/runtime/domain/registry.ts';
 import { exercisePinch } from './billiards-pinch.mjs';
 import { captureScreenshot, delay, evaluate, waitForExpression } from './cdp-client.mjs';
 import { clickControl } from './billiards-presets.mjs';
@@ -93,13 +95,7 @@ export async function verifyPocketJourney(cdp, ui, directory, aimPoint, clickAt)
   const angle = -1.4336742886722746, power = 0.35;
   const position = await evaluate(cdp, `(() => {const cue=${qa}.snapshot().controller.match.table.balls.find(b=>b.id===0);
     return {x:640+cue.position.x*1020/254, y:360+cue.position.y*1020/254};})()`);
-  // Crowns are relative: a click must not change power. Use the accessible
-  // range keyboard path and verify the exact value before exercising the pot.
-  await clickControl(cdp, '[data-control="power"]');
-  await key(cdp, 'Home');
-  for (let step = 0; step < 31; step += 1) await key(cdp, 'ArrowRight');
-  const selected = await evaluate(cdp, `${qa}.snapshot().controller.power`);
-  if (Math.abs(selected - power) > 0.0001) throw new Error(`Power keyboard input failed: ${selected}`);
+  await setPowerWithWheel(cdp, power);
   await clickAt(cdp, await aimPoint(cdp, ui, position.x + Math.cos(angle) * 200, position.y + Math.sin(angle) * 200));
   await settleCamera(cdp);
   await evaluate(cdp, `(() => {
@@ -117,4 +113,32 @@ export async function verifyPocketJourney(cdp, ui, directory, aimPoint, clickAt)
   const evidence = await evaluate(cdp, '(() => { window.__billiardsPotEvidence.stop=true; return window.__billiardsPotEvidence; })()');
   if (evidence.drops === 0 || evidence.returns === 0) throw new Error('Pocket sink / HUD roll-out was not rendered.');
   return evidence;
+}
+
+/** Use the real crown wheel path; never mutate gameplay through the QA bridge. */
+export async function setPowerWithWheel(cdp, target) {
+  if (!Number.isFinite(target) || target < billiardsRules.minimumPower || target > billiardsRules.maximumPower) {
+    throw new Error(`Invalid test shot power: ${target}`);
+  }
+  const read = () => evaluate(cdp, `${qa}.snapshot().controller`);
+  const before = await read();
+  if (!before.canInteract) throw new Error('Cannot adjust shot power while the table is locked.');
+  const point = await evaluate(cdp, `(() => {
+    const rail=document.querySelector('[data-billiards-power-rail]');
+    const rect=rail.querySelector('.billiards-roller-drum').getBoundingClientRect();
+    const x=rect.x+rect.width/2, y=rect.y+rect.height/2;
+    if (!rail.contains(document.elementFromPoint(x,y))) throw new Error('Power crown is obscured.');
+    return {x,y};
+  })()`);
+  if (![point?.x, point?.y].every(Number.isFinite)) throw new Error('Invalid power crown coordinates.');
+  const delta = (before.power - target) * input.wheelPixelsPerPower;
+  const count = Math.max(1, Math.ceil(Math.abs(delta) / input.crownWheelPixels));
+  for (let step = 1; step <= count; step += 1) {
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...point, deltaX: 0, deltaY: delta / count });
+    const expected = before.power + (target - before.power) * step / count;
+    await waitForExpression(cdp, `Math.abs(${qa}.snapshot().controller.power - ${expected}) < 0.00001`, 3000);
+  }
+  const after = await read();
+  if (Math.abs(after.power - target) > 0.00001 || after.angleRadians !== before.angleRadians
+    || after.match.revision !== before.match.revision) throw new Error('Power wheel changed unrelated shot state.');
 }

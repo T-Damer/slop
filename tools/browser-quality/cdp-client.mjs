@@ -73,13 +73,13 @@ export async function evaluate(cdp, expression) {
   return result.result?.value;
 }
 
-export async function waitForExpression(cdp, expression, timeoutMs) {
+export async function waitForExpression(cdp, expression, timeoutMs, intervalMs = 100) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     if (await evaluate(cdp, expression)) {
       return;
     }
-    await delay(100);
+    await delay(intervalMs);
   }
   throw new Error(`Timed out waiting for expression: ${expression}`);
 }
