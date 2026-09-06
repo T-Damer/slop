@@ -63,6 +63,7 @@ export async function verifyAimControls(cdp, ui) {
 export async function performManualStroke(cdp, ui) {
   await settleCamera(cdp);
   const touch = await evaluate(cdp, 'innerHeight > innerWidth');
+  const stageBefore = await evaluate(cdp, "document.querySelector('.billiards-stage').getBoundingClientRect().height");
   const start = await aimPoint(cdp, ui, 600, 360);
   const back = await aimPoint(cdp, ui, 500, 360);
   const contact = await aimPoint(cdp, ui, 610, 360);
@@ -70,6 +71,7 @@ export async function performManualStroke(cdp, ui) {
     document.elementFromPoint(p.x,p.y)?.matches(${JSON.stringify(ui.canvasSelector)}))`)) {
     throw new Error(`Manual stroke leaves the visible canvas: ${JSON.stringify({ start, back, contact })}`);
   }
+  let released = false;
   try {
     if (touch) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
@@ -84,15 +86,18 @@ export async function performManualStroke(cdp, ui) {
     await move(back);
     await waitForExpression(cdp, `${ui.qaExpression}?.interaction.stroke?.pullback >= 90`, 3000);
     const pulled = await evaluate(cdp, ui.qaExpression);
+    const stageAfter = await evaluate(cdp, "document.querySelector('.billiards-stage').getBoundingClientRect().height");
+    if (Math.abs(stageAfter - stageBefore) > 1) throw new Error('Interaction hint resized the camera during the stroke.');
     await move(contact);
     if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     else await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...contact, button: 'left', clickCount: 1 });
+    released = true;
     return { pointer: touch ? 'touch' : 'mouse', pullback: pulled.interaction.stroke.pullback };
   } catch (error) {
     const state = await evaluate(cdp, ui.qaExpression).catch(() => null);
     error.message += `; gesture=${JSON.stringify({ start, back, contact, interaction: state?.interaction, angle: state?.angleRadians })}`;
     throw error;
   } finally {
-    if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => undefined);
+    if (touch && !released) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }).catch(() => undefined);
   }
 }

@@ -43,6 +43,7 @@ export async function exercisePinch(cdp, directory) {
     throw new Error(`Camera gesture is outside the visible canvas: ${JSON.stringify(evidence)}`);
   }
   let attempted = null;
+  let released = false;
   try {
     const send = async (type, touchPoints) => {
       attempted = { type, touchPoints };
@@ -55,6 +56,7 @@ export async function exercisePinch(cdp, directory) {
     for (const frame of frames.slice(1)) await send('touchMove', frame);
     await waitForExpression(cdp, 'window.__SLOP_BILLIARDS_QA_V2__.snapshot().camera.zoom > 1.2', 3000);
     await send('touchEnd', []);
+    released = true;
     await waitForExpression(cdp, 'window.__SLOP_BILLIARDS_QA_V2__.snapshot().camera.multiTouch === false', 3000);
   } catch (error) {
     const state = await evaluate(cdp, 'window.__SLOP_BILLIARDS_QA_V2__.snapshot()').catch(() => null);
@@ -64,8 +66,8 @@ export async function exercisePinch(cdp, directory) {
     await captureScreenshot(cdp, `${directory}/pinch-error.png`);
     throw error;
   } finally {
-    // Device capabilities belong to the viewport, not to a gesture. Toggling
-    // touch emulation between gestures can invalidate Chrome's active pointers.
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => undefined);
+    // End failed gestures too. A redundant cancel after a completed gesture
+    // can leave CDP's touch sequence poisoned for the next viewport.
+    if (!released) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }).catch(() => undefined);
   }
 }

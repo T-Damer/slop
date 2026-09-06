@@ -98,3 +98,7 @@
  .billiards-rollers { gap:6px; }
  .billiards-button { min-width:80px; padding:8px; }
 }
+
+/* Interaction hints must never resize the camera stage while a pointer owns
+   the cue. Keep two readable lines; longer localized text remains scrollable. */
+#slop-billiards-root .billiards-table-hint { height:24px; line-height:12px; overflow:auto; }

@@ -19,9 +19,11 @@
     ".github/workflows/publish-stable.yml",
     "tools/browser-quality/voyage-harness.mjs",
     "games/billiards/runtime/presentation/rail-input-v2.ts",
-    "games/billiards/runtime/presentation/registry.ts"
+    "games/billiards/runtime/presentation/registry.ts",
+    "games/billiards/runtime/presentation/pocket-club.css",
+    "games/billiards/runtime/presentation/table-camera.ts"
   ],
-  "reuseDecision": "Keep the existing gate and transfer 10 kB raw / 4 kB gzip / 3 kB Brotli from unused Colyseus allowance to the expanded local game. Base and aggregate limits and matching are unchanged. Extend the existing CDP client with actionable errors; repair actual gestures instead of skipping assertions. Use canonical wheel tuning for native crown input, polling its observable result after every event; no synthetic shot or state writes. Faster held-key polling in the existing island harness prevents test navigation from overshooting corners. Preserve fatal viewport errors with screenshots and continue collecting evidence; every error still fails the run.",
+  "reuseDecision": "Keep the existing gate and transfer 10 kB raw / 4 kB gzip / 3 kB Brotli from unused Colyseus allowance to the expanded local game. Base and aggregate limits and matching are unchanged. Extend the existing CDP client with actionable errors; repair actual gestures instead of skipping assertions. Use canonical wheel tuning for native crown input, polling its observable result after every event; no synthetic shot or state writes. Faster held-key polling in the existing island harness prevents test navigation from overshooting corners. Preserve fatal viewport errors with screenshots and continue collecting evidence; every error still fails the run. Reserve two hint lines in the existing route stylesheet so the camera ResizeObserver does not cancel a cue gesture when copy wraps. End each native touch sequence exactly once; never cancel an already-ended sequence.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
     "Changing main, game physics or club-pyramid scope; claiming tournament rules",
@@ -37,7 +39,8 @@
     "Hub, Parking Jam and Junkyard browser contracts continue to pass",
     "Only a validated candidate is moved to stable; publication validates it again and verifies the deployed HTML commit identity",
     "The recorded-pot setup adjusts the relative crown with real wheel events; verifies target power, unchanged angle and unchanged match revision before the real shot.",
-    "Every required billiards viewport records fatal diagnostics without hiding failures. Held-key navigation releases keys even when the unchanged predicate times out."
+    "Every required billiards viewport records fatal diagnostics without hiding failures. Held-key navigation releases keys even when the unchanged predicate times out.",
+    "A captured native manual stroke preserves camera-stage height when interaction hints change; real orientation/viewport changes still cancel safely."
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json",

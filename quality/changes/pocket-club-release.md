@@ -38,3 +38,10 @@ failed. Touch capability is now configured once before viewport navigation,
 not disabled and re-enabled between pinch and stroke. Gesture tests wait for
 observable capture/pullback/zoom instead of assuming delivery within 30–40 ms.
 Failures retain the complete read-only renderer/controller snapshot.
+
+The portrait stroke entered manual-stroke but returned to aim-locked before
+the pullback. Its camera also reset to overview. The live hint could wrap
+between one and two lines, resizing the stage and invoking the camera's safety
+cancellation. Reserve a two-line hint box in the existing stylesheet and assert
+that stage height remains stable during a native stroke. End failed native
+touch sequences; do not send cancel after a successfully ended sequence.
