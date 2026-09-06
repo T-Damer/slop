@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { exercisePinch } from './billiards-pinch.mjs';
 import { captureScreenshot, delay, evaluate, waitForExpression } from './cdp-client.mjs';
 import { clickControl } from './billiards-presets.mjs';
@@ -28,25 +29,49 @@ export async function verifyGraphicsMenu(cdp, directory) {
 }
 
 export async function verifyCamera(cdp, ui, directory) {
-  await settleCamera(cdp);
-  const before = await evaluate(cdp, `${qa}.snapshot()`);
-  await clickControl(cdp, '[data-billiards-zoom]'); await settleCamera(cdp);
-  const zoomed = await evaluate(cdp, `${qa}.snapshot()`);
-  if (zoomed.camera.zoom < 1.3) throw new Error('Explicit close-up did not enlarge the balls.');
-  await captureScreenshot(cdp, `${directory}/close-up.png`);
-  if (zoomed.camera.portrait) {
-    await exercisePinch(cdp, directory);
-    const after = await evaluate(cdp, `${qa}.snapshot()`);
-    if (after.controller.match.revision !== before.controller.match.revision || after.controller.match.activeShot !== null) {
-      throw new Error('A two-finger camera gesture executed a gameplay command.');
+  try {
+    await settleCamera(cdp);
+    const before = await evaluate(cdp, `${qa}.snapshot()`);
+    await clickControl(cdp, '[data-billiards-zoom]'); await settleCamera(cdp);
+    const zoomed = await evaluate(cdp, `${qa}.snapshot()`);
+    if (zoomed.camera.zoom < 1.3) throw new Error('Explicit close-up did not enlarge the balls.');
+    await captureScreenshot(cdp, `${directory}/close-up.png`);
+    if (zoomed.camera.portrait) {
+      await exercisePinch(cdp, directory);
+      const after = await evaluate(cdp, `${qa}.snapshot()`);
+      if (after.controller.match.revision !== before.controller.match.revision || after.controller.match.activeShot !== null) {
+        throw new Error('A two-finger camera gesture executed a gameplay command.');
+      }
+      if (after.camera.zoom <= zoomed.camera.zoom) throw new Error('Pinch did not change camera scale.');
+      if (after.camera.multiTouch) throw new Error('The pinch gesture remained captured after release.');
     }
-    if (after.camera.zoom <= zoomed.camera.zoom) throw new Error('Pinch did not change camera scale.');
-    if (after.camera.multiTouch) throw new Error('The pinch gesture remained captured after release.');
+    await clickControl(cdp, '[data-billiards-zoom]'); await settleCamera(cdp);
+    const restored = await evaluate(cdp, `${qa}.snapshot().camera`);
+    if (Math.abs(restored.zoom - 1) > 0.001) throw new Error('Overview failed to restore the whole table.');
+    return { enlargedBy: zoomed.camera.zoom, overview: restored.zoom, pinchTested: zoomed.camera.portrait };
+  } catch (error) {
+    await recordCameraFailure(cdp, directory, error);
+    throw error;
   }
-  await clickControl(cdp, '[data-billiards-zoom]'); await settleCamera(cdp);
-  const restored = await evaluate(cdp, `${qa}.snapshot().camera`);
-  if (Math.abs(restored.zoom - 1) > 0.001) throw new Error('Overview failed to restore the whole table.');
-  return { enlargedBy: zoomed.camera.zoom, overview: restored.zoom, pinchTested: zoomed.camera.portrait };
+}
+
+async function recordCameraFailure(cdp, directory, error) {
+  let browser = null;
+  try {
+    browser = await evaluate(cdp, `(() => {
+      const stage=document.querySelector('.billiards-stage'), canvas=document.querySelector('[data-billiards-canvas]');
+      const root=document.querySelector('#slop-billiards-root');
+      const rect=(node)=>node instanceof Element?(() => {const r=node.getBoundingClientRect();
+        return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};})():null;
+      return {qa:${qa}?.snapshot?.()??null, stage:rect(stage), canvas:rect(canvas),
+        root:{portrait:root?.dataset.billiardsPortrait??null,interaction:root?.dataset.interactionMode??null,shot:root?.dataset.shotActive??null}};
+    })()`);
+  } catch (diagnosticError) {
+    browser = { diagnosticError: String(diagnosticError) };
+  }
+  const evidence = { error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error), browser };
+  await writeFile(`${directory}/camera-error.json`, `${JSON.stringify(evidence, null, 2)}\n`);
+  try { await captureScreenshot(cdp, `${directory}/camera-error.png`); } catch { /* keep the original failure */ }
 }
 
 export async function verifyPocketJourney(cdp, ui, directory, aimPoint, clickAt) {

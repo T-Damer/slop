@@ -32,9 +32,16 @@ export async function exercisePinch(cdp, directory) {
     return { left:r.left, top:r.top, right:r.right, bottom:r.bottom, width:innerWidth, height:innerHeight };
   })()`);
   const frames = pinchPoints(bounds);
-  const hits = await evaluate(cdp, `${JSON.stringify(frames.flat())}.every(p =>
-    document.elementFromPoint(p.x,p.y)?.matches('[data-billiards-canvas]'))`);
-  if (!hits) throw new Error(`Camera gesture is outside the visible canvas: ${JSON.stringify({ bounds, frames })}`);
+  const hits = await evaluate(cdp, `${JSON.stringify(frames.flat())}.map(p => {
+    const element=document.elementFromPoint(p.x,p.y);
+    return {x:p.x,y:p.y,canvas:element?.matches('[data-billiards-canvas]')??false,
+      tag:element?.tagName??null,id:element?.id??null,className:typeof element?.className==='string'?element.className:null};
+  })`);
+  if (hits.some((hit) => !hit.canvas)) {
+    const evidence = { bounds, frames, hits };
+    await writeFile(`${directory}/pinch-hit-test.json`, `${JSON.stringify(evidence, null, 2)}\n`);
+    throw new Error(`Camera gesture is outside the visible canvas: ${JSON.stringify(evidence)}`);
+  }
   let attempted = null;
   try {
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 2 });
