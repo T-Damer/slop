@@ -36,7 +36,11 @@ export async function verifyAimControls(cdp, ui) {
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
   if ((await read()).interaction.mode !== 'aiming') failures.push('Escape did not unlock aim.');
-  await clickAt(cdp, point);
+  // Auto-zoom returns to overview after unlock. Recompute the aim coordinate only
+  // after the camera settles, otherwise a stale screen point changes the shot angle.
+  await settleCamera(cdp);
+  const relockPoint = await aimPoint(cdp, ui, 950, 360);
+  await clickAt(cdp, relockPoint);
   const gesture = await performManualStroke(cdp, ui);
   await waitForExpression(cdp, `document.querySelector(${JSON.stringify(ui.rootSelector)})?.dataset.shotActive === 'true'`, 3000);
   const executed = await read();
