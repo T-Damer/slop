@@ -1,23 +1,33 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
-// Read-only asset acquisition for review. No production fetch and no source writes.
-const source = 'https://freesound.org/people/Za-Games/sounds/539854/';
+// Read-only acquisition: public licensed previews, never login-only originals.
+// Evidence stays in an artifact; production uses reviewed, committed local clips.
+const sources = [
+  { id: 539854, author: 'Za-Games', name: 'ball', license: 'CC0-1.0', licensePath: 'publicdomain/zero/1.0' },
+  { id: 42364, author: 'mccarthy@bedmas.com', name: 'cushion', license: 'CC0-1.0', licensePath: 'publicdomain/zero/1.0' },
+  { id: 45804, author: 'Bunyi', name: 'cue', license: 'CC-BY-4.0', licensePath: 'licenses/by/4.0' },
+  { id: 241373, author: 'jtroan', name: 'pocket', license: 'CC-BY-3.0', licensePath: 'licenses/by/3.0' },
+];
 const destination = 'quality-artifacts/audio-review';
 await mkdir(destination, { recursive: true });
-const page = await fetch(source, { signal: AbortSignal.timeout(30000) });
-if (!page.ok) throw new Error(`Freesound metadata HTTP ${page.status}`);
-const html = await page.text();
-await writeFile(`${destination}/source.html`, html);
-if (!html.includes('creativecommons.org/publicdomain/zero/1.0')) throw new Error('CC0 license was not found on the source page.');
-const urls = [...html.replaceAll('\\/', '/').matchAll(/https:\/\/[^\s"'<>]+539854_[^\s"'<>]+-hq\.mp3/g)].map((match) => match[0]);
-const preview = urls.find((value) => ['cdn.freesound.org', 'freesound.org'].includes(new URL(value).hostname));
-if (!preview) throw new Error('No public high-quality preview found.');
-const response = await fetch(preview, { signal: AbortSignal.timeout(30000) });
-if (!response.ok) throw new Error(`Freesound audio HTTP ${response.status}`);
-const bytes = Buffer.from(await response.arrayBuffer());
-if (bytes.length === 0 || bytes.length > 512000) throw new Error('Unexpected preview size.');
-await writeFile(`${destination}/billiard-clack.mp3`, bytes);
-await writeFile(`${destination}/provenance.json`, JSON.stringify({ source, preview,
-  author: 'Za-Games', soundId: 539854, license: 'CC0-1.0',
-  sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length }, null, 2));
+for (const sound of sources) {
+  const source = `https://freesound.org/people/${encodeURIComponent(sound.author)}/sounds/${sound.id}/`;
+  const page = await fetch(source, { signal: AbortSignal.timeout(30000) });
+  if (!page.ok) throw new Error(`Metadata ${sound.name}: HTTP ${page.status}`);
+  const html = (await page.text()).replaceAll('\\/', '/');
+  await writeFile(`${destination}/${sound.name}-source.html`, html);
+  if (!html.includes(`creativecommons.org/${sound.licensePath}`)) throw new Error(`License mismatch: ${sound.name}`);
+  const pattern = new RegExp(`https://[^\\s"'<>]+${sound.id}_[^\\s"'<>]+-hq\\.mp3`, 'g');
+  const preview = [...html.matchAll(pattern)].map(([url]) => url).find((url) =>
+    ['cdn.freesound.org', 'fcdn.freesound.org', 'freesound.org'].includes(new URL(url).hostname));
+  if (!preview) throw new Error(`No public preview: ${sound.name}`);
+  const response = await fetch(preview, { signal: AbortSignal.timeout(30000) });
+  if (!response.ok) throw new Error(`Audio ${sound.name}: HTTP ${response.status}`);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (!bytes.length || bytes.length > 512000) throw new Error(`Unexpected size: ${sound.name}`);
+  await writeFile(`${destination}/${sound.name}.mp3`, bytes);
+  await writeFile(`${destination}/${sound.name}.json`, JSON.stringify({ ...sound, source, preview,
+    sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length }, null, 2));
+  console.log(`${sound.name}: ${sound.license}, ${bytes.length} bytes`);
+}
