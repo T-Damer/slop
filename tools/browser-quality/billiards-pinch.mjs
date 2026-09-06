@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { captureScreenshot, delay, evaluate } from './cdp-client.mjs';
+import { captureScreenshot, delay, evaluate, waitForExpression } from './cdp-client.mjs';
 
 const pinch = { margin: 8, minimumSpan: 128, spread: 30, steps: 4, intervalMs: 40 };
 
@@ -44,7 +44,6 @@ export async function exercisePinch(cdp, directory) {
   }
   let attempted = null;
   try {
-    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 2 });
     const send = async (type, touchPoints) => {
       attempted = { type, touchPoints };
       await cdp.send('Input.dispatchTouchEvent', attempted);
@@ -52,17 +51,21 @@ export async function exercisePinch(cdp, directory) {
     };
     await send('touchStart', [frames[0][0]]);
     await send('touchStart', frames[0]);
+    await waitForExpression(cdp, 'window.__SLOP_BILLIARDS_QA_V2__.snapshot().camera.multiTouch === true', 3000);
     for (const frame of frames.slice(1)) await send('touchMove', frame);
+    await waitForExpression(cdp, 'window.__SLOP_BILLIARDS_QA_V2__.snapshot().camera.zoom > 1.2', 3000);
     await send('touchEnd', []);
+    await waitForExpression(cdp, 'window.__SLOP_BILLIARDS_QA_V2__.snapshot().camera.multiTouch === false', 3000);
   } catch (error) {
-    const evidence = { bounds, frames, attempted, error: String(error) };
+    const state = await evaluate(cdp, 'window.__SLOP_BILLIARDS_QA_V2__.snapshot()').catch(() => null);
+    const evidence = { bounds, frames, attempted, state, error: String(error) };
     console.error(JSON.stringify(evidence));
     await writeFile(`${directory}/pinch-error.json`, JSON.stringify(evidence, null, 2));
     await captureScreenshot(cdp, `${directory}/pinch-error.png`);
     throw error;
   } finally {
-    // Do not leak the pinch-only touch emulation into the subsequent mouse/touch
-    // control contract. Manual stroke tests enable their own touch environment.
-    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false }).catch(() => undefined);
+    // Device capabilities belong to the viewport, not to a gesture. Toggling
+    // touch emulation between gestures can invalidate Chrome's active pointers.
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => undefined);
   }
 }

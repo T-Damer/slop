@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { inputPoint, aimPoint } from './browser-quality/billiards-controls.mjs';
@@ -16,4 +17,14 @@ test('aim input awaits the browser coordinate and rounds both touch axes consist
     return { result: { value: { x: 166.66666666666666, y: 444.4444444444444 } } };
   } }, { canvasSelector: '[data-billiards-canvas]' }, 950, 360);
   assert.deepEqual(point, { x: 166.67, y: 444.44 });
+});
+
+test('touch device capabilities are configured once before navigation, not by individual gestures', async () => {
+  const entry = await readFile('tools/check-billiards-quality.mjs', 'utf8');
+  assert.ok(entry.indexOf('Emulation.setTouchEmulationEnabled') < entry.indexOf("cdp.send('Page.navigate'"));
+  for (const path of ['billiards-controls.mjs', 'billiards-pinch.mjs']) {
+    const source = await readFile(`tools/browser-quality/${path}`, 'utf8');
+    assert.doesNotMatch(source, /Emulation.setTouchEmulationEnabled/);
+    assert.match(source, /waitForExpression/);
+  }
 });

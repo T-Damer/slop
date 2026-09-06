@@ -72,30 +72,27 @@ export async function performManualStroke(cdp, ui) {
   }
   try {
     if (touch) {
-      await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
     } else {
       await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...start });
       await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...start, button: 'left', buttons: 1, clickCount: 1 });
     }
-    await delay(30);
+    await waitForExpression(cdp, `${ui.qaExpression}?.interaction.mode === 'manual-stroke'`, 3000);
     const move = (point) => touch
       ? cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, id: 1 }] })
       : cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point, button: 'left', buttons: 1 });
     await move(back);
-    await delay(40);
+    await waitForExpression(cdp, `${ui.qaExpression}?.interaction.stroke?.pullback >= 90`, 3000);
     const pulled = await evaluate(cdp, ui.qaExpression);
-    if (pulled?.interaction.mode !== 'manual-stroke' || pulled.interaction.stroke.pullback < 90) {
-      throw new Error('The captured pointer did not pull the prepared cue.');
-    }
     await move(contact);
     if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     else await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...contact, button: 'left', clickCount: 1 });
     return { pointer: touch ? 'touch' : 'mouse', pullback: pulled.interaction.stroke.pullback };
+  } catch (error) {
+    const state = await evaluate(cdp, ui.qaExpression).catch(() => null);
+    error.message += `; gesture=${JSON.stringify({ start, back, contact, interaction: state?.interaction, angle: state?.angleRadians })}`;
+    throw error;
   } finally {
-    if (touch) {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => undefined);
-      await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false }).catch(() => undefined);
-    }
+    if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => undefined);
   }
 }

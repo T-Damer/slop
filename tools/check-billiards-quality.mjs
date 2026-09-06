@@ -32,7 +32,7 @@ try {
     runtimeErrors.length = 0;
     viewportReports.push(await inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors, exerciseShot: true })
       .catch(async (error) => {
-        const failure = { id: viewport.id, failures: [String(error)], stack: error.stack };
+        const failure = { id: viewport.id, failures: [String(error)], stack: error.stack, state: await evaluate(cdp, 'window.__SLOP_BILLIARDS_QA_V2__?.snapshot()').catch(() => null) };
         await writeFile(path.join(outputRoot, viewport.id, 'failure.json'), JSON.stringify(failure, null, 2));
         try { await captureScreenshot(cdp, path.join(outputRoot, viewport.id, 'failure.png')); } catch { /* retain original failure */ }
         return failure;
@@ -81,6 +81,7 @@ async function inspectViewport({
     deviceScaleFactor: 1,
     mobile: viewport.width <= 768,
   });
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: viewport.height > viewport.width, maxTouchPoints: 2 });
   const url = withQuery(baseUrl, ui.stableQuery, viewport.id);
   await cdp.send('Page.navigate', { url });
   await waitForExpression(

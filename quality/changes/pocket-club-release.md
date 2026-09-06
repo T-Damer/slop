@@ -31,3 +31,10 @@ mutation or injected pot replaces the real shot. Fatal per-viewport diagnostics
 are retained while all six viewports are exercised; failures still fail CI.
 Island held-key navigation polls at 10 ms instead of 100 ms to avoid overshooting
 planned corners, and releases keys in a finally block. Gameplay is unchanged.
+
+Run 34058991608 passed the full tablet-landscape and desktop billiards suites,
+including the real pot, recorded audio and both presets. Portrait gestures
+failed. Touch capability is now configured once before viewport navigation,
+not disabled and re-enabled between pinch and stroke. Gesture tests wait for
+observable capture/pullback/zoom instead of assuming delivery within 30–40 ms.
+Failures retain the complete read-only renderer/controller snapshot.
