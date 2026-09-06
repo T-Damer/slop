@@ -1,3 +1,4 @@
+import { selectedCue, type BilliardsCueId } from './cue-selection.ts';
 import type { BilliardsPocketJourney } from './pocket-journey.ts';
 import { tableModelFor, type BilliardsTableModel } from '../domain/table-model.ts';
 import type { BilliardsQualityMode } from './adaptive-quality-v2.ts';
@@ -47,6 +48,7 @@ export class BilliardsCanvasRendererV2 {
   private previous: BilliardsControllerSnapshotV2 | null = null;
   private hadEffects = false;
   private cueReady = false;
+  private cueId: BilliardsCueId = 'house';
   private sceneDrawCount = 0;
 
   public constructor(
@@ -73,12 +75,14 @@ export class BilliardsCanvasRendererV2 {
   }
 
   public draw(state: BilliardsCanvasRenderStateV2, nowMs: number): void {
+    const cueId = selectedCue(this.canvas);
+    if (cueId !== this.cueId) { this.cueId = cueId; this.cueReady = false; }
     const effects = this.effects.debugSnapshot(nowMs);
     const activeEffects = effects.activeImpacts > 0 || effects.cueStrikeActive || this.pockets.active(nowMs);
     if (this.previous === state.snapshot && this.quality === state.quality
       && !activeEffects && !this.hadEffects && this.cueReady && !this.staticSceneDirty) return;
     this.previous = state.snapshot; this.hadEffects = activeEffects;
-    this.cueReady = isCueTextureReady(); this.sceneDrawCount += 1;
+    this.cueReady = isCueTextureReady(cueId); this.sceneDrawCount += 1;
     this.quality = state.quality;
     const model = tableModelFor(state.snapshot.match.table);
     if (this.model !== model) { this.model = model; this.staticSceneDirty = true; }
@@ -104,6 +108,7 @@ export class BilliardsCanvasRendererV2 {
           interaction: snapshot.interaction,
           skin,
           quality: state.quality,
+          cueId,
         });
       }
     }
@@ -113,6 +118,7 @@ export class BilliardsCanvasRendererV2 {
         this.effects.cueAnimation(nowMs),
         skin,
         state.quality,
+        cueId,
       );
     }
     this.balls.draw(context, snapshot.match.table, this.skin, state.quality, placing);

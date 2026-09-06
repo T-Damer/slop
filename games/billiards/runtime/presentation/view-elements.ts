@@ -57,8 +57,8 @@ function playerCard(index: number): string {
       `<span class="billiards-ball-slot" data-billiards-pocket-slot data-ball-id="${id}" hidden role="img"></span>`).join('')}</div></div></article>`;
 }
 function roller(id: string, label: string, value: string, min: string, max: string, step: string): string {
-  return `<label class="billiards-side-control billiards-${id}-control" data-billiards-${id}-rail>
-    <span class="billiards-side-caption">${label}</span><span class="billiards-roller-drum">
+  return `<label class="billiards-side-control billiards-${id}-control" data-billiards-${id}-rail title="${label}: тяните влево/вправо или прокручивайте колесо">
+    <span class="billiards-side-caption">↔ ${label}</span><span class="billiards-roller-drum">
     <span class="billiards-roller-ridges" aria-hidden="true"></span><output data-output-for="${id}">${value}</output>
     <input data-control="${id}" type="range" min="${min}" max="${max}" step="${step}" aria-label="${label}"></span></label>`;
 }

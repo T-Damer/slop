@@ -16,3 +16,10 @@
 .billiards-match-dialog footer { display: flex; justify-content: end; gap: 10px; }
 .billiards-match-dialog button { min-height: 44px; padding: 8px 16px; border: 1px solid #ac8956; border-radius: 9px; background: #43301e; color: #f0e2c8; font: inherit; cursor: pointer; }
 .billiards-match-dialog :focus-visible { outline: 2px solid #f4d499; outline-offset: 3px; }
+
+.billiards-match-dialog { overflow-y:auto; overscroll-behavior:contain; }
+.billiards-cue-card { display:flex; align-items:center; gap:10px; padding:7px 10px; min-height:44px; border:1px solid #64513b; border-radius:9px; margin:6px 0; cursor:pointer; }
+.billiards-cue-card:has(input:checked) { background:#49351e; border-color:#e5bb76; }
+.billiards-cue-card span { min-width:0; flex:1; font-size:12px; }
+.billiards-cue-card img { display:block; width:100%; max-width:304px; height:16px; margin-top:3px; object-fit:fill; }
+.billiards-cue-card input { accent-color:#d1aa64; }

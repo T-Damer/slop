@@ -12,24 +12,28 @@ export interface BilliardsRailInputOptions {
 }
 
 export function bindBilliardsRailInputV2(options: BilliardsRailInputOptions): () => void {
-  let angleCoordinate = 0;
-  let detent = 0;
-  const power = (event: PointerEvent): void => {
-    const rect = options.view.powerRail.getBoundingClientRect();
-    options.controller.setPower(clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0));
-  };
-  const angle = (event: PointerEvent, beginning: boolean): void => {
-    const coordinate = event.clientX;
-    if (!beginning) options.controller.adjustAngle((coordinate - angleCoordinate) * tuning.angleRadiansPerPixel);
-    angleCoordinate = coordinate;
-    const nextDetent = Math.floor(coordinate / 12);
-    if (!beginning && nextDetent !== detent) options.audio.playDialTick();
-    detent = nextDetent;
+  // Both controls are relative drums. Grabbing their edge must not jump a value.
+  const crown = (kind: 'power' | 'angle') => {
+    let coordinate = 0;
+    let travel = 0;
+    return (event: PointerEvent, beginning: boolean): void => {
+      const delta = beginning ? 0 : event.clientX - coordinate;
+      coordinate = event.clientX;
+      if (delta === 0) return;
+      const before = options.snapshot();
+      if (kind === 'power') options.controller.adjustPower(delta / tuning.powerPixelsPerUnit);
+      else options.controller.adjustAngle(delta * tuning.angleRadiansPerPixel);
+      const after = options.snapshot();
+      if (before.power === after.power && before.angleRadians === after.angleRadians) return;
+      const previous = Math.floor(travel / tuning.crownDetentPixels);
+      travel += delta;
+      if (Math.floor(travel / tuning.crownDetentPixels) !== previous) options.audio.playDialTick();
+    };
   };
   const key = (event: KeyboardEvent): void => {
     const direction = ['ArrowLeft', 'ArrowDown'].includes(event.code) ? -1
       : ['ArrowRight', 'ArrowUp'].includes(event.code) ? 1 : 0;
-    if (direction === 0) return;
+    if (direction === 0 || !options.snapshot().canInteract) return;
     event.preventDefault(); event.stopPropagation();
     options.controller.adjustAngle(direction * (event.shiftKey ? tuning.fineAngleStep : tuning.angleStep));
     options.audio.playDialTick();
@@ -37,9 +41,11 @@ export function bindBilliardsRailInputV2(options: BilliardsRailInputOptions): ()
   options.view.angle.addEventListener('keydown', key);
   const removers = [
     () => options.view.angle.removeEventListener('keydown', key),
-    bindCapturedControl(options.view.powerRail, options, power),
-    bindCapturedControl(options.view.angleRail, options, angle),
+    bindCapturedControl(options.view.powerRail, options, crown('power')),
+    bindCapturedControl(options.view.angleRail, options, crown('angle')),
     bindRangeInputs(options),
+    bindCrownWheel(options.view.powerRail, options, 'power'),
+    bindCrownWheel(options.view.angleRail, options, 'angle'),
   ];
   return () => removers.forEach((remove) => remove());
 }
@@ -60,7 +66,8 @@ function bindCapturedControl(
   };
   const down = (event: PointerEvent): void => {
     if (!event.isPrimary || event.button !== 0 || pointerId !== null || !options.snapshot().canInteract) return;
-    event.preventDefault();
+    event.preventDefault(); event.stopPropagation();
+    element.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
     pointerId = event.pointerId;
     element.setPointerCapture(pointerId);
     void options.audio.unlock();
@@ -68,12 +75,13 @@ function bindCapturedControl(
   };
   const move = (event: PointerEvent): void => {
     if (pointerId !== event.pointerId) return;
-    event.preventDefault();
+    if (!options.snapshot().canInteract) { cancel(); return; }
+    event.preventDefault(); event.stopPropagation();
     update(event, false);
   };
   const up = (event: PointerEvent): void => {
     if (pointerId !== event.pointerId) return;
-    update(event, false);
+    if (options.snapshot().canInteract) update(event, false);
     cancel();
   };
   element.addEventListener('pointerdown', down, listeners);
@@ -102,6 +110,28 @@ function bindRangeInputs(options: BilliardsRailInputOptions): () => void {
   return () => removers.forEach((remove) => remove());
 }
 
-function clamp(value: number, minimum: number): number {
-  return Math.min(1, Math.max(minimum, value));
+/** A wheel over angle must not bubble into the table-wide power shortcut. */
+function bindCrownWheel(element: HTMLElement, options: BilliardsRailInputOptions,
+  kind: 'power' | 'angle'): () => void {
+  let travel = 0;
+  const wheel = (event: WheelEvent): void => {
+    if (event.ctrlKey || event.metaKey) return;
+    event.preventDefault(); event.stopPropagation();
+    if (!options.snapshot().canInteract) return;
+    const unit = event.deltaMode === 1 ? tuning.wheelLinePixels : event.deltaMode === 2 ? element.clientWidth : 1;
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : -event.deltaY;
+    const pixels = Math.max(-tuning.crownWheelPixels, Math.min(tuning.crownWheelPixels, delta * unit));
+    if (pixels === 0) return;
+    void options.audio.unlock();
+    const before = options.snapshot();
+    if (kind === 'power') options.controller.adjustPower(pixels / tuning.wheelPixelsPerPower);
+    else options.controller.adjustAngle(pixels * (event.shiftKey ? tuning.fineAngleStep : tuning.angleStep) / tuning.wheelLinePixels);
+    const after = options.snapshot();
+    if (before.power === after.power && before.angleRadians === after.angleRadians) return;
+    const previous = Math.floor(travel / tuning.crownDetentPixels);
+    travel += pixels;
+    if (Math.floor(travel / tuning.crownDetentPixels) !== previous) options.audio.playDialTick();
+  };
+  element.addEventListener('wheel', wheel, { passive: false });
+  return () => element.removeEventListener('wheel', wheel);
 }

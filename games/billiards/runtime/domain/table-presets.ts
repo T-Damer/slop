@@ -21,8 +21,10 @@ export const billiardsTablePresets = {
     ballRadius: 3.4 * billiardsPhysics.tableWidth / 356.8,
     cornerGap: 7.6 / Math.SQRT2 * billiardsPhysics.tableWidth / 356.8,
     sideGap: 8.2 / 2 * billiardsPhysics.tableWidth / 356.8,
-    cornerRadius: 7.6 / 2 * billiardsPhysics.tableWidth / 356.8,
-    sideRadius: 8.2 / 2 * billiardsPhysics.tableWidth / 356.8,
+    // A roomy bowl behind a tight mouth: the jaws, not a tiny sink circle,
+    // reject oblique shots. Capture remains gated by the mouth plane.
+    cornerRadius: 5.8 * billiardsPhysics.tableWidth / 356.8,
+    sideRadius: 6.0 * billiardsPhysics.tableWidth / 356.8,
     gatedPockets: true,
   },
 } as const;

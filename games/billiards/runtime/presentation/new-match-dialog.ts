@@ -1,3 +1,4 @@
+import { billiardsCues, selectedCue, selectCue } from './cue-selection.ts';
 import { billiardsPresetIds, isBilliardsPresetId, tablePreset } from '../domain/table-presets.ts';
 import type { BilliardsGameControllerV2 } from './controller-v2.ts';
 import type { BilliardsViewElements } from './view-elements.ts';
@@ -20,6 +21,9 @@ export function bindNewMatchDialog(view: BilliardsViewElements, controller: Bill
     <fieldset><legend>Тип стола</legend>${matchPicker.options.map((option) => `
       <label class="billiards-preset-card"><input type="radio" name="preset" value="${option.id}" required>
       <span><strong>${option.name}</strong><small>${option.detail}</small></span></label>`).join('')}
+    </fieldset><fieldset><legend>Кий · только внешний вид</legend>
+    ${billiardsCues.map((cue) => `<label class="billiards-cue-card"><input type="radio" name="cue" value="${cue.id}" required>
+      <span>${cue.name}<img src="${cue.url}" alt="" width="304" height="16"></span></label>`).join('')}
     </fieldset><p>${matchPicker.notice}</p>
     <footer><button type="submit" value="cancel" formnovalidate>Отмена</button>
     <button type="submit" value="start" data-billiards-new-match>Начать</button></footer>
@@ -30,6 +34,8 @@ export function bindNewMatchDialog(view: BilliardsViewElements, controller: Bill
     controller.setPaused(true);
     const radio = dialog.querySelector<HTMLInputElement>(`input[value="${tablePreset(controller.snapshot().match.table).id}"]`);
     if (radio) radio.checked = true;
+    const cue = dialog.querySelector<HTMLInputElement>(`input[name="cue"][value="${selectedCue(view.canvas)}"]`);
+    if (cue) cue.checked = true;
     dialog.showModal();
     radio?.focus();
   };
@@ -42,8 +48,9 @@ export function bindNewMatchDialog(view: BilliardsViewElements, controller: Bill
     event.preventDefault();
     const button = event.submitter;
     if (!(button instanceof HTMLButtonElement) || button.value !== 'start') { dialog.close(); return; }
-    const preset = new FormData(dialog.querySelector('form')!).get('preset');
-    if (!isBilliardsPresetId(preset)) return;
+    const choices = new FormData(dialog.querySelector('form')!);
+    const preset = choices.get('preset');
+    if (!isBilliardsPresetId(preset) || !selectCue(view.canvas, choices.get('cue'))) return;
     controller.restart(preset);
     dialog.close();
   };

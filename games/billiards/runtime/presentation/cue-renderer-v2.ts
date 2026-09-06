@@ -1,3 +1,4 @@
+import { billiardsCues, type BilliardsCueId } from './cue-selection.ts';
 import type { Vec2 } from '../domain/types.ts';
 import type { BilliardsQualityMode } from './adaptive-quality-v2.ts';
 import { worldToCanvas } from './coordinates.ts';
@@ -7,17 +8,17 @@ import { billiardsView } from './registry.ts';
 import type { BilliardsTableSkinV2 } from './table-skins-v2.ts';
 
 const cueMaterial = {
-  url: new URL('./assets/house-cue.svg', import.meta.url).href,
   length: 360, width: 14, tipWidth: 2.5, tipLength: 3, minLight: 0.4,
   preparedGap: 13, powerGap: 15,
 } as const;
-let texture: HTMLImageElement | null = null;
-let failed = false;
-
-export function isCueTextureReady(): boolean { return failed || (texture?.complete === true && texture.naturalWidth > 0); }
-function image(): HTMLImageElement {
-  if (texture === null) {
-    texture = new Image(); texture.onerror = () => { failed = true; }; texture.src = cueMaterial.url;
+const textures = new Map<BilliardsCueId, HTMLImageElement>();
+export function isCueTextureReady(id: BilliardsCueId = 'house'): boolean { return textures.get(id)?.complete === true; }
+function image(id: BilliardsCueId): HTMLImageElement {
+  let texture = textures.get(id);
+  if (!texture) {
+    texture = new Image();
+    texture.src = billiardsCues.find((cue) => cue.id === id)!.url;
+    textures.set(id, texture);
   }
   return texture;
 }
@@ -29,27 +30,28 @@ export interface BilliardsCueRenderOptionsV2 {
   readonly interaction: BilliardsInteractionState;
   readonly skin: BilliardsTableSkinV2;
   readonly quality: BilliardsQualityMode;
+  readonly cueId?: BilliardsCueId;
 }
 
 export function drawBilliardsCueV2(context: CanvasRenderingContext2D, options: BilliardsCueRenderOptionsV2): void {
   const locked = options.interaction.mode === modes.aimLocked || options.interaction.mode === modes.manualStroke;
   const gap = (locked ? cueMaterial.preparedGap + options.power * cueMaterial.powerGap : 0)
     + (options.interaction.stroke?.cueOffset ?? 0);
-  drawCue(context, options.cueBallPosition, options.angleRadians, gap, locked ? 1 : 0.9, options.skin);
+  drawCue(context, options.cueBallPosition, options.angleRadians, gap, locked ? 1 : 0.9, options.skin, options.cueId ?? 'house');
 }
 
 export function drawBilliardsCueStrikeV2(context: CanvasRenderingContext2D,
-  animation: BilliardsCueStrikeAnimation | null, skin: BilliardsTableSkinV2, _quality: BilliardsQualityMode): void {
+  animation: BilliardsCueStrikeAnimation | null, skin: BilliardsTableSkinV2, _quality: BilliardsQualityMode, cueId: BilliardsCueId = 'house'): void {
   if (animation === null) return;
   const contact = Math.min(1, animation.progress / 0.44);
   const recovery = Math.max(0, (animation.progress - 0.44) / 0.56);
   const pullback = (16 + animation.power * 45) * (1 - contact) ** 3 + recovery * 24;
-  drawCue(context, animation.position, animation.angleRadians, pullback, 1 - recovery * 0.84, skin);
+  drawCue(context, animation.position, animation.angleRadians, pullback, 1 - recovery * 0.84, skin, cueId);
 }
 
 function drawCue(context: CanvasRenderingContext2D, position: Vec2, angle: number,
-  pullback: number, alpha: number, skin: BilliardsTableSkinV2): void {
-  const center = worldToCanvas(position), source = image();
+  pullback: number, alpha: number, skin: BilliardsTableSkinV2, cueId: BilliardsCueId): void {
+  const center = worldToCanvas(position), source = image(cueId);
   const gap = Math.max(cueMaterial.tipLength, billiardsView.cueGap + pullback);
   const light = Math.max(cueMaterial.minLight, 1 - Math.hypot(
     center.x / billiardsView.canvasWidth - skin.light.x,

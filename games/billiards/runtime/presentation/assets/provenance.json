@@ -33,6 +33,28 @@
       "bytes": 1651,
       "maximumBytes": 4000,
       "sha256": "5e9253cbf2f715469d7f928e6ddfa8450a2e68c667a29186acaf3610bc773af4"
+    },
+    {
+      "id": "ebony-cue",
+      "path": "games/billiards/runtime/presentation/assets/ebony-cue.svg",
+      "license": "project-authored",
+      "source": "Original SVG authored for Pocket Club; no external textures.",
+      "promptSummary": "Tapered cue with cylindrical shading, brass/ivory rings, contrasting wrap and geometric inlays. Viewbox 760x28; tip left, butt right.",
+      "runtimeUse": "Cue choice preview and the actual aiming/strike renderer.",
+      "sha256": "2f85968ce2de091d4e102a5664dcc03f71cf844cc4bef7329b6445aca99fc78b",
+      "bytes": 1043,
+      "maximumBytes": 2000
+    },
+    {
+      "id": "maple-cue",
+      "path": "games/billiards/runtime/presentation/assets/maple-cue.svg",
+      "license": "project-authored",
+      "source": "Original SVG authored for Pocket Club; no external textures.",
+      "promptSummary": "Tapered cue with cylindrical shading, brass/ivory rings, contrasting wrap and geometric inlays. Viewbox 760x28; tip left, butt right.",
+      "runtimeUse": "Cue choice preview and the actual aiming/strike renderer.",
+      "sha256": "70852af607add1a95e99912447b18e25e7368799fd9c24acd86219630bbe74ce",
+      "bytes": 1071,
+      "maximumBytes": 2000
     }
   ]
 }

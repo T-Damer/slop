@@ -41,8 +41,8 @@ export function drawBilliardsTable(context: CanvasRenderingContext2D, model: Bil
   context.fill();
   drawFeltLighting(context);
   drawFeltGrain(context);
-  drawCushionBevels(context, model);
   drawPockets(context, model);
+  drawCushionBevels(context, model);
   drawRailSights(context);
 }
 

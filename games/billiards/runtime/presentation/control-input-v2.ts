@@ -72,7 +72,8 @@ function bindKeyboard(options: BilliardsControlInputOptionsV2): () => void {
 
 function bindWheel(options: BilliardsControlInputOptionsV2): () => void {
   const onWheel = (event: WheelEvent): void => {
-    if (event.ctrlKey || event.metaKey || event.deltaY === 0) return;
+    if (event.ctrlKey || event.metaKey || event.deltaY === 0 || !options.snapshot().canInteract
+      || options.view.root.querySelector('dialog[open]') !== null) return;
     event.preventDefault();
     const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? tuning.wheelLinePixels
       : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? innerHeight : 1;

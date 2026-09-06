@@ -104,5 +104,6 @@ export const billiardsFeedbackTuning = {
 export const billiardsInputTuning = {
   angleStep: 0.009, fineAngleStep: 0.0025, angleRadiansPerPixel: 0.012,
   maximumWheelStep: 0.12, wheelPixelsPerPower: 700, wheelLinePixels: 16,
+  powerPixelsPerUnit: 180, crownDetentPixels: 9, crownWheelPixels: 84,
   degreesToRadians: Math.PI / 180,
 } as const;

@@ -15,6 +15,7 @@ export class BilliardsAudioSynth {
   private muted = false;
   private consumedRevision = -1;
   private disposed = false;
+  private lastDialAt = -Infinity;
 
   public constructor(context: AudioContext) {
     this.context = context;
@@ -42,7 +43,11 @@ export class BilliardsAudioSynth {
   }
 
   public playDialTick(): void {
-    if (this.canPlay()) this.playTone(1800, 0.012, 0.022, 'triangle', 0, 0);
+    const now = this.context?.currentTime ?? 0;
+    if (!this.canPlay() || now - this.lastDialAt < 0.025) return;
+    this.lastDialAt = now;
+    this.playNoise(0.014, 0.045, 2600, 0, 0);
+    this.playTone(640, 0.009, 0.009, 'triangle', 0, 0);
   }
 
   public toggle(): boolean {
