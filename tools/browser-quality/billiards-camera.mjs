@@ -93,9 +93,13 @@ export async function verifyPocketJourney(cdp, ui, directory, aimPoint, clickAt)
   const angle = -1.4336742886722746, power = 0.35;
   const position = await evaluate(cdp, `(() => {const cue=${qa}.snapshot().controller.match.table.balls.find(b=>b.id===0);
     return {x:640+cue.position.x*1020/254, y:360+cue.position.y*1020/254};})()`);
-  const powerPoint = await evaluate(cdp, `(() => {const r=document.querySelector('.billiards-power-control').getBoundingClientRect();
-    return {x:r.left+r.width*${power},y:r.bottom-22};})()`);
-  await clickAt(cdp, powerPoint);
+  // Crowns are relative: a click must not change power. Use the accessible
+  // range keyboard path and verify the exact value before exercising the pot.
+  await clickControl(cdp, '[data-control="power"]');
+  await key(cdp, 'Home');
+  for (let step = 0; step < 31; step += 1) await key(cdp, 'ArrowRight');
+  const selected = await evaluate(cdp, `${qa}.snapshot().controller.power`);
+  if (Math.abs(selected - power) > 0.0001) throw new Error(`Power keyboard input failed: ${selected}`);
   await clickAt(cdp, await aimPoint(cdp, ui, position.x + Math.cos(angle) * 200, position.y + Math.sin(angle) * 200));
   await settleCamera(cdp);
   await evaluate(cdp, `(() => {

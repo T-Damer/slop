@@ -8,13 +8,23 @@ export async function clickAt(cdp, point) {
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 });
 }
 
-export function aimPoint(cdp, ui, x, y) {
-  return evaluate(cdp, `(() => {
+export async function aimPoint(cdp, ui, x, y) {
+  const point = await evaluate(cdp, `(() => {
     const rect = document.querySelector(${JSON.stringify(ui.canvasSelector)}).getBoundingClientRect();
     return innerHeight > innerWidth
       ? { x: rect.left + (1 - ${y} / 720) * rect.width, y: rect.top + ${x} / 1280 * rect.height }
       : { x: rect.left + ${x} / 1280 * rect.width, y: rect.top + ${y} / 720 * rect.height };
   })()`);
+  return inputPoint(point);
+}
+
+/** Native input coordinates are viewport CSS pixels. Preserve subpixel accuracy
+ * but never send NaN/null to CDP, whose JSON transport would hide their origin. */
+export function inputPoint(point) {
+  if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y)) {
+    throw new Error(`Invalid billiards input coordinate: ${JSON.stringify(point)}`);
+  }
+  return { x: Math.round(point.x * 100) / 100, y: Math.round(point.y * 100) / 100 };
 }
 
 export async function verifyAimControls(cdp, ui) {
@@ -56,25 +66,36 @@ export async function performManualStroke(cdp, ui) {
   const start = await aimPoint(cdp, ui, 600, 360);
   const back = await aimPoint(cdp, ui, 500, 360);
   const contact = await aimPoint(cdp, ui, 610, 360);
-  if (touch) {
-    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
-  } else {
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...start });
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...start, button: 'left', buttons: 1, clickCount: 1 });
+  if (!await evaluate(cdp, `${JSON.stringify([start, back, contact])}.every(p =>
+    document.elementFromPoint(p.x,p.y)?.matches(${JSON.stringify(ui.canvasSelector)}))`)) {
+    throw new Error(`Manual stroke leaves the visible canvas: ${JSON.stringify({ start, back, contact })}`);
   }
-  await delay(30);
-  const move = (point) => touch
-    ? cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, id: 1 }] })
-    : cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point, button: 'left', buttons: 1 });
-  await move(back);
-  await delay(40);
-  const pulled = await evaluate(cdp, ui.qaExpression);
-  if (pulled?.interaction.mode !== 'manual-stroke' || pulled.interaction.stroke.pullback < 90) {
-    throw new Error('The captured pointer did not pull the prepared cue.');
+  try {
+    if (touch) {
+      await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] });
+    } else {
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...start });
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...start, button: 'left', buttons: 1, clickCount: 1 });
+    }
+    await delay(30);
+    const move = (point) => touch
+      ? cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, id: 1 }] })
+      : cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point, button: 'left', buttons: 1 });
+    await move(back);
+    await delay(40);
+    const pulled = await evaluate(cdp, ui.qaExpression);
+    if (pulled?.interaction.mode !== 'manual-stroke' || pulled.interaction.stroke.pullback < 90) {
+      throw new Error('The captured pointer did not pull the prepared cue.');
+    }
+    await move(contact);
+    if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    else await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...contact, button: 'left', clickCount: 1 });
+    return { pointer: touch ? 'touch' : 'mouse', pullback: pulled.interaction.stroke.pullback };
+  } finally {
+    if (touch) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => undefined);
+      await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false }).catch(() => undefined);
+    }
   }
-  await move(contact);
-  if (touch) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  else await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...contact, button: 'left', clickCount: 1 });
-  return { pointer: touch ? 'touch' : 'mouse', pullback: pulled.interaction.stroke.pullback };
 }

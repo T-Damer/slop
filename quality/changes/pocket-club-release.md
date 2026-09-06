@@ -16,3 +16,9 @@ Base limits and bundle matching are unchanged. Nothing is moved out of accountin
 The CDP client now reports method, parameters and protocol details on failure;
 browser checks are not skipped and malformed inputs are not retried as success.
 Actual production/browser results must be recorded by CI before publication.
+
+Native input follow-up: record both protocol details and exact attempted arguments,
+validate and normalize viewport coordinates before dispatch, and always release
+touch emulation after the manual cue gesture. Pinch itself passed the first CI
+viewport. The subsequent recorded-pot setup now uses range keyboard controls
+instead of an obsolete absolute-position click on a relative crown.

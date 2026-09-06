@@ -48,7 +48,7 @@ export class CdpClient {
       if (pending !== undefined) {
         this.pending.delete(message.id);
         if (message.error) {
-          pending.reject(new Error(`${pending.method}: ${message.error.message}; ${JSON.stringify(message.error.data ?? pending.params)}`));
+          pending.reject(new Error(`${pending.method}: ${message.error.message}; ${JSON.stringify({ details: message.error.data, params: pending.params })}`));
         } else {
           pending.resolve(message.result ?? {});
         }
