@@ -17,6 +17,7 @@ export class BilliardsTableCamera {
   private lastRevision = -1;
   private pointers = new Map<number, Vec2>();
   private multi = false;
+  private gestureStart: { readonly angleRadians: number; readonly placement: Vec2 | null } | null = null;
   private pinch: { distance: number; anchor: Vec2; zoom: number } | null = null;
   private readonly resize: ResizeObserver;
   private readonly stage: HTMLElement;
@@ -126,10 +127,18 @@ export class BilliardsTableCamera {
   }
   private readonly down = (event: PointerEvent): void => {
     if (event.target !== this.canvas || event.button !== 0) return;
+    if (this.pointers.size === 0) {
+      const snapshot = this.controller.snapshot();
+      this.gestureStart = {
+        angleRadians: snapshot.angleRadians,
+        placement: snapshot.interaction.placementPreview?.position ?? null,
+      };
+    }
     this.pointers.set(event.pointerId, this.point(event)); this.target = this.pose;
     if (this.pointers.size < 2) return;
     this.multi = true; this.controller.cancelManualStroke();
     this.canvas.dispatchEvent(new Event(tuning.cancelGestureEvent));
+    this.restoreGameplayGesture();
     const pair = this.pair();
     this.pinch = { distance: pair.distance, zoom: this.pose.zoom,
       anchor: screenToScene(pair.midpoint, this.pose, this.width, this.height, this.portrait) };
@@ -149,7 +158,18 @@ export class BilliardsTableCamera {
   private readonly up = (event: PointerEvent): void => {
     this.pointers.delete(event.pointerId);
     if (this.multi) { event.preventDefault(); event.stopImmediatePropagation(); }
-    if (this.pointers.size === 0) { this.multi = false; this.pinch = null; }
+    if (this.pointers.size === 0) { this.multi = false; this.pinch = null; this.gestureStart = null; }
   };
-  private readonly cancel = (): void => { this.pointers.clear(); this.multi = false; this.pinch = null; };
+  private restoreGameplayGesture(): void {
+    const start = this.gestureStart;
+    if (start === null) return;
+    if (start.placement !== null && this.controller.snapshot().match.ballInHand) {
+      this.controller.setPlacementPreview(start.placement);
+    } else {
+      this.controller.setAngleRadians(start.angleRadians);
+    }
+  }
+  private readonly cancel = (): void => {
+    this.pointers.clear(); this.multi = false; this.pinch = null; this.gestureStart = null;
+  };
 }
