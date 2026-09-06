@@ -33,7 +33,7 @@ export class CdpClient {
     this.nextId += 1;
     this.socket.send(JSON.stringify({ id, method, params }));
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      this.pending.set(id, { resolve, reject, method, params });
     });
   }
 
@@ -48,7 +48,7 @@ export class CdpClient {
       if (pending !== undefined) {
         this.pending.delete(message.id);
         if (message.error) {
-          pending.reject(new Error(message.error.message));
+          pending.reject(new Error(`${pending.method}: ${message.error.message}; ${JSON.stringify(message.error.data ?? pending.params)}`));
         } else {
           pending.resolve(message.result ?? {});
         }

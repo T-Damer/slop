@@ -40,9 +40,9 @@
         },
         "minimumMatches": 1,
         "maximumMatches": 1,
-        "rawRatchetBytes": 90000,
-        "gzipRatchetBytes": 28000,
-        "brotliRatchetBytes": 25000
+        "rawRatchetBytes": 100000,
+        "gzipRatchetBytes": 32000,
+        "brotliRatchetBytes": 28000
       },
       {
         "id": "pocket-club-colyseus",
@@ -52,9 +52,9 @@
         },
         "minimumMatches": 1,
         "maximumMatches": 1,
-        "rawRatchetBytes": 230000,
-        "gzipRatchetBytes": 71000,
-        "brotliRatchetBytes": 62000
+        "rawRatchetBytes": 220000,
+        "gzipRatchetBytes": 67000,
+        "brotliRatchetBytes": 59000
       }
     ]
   },
