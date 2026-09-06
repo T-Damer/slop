@@ -60,5 +60,9 @@ export async function exercisePinch(cdp, directory) {
     await writeFile(`${directory}/pinch-error.json`, JSON.stringify(evidence, null, 2));
     await captureScreenshot(cdp, `${directory}/pinch-error.png`);
     throw error;
+  } finally {
+    // Do not leak the pinch-only touch emulation into the subsequent mouse/touch
+    // control contract. Manual stroke tests enable their own touch environment.
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false }).catch(() => undefined);
   }
 }
