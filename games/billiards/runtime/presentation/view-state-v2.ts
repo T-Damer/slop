@@ -21,7 +21,7 @@ export function updateBilliardsViewV2(
   const preset = tablePreset(snapshot.match.table).id;
   view.root.dataset.preset = preset;
   view.root.dataset.turn = String(snapshot.match.turnIndex);
-  view.restart.title = `Новая партия · ${preset === billiardsPresetIds.russian ? 'Русский пресет' : 'Американский'}`;
+  view.restart.title = `Новая партия · ${preset === billiardsPresetIds.russian ? 'Свободная пирамида' : 'Американский'}`;
   view.root.dataset.interactionMode = interaction.mode;
   view.root.dataset.quality = quality;
   view.root.dataset.billiardsPortrait = String(portrait);
@@ -52,13 +52,14 @@ export function updateBilliardsViewV2(
   }
 
   view.shoot.textContent = 'Удар';
-  view.shoot.disabled = !snapshot.canInteract;
+  view.shoot.disabled = !snapshot.canInteract || snapshot.match.pyramidPenalty === true;
   if (!snapshot.canInteract) {
     view.hint.textContent = snapshot.match.status;
     return;
   }
+  if (snapshot.match.pyramidPenalty) { view.hint.textContent = snapshot.match.status; return; }
   if (interaction.mode === billiardsInteractionModes.aiming) {
-    view.hint.textContent = 'Наведитесь и кликните по столу, чтобы зафиксировать прицел';
+    view.hint.textContent = preset === 'russian' ? 'Биток: коснитесь шара или B. Клик по сукну — прицел' : 'Наведитесь и кликните по столу, чтобы зафиксировать прицел';
   } else if (interaction.mode === billiardsInteractionModes.aimLocked) {
     view.hint.textContent = 'Отведите кий и ударьте вперёд; короткое касание — сменить прицел';
   } else if (interaction.mode === billiardsInteractionModes.manualStroke) {

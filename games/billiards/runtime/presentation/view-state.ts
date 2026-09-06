@@ -39,7 +39,7 @@ export function updateBilliardsView(
     panel.classList.toggle('is-active', match.turnIndex === playerIndex);
     panel.classList.toggle('is-winner', winnerIndex === playerIndex);
     view.playerNames[playerIndex].textContent = player.name;
-    view.playerGroups[playerIndex].textContent = `${match.table.presetId === 'russian' && player.group !== 'open' ? (player.group === 'solids' ? '1–7' : '9–15') : groupLabel(player.group)} · забито ${match.table.balls.filter((ball) => ball.pocketed && ball.pocketedBy === playerIndex).length}`;
+    view.playerGroups[playerIndex].textContent = `${match.table.presetId === 'russian' ? 'Пирамида · до 8' : groupLabel(player.group)} · забито ${match.table.balls.filter((ball) => ball.pocketed && ball.pocketedBy === playerIndex).length}`;
     panel.setAttribute('aria-current', String(match.turnIndex === playerIndex));
     updatePocketSlots(
       view.pocketSlots[playerIndex],
@@ -88,11 +88,11 @@ function updatePocketSlots(
     .sort((left, right) => left.id - right.id);
 
   slots.forEach((slot, index) => {
-    const ball = pocketed.find((entry) => entry.id === index + 1);
+    const ball = ivory ? pocketed[index] : pocketed.find(entry => entry.id === index + 1);
     slot.classList.toggle('is-pocketed', ball !== undefined);
     slot.classList.toggle(
       'is-stripe',
-      ball !== undefined && ballDisplayKind(ball.kind) === 'stripe',
+      !ivory && ball !== undefined && ballDisplayKind(ball.kind) === 'stripe',
     );
     slot.textContent = ball === undefined ? '' : String(ball.id);
     slot.hidden = ball === undefined;

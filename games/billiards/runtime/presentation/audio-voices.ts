@@ -3,178 +3,97 @@ import type { BilliardsFeedbackBatch } from './feedback.ts';
 import { billiardsFeedbackKinds as kinds, billiardsFeedbackTuning as tuning } from './registry.ts';
 
 export type BilliardsAudioState = 'locked' | 'ready' | 'muted';
+const recordedAudio = {
+  url: new URL('./assets/billiards-impacts.mp3?no-inline', import.meta.url).href,
+  clips: { cue: [0, 0.20], ball: [0.25, 0.239], rail: [0.55, 0.25], pocket: [0.85, 0.49] },
+  maximumVoices: 16, masterGain: 0.35,
+} as const;
 
-interface BilliardsImpactSound {
-  readonly level: number;
-  readonly pan: number;
-}
-
+/** The historical class name is retained at the lazy boundary; impacts are now
+ * exclusively recorded samples. Only the mechanical control detent is a tone. */
 export class BilliardsAudioSynth {
-  private context: AudioContext | null = null;
-  private noiseBuffer: AudioBuffer | null = null;
+  private buffer: AudioBuffer | null = null;
   private muted = false;
-  private consumedRevision = -1;
   private disposed = false;
+  private consumedRevision = -1;
   private lastDialAt = -Infinity;
+  private readonly voices = new Set<AudioScheduledSourceNode>();
+  private readonly master: GainNode;
+  private readonly compressor: DynamicsCompressorNode;
+  private readonly request = new AbortController();
+  private loading: Promise<void> | null = null;
 
+  private readonly context: AudioContext;
   public constructor(context: AudioContext) {
     this.context = context;
-    this.noiseBuffer = createNoiseBuffer(context);
+    this.master = context.createGain();
+    this.master.gain.value = recordedAudio.masterGain;
+    this.compressor = context.createDynamicsCompressor();
+    this.compressor.threshold.value = -15; this.compressor.ratio.value = 8;
+    this.compressor.attack.value = 0.002; this.compressor.release.value = 0.08;
+    this.master.connect(this.compressor).connect(context.destination);
+  }
+
+  public load(): Promise<void> {
+    return this.loading ??= fetch(recordedAudio.url, { signal: this.request.signal })
+      .then(response => { if (!response.ok) throw new Error('Missing billiards audio'); return response.arrayBuffer(); })
+      .then(bytes => this.context.decodeAudioData(bytes))
+      .then(buffer => { if (!this.disposed) this.buffer = buffer; })
+      .catch(() => { this.loading = null; });
   }
 
   public state(): BilliardsAudioState {
-    if (this.muted) return 'muted';
-    return this.context?.state === 'running' ? 'ready' : 'locked';
+    return this.muted ? 'muted' : this.buffer !== null && this.context.state === 'running' ? 'ready' : 'locked';
   }
-
-  public isEnabled(): boolean { return !this.muted; }
-
-  public async unlock(): Promise<void> {
-    if (this.disposed) return;
-    try {
-      if (this.context === null) {
-        this.context = new AudioContext({ latencyHint: 'interactive' });
-        this.noiseBuffer = createNoiseBuffer(this.context);
-      }
-      if (this.context.state === 'suspended') await this.context.resume();
-    } catch {
-      // Audio can be unavailable or denied; input and rendering must keep working.
-    }
-  }
-
-  public playDialTick(): void {
-    const now = this.context?.currentTime ?? 0;
-    if (!this.canPlay() || now - this.lastDialAt < 0.025) return;
-    this.lastDialAt = now;
-    this.playNoise(0.014, 0.045, 2600, 0, 0);
-    this.playTone(640, 0.009, 0.009, 'triangle', 0, 0);
-  }
-
   public toggle(): boolean {
     this.muted = !this.muted;
-    return this.isEnabled();
+    this.master.gain.value = this.muted ? 0 : recordedAudio.masterGain;
+    if (this.muted) this.stopVoices();
+    return !this.muted;
   }
-
+  public playDialTick(): void {
+    const now = this.context.currentTime;
+    if (!this.canPlay() || now - this.lastDialAt < 0.025) return;
+    this.lastDialAt = now;
+    const tone = this.context.createOscillator();
+    tone.type = 'triangle'; tone.frequency.value = 720;
+    this.startVoice(tone, 0.055, 0, now, () => { tone.start(now); tone.stop(now + 0.012); });
+  }
   public consume(batch: BilliardsFeedbackBatch): void {
     if (batch.revision <= this.consumedRevision) return;
     this.consumedRevision = batch.revision;
-    if (!this.canPlay()) return;
+    if (!this.canPlay() || this.buffer === null) return;
     batch.events.slice(0, tuning.maximumSoundsPerBatch).forEach((event, index) => {
-      const delay = index * tuning.soundSpacingSeconds;
-      const impact = { level: event.intensity, pan: Math.max(-tuning.maximumStereoPan,
-        Math.min(tuning.maximumStereoPan, event.position.x / (billiardsPhysics.tableWidth / 2))) };
-      if (event.kind === kinds.cue) this.playCueStrike(event.power ?? event.intensity);
-      else if (event.kind === kinds.ball) this.playBallClick(impact, delay);
-      else if (event.kind === kinds.pocket) this.playPocketDrop(impact.pan, delay);
-      else this.playCushionHit(impact, delay);
+      if (this.voices.size >= recordedAudio.maximumVoices) return;
+      const key = event.kind === kinds.cue ? 'cue' : event.kind === kinds.ball ? 'ball'
+        : event.kind === kinds.pocket ? 'pocket' : 'rail';
+      const [offset, duration] = recordedAudio.clips[key];
+      const source = this.context.createBufferSource(); source.buffer = this.buffer;
+      const start = this.context.currentTime + index * tuning.soundSpacingSeconds;
+      const level = Math.max(0, Math.min(1, event.power ?? event.intensity));
+      const pan = Math.max(-tuning.maximumStereoPan, Math.min(tuning.maximumStereoPan,
+        event.position.x / (billiardsPhysics.tableWidth / 2)));
+      this.startVoice(source, 0.06 + level * 0.24, pan, start, () => source.start(start, offset, duration));
     });
   }
-
   public async dispose(): Promise<void> {
-    this.disposed = true;
-    const context = this.context;
-    this.context = null;
-    this.noiseBuffer = null;
-    if (context !== null && context.state !== 'closed') await context.close();
+    this.disposed = true; this.request.abort(); this.stopVoices(); this.buffer = null;
+    this.master.disconnect(); this.compressor.disconnect();
+    if (this.context.state !== 'closed') await this.context.close();
   }
-
-  private playCueStrike(power: number): void {
-    if (!this.canPlay()) return;
-    const intensity = 0.18 + Math.min(1, Math.max(0, power)) * 0.28;
-    this.playTone(145, 0.08, intensity, 'sine', 0, -0.42);
-    this.playTone(520, 0.035, intensity * 0.3, 'triangle', 0.002, -0.42);
-    this.playNoise(0.026, intensity * 0.24, 1900, 0, -0.42);
+  private startVoice(source: AudioScheduledSourceNode, volume: number, pan: number, start: number,
+    play: () => void): void {
+    if (this.voices.size >= recordedAudio.maximumVoices) { source.disconnect(); return; }
+    const gain = this.context.createGain(), panner = this.context.createStereoPanner();
+    gain.gain.setValueAtTime(volume, start); panner.pan.value = pan;
+    source.connect(gain).connect(panner).connect(this.master);
+    this.voices.add(source);
+    source.onended = () => { this.voices.delete(source); source.disconnect(); gain.disconnect(); panner.disconnect(); };
+    play();
   }
-
-  private playBallClick(impact: BilliardsImpactSound, delay: number): void {
-    const volume = 0.038 + impact.level * 0.13;
-    const pitch = 1180 + impact.level * 360;
-    this.playTone(pitch, 0.052, volume, 'sine', delay, impact.pan);
-    this.playTone(pitch * 1.86, 0.025, volume * 0.38, 'triangle', delay + 0.001, impact.pan);
-    this.playNoise(0.018, volume * 0.24, 3300, delay, impact.pan);
+  private stopVoices(): void {
+    for (const source of this.voices) source.stop();
+    this.voices.clear();
   }
-
-  private playCushionHit(impact: BilliardsImpactSound, delay: number): void {
-    const volume = 0.035 + impact.level * 0.09;
-    this.playTone(205 + impact.level * 90, 0.085, volume, 'sine', delay, impact.pan);
-    this.playTone(620, 0.04, volume * 0.3, 'triangle', delay + 0.002, impact.pan);
-    this.playNoise(0.036, volume * 0.28, 720, delay, impact.pan);
-  }
-
-  private playPocketDrop(pan: number, delay: number): void {
-    this.playTone(86, 0.24, 0.13, 'sine', delay, pan);
-    this.playTone(172, 0.15, 0.05, 'triangle', delay + 0.014, pan);
-    this.playNoise(0.15, 0.075, 410, delay + 0.012, pan);
-  }
-
-  private playTone(
-    frequency: number,
-    duration: number,
-    volume: number,
-    type: OscillatorType,
-    delay: number,
-    pan: number,
-  ): void {
-    const context = this.context;
-    if (context === null) return;
-    const start = context.currentTime + delay;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const panner = context.createStereoPanner();
-    oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, start);
-    oscillator.frequency.exponentialRampToValueAtTime(
-      Math.max(40, frequency * 0.78),
-      start + duration,
-    );
-    gain.gain.setValueAtTime(Math.max(0.0001, volume), start);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    panner.pan.setValueAtTime(pan, start);
-    oscillator.connect(gain).connect(panner).connect(context.destination);
-    oscillator.start(start);
-    oscillator.stop(start + duration + 0.01);
-  }
-
-  private playNoise(
-    duration: number,
-    volume: number,
-    cutoff: number,
-    delay: number,
-    pan: number,
-  ): void {
-    const context = this.context;
-    const buffer = this.noiseBuffer;
-    if (context === null || buffer === null) return;
-    const start = context.currentTime + delay;
-    const source = context.createBufferSource();
-    const filter = context.createBiquadFilter();
-    const gain = context.createGain();
-    const panner = context.createStereoPanner();
-    source.buffer = buffer;
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(cutoff, start);
-    filter.Q.setValueAtTime(1.2, start);
-    gain.gain.setValueAtTime(Math.max(0.0001, volume), start);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    panner.pan.setValueAtTime(pan, start);
-    source.connect(filter).connect(gain).connect(panner).connect(context.destination);
-    source.start(start, 0, duration);
-  }
-
-  private canPlay(): boolean {
-    return !this.muted && this.context?.state === 'running';
-  }
-}
-
-function createNoiseBuffer(context: AudioContext): AudioBuffer {
-  const length = Math.ceil(context.sampleRate * 0.25);
-  const buffer = context.createBuffer(1, length, context.sampleRate);
-  const data = buffer.getChannelData(0);
-  let previous = 0;
-  for (let index = 0; index < data.length; index += 1) {
-    const white = Math.random() * 2 - 1;
-    previous = previous * 0.72 + white * 0.28;
-    data[index] = previous;
-  }
-  return buffer;
+  private canPlay(): boolean { return !this.disposed && !this.muted && this.context.state === 'running'; }
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "area": "billiards-crown-controls-cues-and-pocket-polish",
-  "problem": "Mobile balls are too small; graphics settings are absent; a suspended frame driver reports a stall on resume; pocketed balls disappear without a visual return to the player. Release candidate fails during UI startup and exceeds the unchanged client bundle ratchet. Follow-up: crown controls must be relative and labelled, wheel targets must be independent, restart needs cue cosmetics, and Russian pocket bowls must not hide their jaws.",
+  "area": "billiards-recorded-audio-club-pyramid-release",
+  "problem": "Finish the blocked Pages release with licensed recorded impacts and explicit club Free Pyramid rules instead of applying 8-ball to the Russian table.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "architecture/model.json",
@@ -30,15 +30,15 @@
     "games/billiards/runtime/presentation/pointer-input-v2.ts",
     "games/billiards/runtime/presentation/rail-input-v2.ts",
     "tools/browser-quality/billiards-camera.mjs",
-    "tools/browser-quality/cdp-client.mjs"
+    "tools/browser-quality/cdp-client.mjs",
+    "games/billiards/runtime/domain/pyramid.ts"
   ],
-  "reuseDecision": "Extend canonical canvas coordinates and captured pointer input. Use native Pointer Events, ResizeObserver and Web Animations; panzoom was reviewed but its independent gesture owner conflicts with cue input. Reuse the existing engine patch hook for a hash-guarded frame-driver lifecycle fix. Shared graphics preferences drive each renderer; domain outcomes alone authorize pot feedback. Mount the existing view before camera observation, create frame/quality dependencies before synchronous subscriptions, and use Solid cleanup for partial-start rollback. Load the existing QA bridge only on QA requests; no gameplay is moved out of budget accounting. Route-owned native AbortSignals replace mirrored input listener removal lists without changing gestures. The trusted pinch harness uses finite, viewport-intersected canvas coordinates, presses fingers separately and records the exact attempted coordinates on failure. Extend existing captured controls, semantic audio detents, renderer assets and native match dialog. Cosmetic cue choice is route-scoped and never changes physics.",
+  "reuseDecision": "Extend the canonical rule resolver, table cue selector, existing pointer/camera/preview owners and lazy WebAudio boundary. Reuse reviewed Freesound recordings in a locally bundled sprite; keep original art independently cacheable. No payload staging workflows or duplicated physics.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
-    "Full pyramid rules or online/server hosting",
-    "Changing deterministic shot results to match cosmetic animations",
-    "Increasing byte budgets or muting genuine frame-loop faults",
-    "Copying the generated mockup as a screenshot of working code"
+    "Tournament article-20 safety-shot adjudication, referee choices or physical fouls outside the 2D simulation; the club rule is explicitly disclosed",
+    "Pyramid online hosting; current remote session remains American 8-ball",
+    "Changing main or increasing any source/bundle budget"
   ],
   "acceptance": [
     "Every games/**/*.ts file has one architecture owner and all static and dynamic relative imports resolve through declared dependencies",
@@ -75,7 +75,10 @@
     "Unmount aborts all route-owned pointer and roller listeners while preserving capture-phase ordering and explicit gesture cancellation.",
     "Power pointer-down never changes power; pointer deltas, keyboard and wheel operate both crowns independently, with no changes while paused and no listeners after disposal.",
     "Restart offers three project-authored cues; cancellation preserves the selection and match. Chosen cue renders during both aiming and strike animation.",
-    "Russian bowls are visibly larger behind unchanged narrow mouths; jaws render above the bowl, centred shots pot and offset shots still bounce."
+    "Russian bowls are visibly larger behind unchanged narrow mouths; jaws render above the bowl, centred shots pot and offset shots still bounce.",
+    "Club pyramid regression suite covers any live striker, in-offs, normal eight, eight-point win, foul re-spots, penalty selection and no pool groups",
+    "Recorded impact sprite has audited source licenses, exact source/output hashes, hard voice cap, master compression and immediate mute/disposal",
+    "Publish only after source, strict types, production build, unchanged budgets and browser interactions pass; verify deployed build SHA"
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json",

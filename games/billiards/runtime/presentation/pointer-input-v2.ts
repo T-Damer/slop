@@ -47,6 +47,7 @@ class BilliardsPointerGesture {
     if (point === null) return;
     const { controller, canvas, snapshot } = this.options;
     if (!snapshot().canInteract) return;
+    if (controller.selectBallAt(canvasToWorld(point))) { event.preventDefault(); return; }
     const mode = snapshot().interaction.mode;
     if (mode === modes.placingCueBall) {
       controller.setPlacementPreview(canvasToWorld(point));

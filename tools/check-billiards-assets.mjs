@@ -62,7 +62,12 @@ async function validateAsset(asset) {
   if (!Number.isInteger(asset.maximumBytes) || bytes.length > asset.maximumBytes) {
     failures.push(`${label}: ${bytes.length} bytes exceeds budget ${asset.maximumBytes}.`);
   }
-  if (asset.license !== 'project-authored') {
+  if (asset.path.endsWith('.mp3')) {
+    const allowed = new Set(['CC0-1.0', 'CC-BY-3.0', 'CC-BY-4.0']);
+    if (!Array.isArray(asset.sources) || asset.sources.length !== 4 || asset.sources.some(source =>
+      !allowed.has(source.license) || !source.author || !source.source?.startsWith('https://freesound.org/')
+      || !/^[a-f0-9]{64}$/.test(source.sha256))) failures.push(`${label}: invalid recording provenance.`);
+  } else if (asset.license !== 'project-authored') {
     failures.push(`${label}: only project-authored Pocket Club art may ship.`);
   }
   validateSignature(label, asset.path, bytes);
@@ -70,7 +75,9 @@ async function validateAsset(asset) {
 }
 
 function validateSignature(label, file, bytes) {
-  if (file.endsWith('.png')) {
+  if (file.endsWith('.mp3')) {
+    if (bytes.subarray(0, 3).toString('ascii') !== 'ID3' && !(bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)) failures.push(`${label}: invalid MP3 signature.`);
+  } else if (file.endsWith('.png')) {
     const png = '89504e470d0a1a0a';
     if (bytes.subarray(0, 8).toString('hex') !== png) {
       failures.push(`${label}: invalid PNG signature.`);

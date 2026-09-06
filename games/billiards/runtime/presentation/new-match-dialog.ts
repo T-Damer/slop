@@ -5,10 +5,10 @@ import type { BilliardsViewElements } from './view-elements.ts';
 
 const matchPicker = {
   title: 'Новая партия',
-  notice: 'Оба варианта пока играются по правилам 8-ball: сплошные, полосатые и восьмёрка. Русский — геометрический пресет, не правила пирамиды.',
+  notice: 'Американский — 8-ball. Русский — клубная свободная пирамида: любой биток, свояки, до 8 шаров. Штрафной шар выбирает соперник. Упрощённый отыгрыш: контакт + борт; не турнирный регламент.',
   options: [
     { id: billiardsPresetIds.american, name: 'Американский', detail: 'Широкие лузы · привычный пул' },
-    { id: billiardsPresetIds.russian, name: 'Русский', detail: 'Тесные лузы · больше точности' },
+    { id: billiardsPresetIds.russian, name: 'Свободная пирамида', detail: 'Русский стол · клубные правила' },
   ],
 } as const;
 
@@ -24,7 +24,7 @@ export function bindNewMatchDialog(view: BilliardsViewElements, controller: Bill
     </fieldset><fieldset><legend>Кий · только внешний вид</legend>
     ${billiardsCues.map((cue) => `<label class="billiards-cue-card"><input type="radio" name="cue" value="${cue.id}" required>
       <span>${cue.name}<img src="${cue.url}" alt="" width="304" height="16"></span></label>`).join('')}
-    </fieldset><p>${matchPicker.notice}</p>
+    </fieldset><p>${matchPicker.notice}</p><p><a href="${new URL('./audio-credits.txt?no-inline', import.meta.url).href}" target="_blank" rel="noopener">Звуки: авторы и лицензии</a></p>
     <footer><button type="submit" value="cancel" formnovalidate>Отмена</button>
     <button type="submit" value="start" data-billiards-new-match>Начать</button></footer>
   </form>`;

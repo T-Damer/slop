@@ -1,3 +1,4 @@
+import { cueBallId } from '../domain/table-presets.ts';
 import { graphicsSettings, prefersReducedMotion } from '../../../shared/game-shell/graphics-settings.ts';
 import type { Vec2 } from '../domain/types.ts';
 import type { BilliardsControllerSnapshotV2, BilliardsGameControllerV2 } from './controller-v2.ts';
@@ -81,7 +82,7 @@ export class BilliardsTableCamera {
   }
 
   private focusAim(snapshot: BilliardsControllerSnapshotV2): void {
-    const cue = snapshot.match.table.balls.find((ball) => ball.id === 0 && !ball.pocketed);
+    const cue = snapshot.match.table.balls.find((ball) => ball.id === cueBallId(snapshot.match.table) && !ball.pocketed);
     if (!cue) return;
     const from = worldToCanvas(cue.position), to = worldToCanvas(snapshot.preview.cuePath.at(-1) ?? cue.position);
     const dx = Math.abs(to.x - from.x) + tuning.focusMargin * 2, dy = Math.abs(to.y - from.y) + tuning.focusMargin * 2;
@@ -95,7 +96,7 @@ export class BilliardsTableCamera {
     else {
       this.focusAim(this.controller.snapshot());
       if (this.target.zoom < 1.1) {
-        const cue = this.controller.snapshot().match.table.balls.find((ball) => ball.id === 0);
+        const cue = this.controller.snapshot().match.table.balls.find((ball) => ball.id === cueBallId(this.controller.snapshot().match.table));
         const centre = cue ? worldToCanvas(cue.position) : tuning.centre;
         this.target = clampCamera({ ...centre, zoom: tuning.aimZoom }, this.width, this.height, this.portrait);
       }

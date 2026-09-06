@@ -1,3 +1,4 @@
+import { cueBallId } from './table-presets.ts';
 import {
   billiardsBallIds,
   billiardsCollisionKinds,
@@ -11,6 +12,7 @@ import type {
 
 export function createShotTrace(match: BilliardsMatchState): BilliardsShotTrace {
   return {
+    cueBallId: cueBallId(match.table),
     eligibleForEightAtStart: isCurrentPlayerCleared(match),
     firstObjectBallId: null,
     pocketedBallIds: [],
@@ -28,9 +30,9 @@ export function appendShotEvents(
   const pocketedBallIds = [...trace.pocketedBallIds];
   for (const event of events) {
     if (event.kind === billiardsCollisionKinds.ball && firstObjectBallId === null) {
-      if (event.leftBallId === billiardsBallIds.cue) {
+      if (event.leftBallId === (trace.cueBallId ?? billiardsBallIds.cue)) {
         firstObjectBallId = event.rightBallId;
-      } else if (event.rightBallId === billiardsBallIds.cue) {
+      } else if (event.rightBallId === (trace.cueBallId ?? billiardsBallIds.cue)) {
         firstObjectBallId = event.leftBallId;
       }
     }

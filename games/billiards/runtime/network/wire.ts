@@ -60,6 +60,7 @@ export function isMatchSnapshot(value: unknown): value is BilliardsMatchState {
     && isMatchPhase(value.phase)
     && (value.winnerIndex === null || value.winnerIndex === 0 || value.winnerIndex === 1)
     && typeof value.ballInHand === 'boolean'
+    && (value.pyramidPenalty === undefined || typeof value.pyramidPenalty === 'boolean')
     && isShotTrace(value.activeShot)
     && typeof value.status === 'string';
 }
@@ -87,6 +88,7 @@ function isTableState(value: unknown): value is BilliardsTableState {
     !isRecord(value)
     || value.schemaVersion !== 1
     || (value.presetId !== undefined && !isBilliardsPresetId(value.presetId))
+    || (value.cueBallId !== undefined && (typeof value.cueBallId !== 'number' || !expectedBallIds.has(value.cueBallId)))
     || !isNonNegativeSafeInteger(value.step)
     || !Array.isArray(value.balls)
     || value.balls.length !== expectedBallIds.size
@@ -131,6 +133,7 @@ function isShotTrace(value: unknown): value is BilliardsShotTrace | null {
   }
   return isRecord(value)
     && typeof value.eligibleForEightAtStart === 'boolean'
+    && (value.cueBallId === undefined || (typeof value.cueBallId === 'number' && expectedBallIds.has(value.cueBallId)))
     && (value.firstObjectBallId === null || isNonNegativeSafeInteger(value.firstObjectBallId))
     && Array.isArray(value.pocketedBallIds)
     && value.pocketedBallIds.every(isNonNegativeSafeInteger)

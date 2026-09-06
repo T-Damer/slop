@@ -26,6 +26,7 @@ export class BilliardsAudioEngine {
         if (this.muted) this.voices.toggle();
       });
       await Promise.all([this.loading, resumed]);
+      await this.voices?.load();
       if (this.pending !== null) { this.voices?.consume(this.pending); this.pending = null; }
     } catch {
       this.loading = null; this.pending = null;

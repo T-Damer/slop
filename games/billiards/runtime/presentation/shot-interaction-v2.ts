@@ -1,7 +1,7 @@
-import { tablePreset } from '../domain/table-presets.ts';
+import { cueBallId, tablePreset } from '../domain/table-presets.ts';
 import { isFiniteVec2 } from '../domain/geometry.ts';
 import { canPlaceCueBall } from '../domain/rack.ts';
-import { billiardsBallIds, billiardsPhysics, billiardsRules } from '../domain/registry.ts';
+import { billiardsPhysics, billiardsRules } from '../domain/registry.ts';
 import type { BilliardsMatchState, Vec2 } from '../domain/types.ts';
 import { billiardsInteractionKinds as kinds, type BilliardsInteractionMessage } from '../network/interaction-wire-v2.ts';
 import {
@@ -58,7 +58,7 @@ export class BilliardsShotInteraction {
     this.state = createBilliardsInteractionState(match.ballInHand);
     // The existing cue position is a preview only, never an implicit confirmation.
     if (match.ballInHand) {
-      const cue = match.table.balls.find((ball) => ball.id === billiardsBallIds.cue);
+      const cue = match.table.balls.find((ball) => ball.id === cueBallId(match.table));
       if (cue !== undefined) this.state = { ...this.state,
         placementPreview: { position: cue.position, valid: canPlaceCueBall(match.table, cue.position) } };
     }
@@ -66,7 +66,7 @@ export class BilliardsShotInteraction {
 
   public setAimFromWorld(match: BilliardsMatchState, point: Vec2): void {
     if (this.state.mode !== modes.aiming || !isFiniteVec2(point)) return;
-    const cue = match.table.balls.find((ball) => ball.id === billiardsBallIds.cue && !ball.pocketed);
+    const cue = match.table.balls.find((ball) => ball.id === cueBallId(match.table) && !ball.pocketed);
     if (cue === undefined) return;
     const delta = { x: point.x - cue.position.x, y: point.y - cue.position.y };
     if (Math.hypot(delta.x, delta.y) < tablePreset(match.table).ballRadius) return;

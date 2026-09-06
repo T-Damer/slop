@@ -38,10 +38,12 @@ export class BilliardsPocketJourney {
     if (this.revision !== match.revision && match.table.step === 0 && match.activeShot === null) this.clear(view);
     this.revision = match.revision;
     for (const journey of this.journeys.values()) {
-      if (journey.delivered || journey.id === 0) continue; // A scratch never becomes a HUD reward.
+      if (journey.delivered || (journey.id === 0 && match.table.presetId !== 'russian')) continue; // A scratch never becomes a HUD reward.
       const ball = match.table.balls.find((entry) => entry.id === journey.id);
       if (!ball?.pocketed || ball.pocketedBy !== journey.shooter) continue;
-      const slot = view.pocketSlots[journey.shooter][journey.id - 1];
+      const slot = match.table.presetId === 'russian'
+        ? view.pocketSlots[journey.shooter].find(slot => !slot.hidden && Number(slot.textContent) === journey.id)
+        : view.pocketSlots[journey.shooter][journey.id - 1];
       if (!slot || slot.hidden) continue;
       if (!prefersReducedMotion() && now - journey.started < pocketMotion.sinkMs) {
         slot.dataset.returnPending = 'true'; continue;

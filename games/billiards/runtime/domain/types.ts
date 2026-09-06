@@ -31,6 +31,7 @@ export interface BilliardsBallState {
 }
 
 export interface BilliardsTableState {
+  readonly cueBallId?: number;
   /** Omitted in legacy v1 snapshots: American preset. */
   readonly presetId?: BilliardsPresetId;
   readonly schemaVersion: 1;
@@ -114,6 +115,7 @@ export interface BilliardsShotPreview {
 }
 
 export interface BilliardsShotTrace {
+  readonly cueBallId?: number;
   readonly eligibleForEightAtStart: boolean;
   readonly firstObjectBallId: number | null;
   readonly pocketedBallIds: ReadonlyArray<number>;
@@ -128,6 +130,7 @@ export interface BilliardsPlayerState {
 }
 
 export interface BilliardsMatchState {
+  readonly pyramidPenalty?: boolean;
   readonly schemaVersion: 1;
   readonly revision: number;
   readonly table: BilliardsTableState;

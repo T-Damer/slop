@@ -55,6 +55,7 @@ function bindKeyboard(options: BilliardsControlInputOptionsV2): () => void {
       options.controller.adjustAngle(direction * fine);
       return;
     }
+    if (event.code === 'KeyB') { event.preventDefault(); options.controller.selectNextBall(); return; }
     if (event.code === 'Space' || event.code === 'Enter') {
       if (active instanceof HTMLButtonElement && active !== options.view.shoot) return;
       event.preventDefault();

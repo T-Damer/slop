@@ -1,3 +1,4 @@
+import { cueBallId } from './table-presets.ts';
 import { tableModelFor } from './table-model.ts';
 import {
   addVec2,
@@ -7,7 +8,6 @@ import {
 } from './geometry.ts';
 import { findFirstCollision } from './collision.ts';
 import {
-  billiardsBallIds,
   billiardsCollisionKinds,
   billiardsPhysics,
   billiardsRules,
@@ -30,7 +30,7 @@ export function applyShot(
     + (billiardsPhysics.maximumShotSpeed - billiardsPhysics.minimumShotSpeed) * power;
   return {
     ...table,
-    balls: table.balls.map((ball) => ball.id === billiardsBallIds.cue ? {
+    balls: table.balls.map((ball) => ball.id === cueBallId(table) ? {
       ...ball,
       velocity: scaleVec2(direction, speed),
       sideSpin: clampNumber(
@@ -97,7 +97,7 @@ function createObjectPath(
   if (collision?.kind !== billiardsCollisionKinds.ball) {
     return [];
   }
-  const objectId = collision.leftBallId === billiardsBallIds.cue
+  const objectId = collision.leftBallId === cueBallId(table)
     ? collision.rightBallId
     : collision.leftBallId;
   const objectBall = table.balls.find((ball) => ball.id === objectId);
@@ -115,7 +115,7 @@ function createObjectPath(
 }
 
 function findCueBall(table: BilliardsTableState): BilliardsBallState | null {
-  return table.balls.find((ball) => ball.id === billiardsBallIds.cue && !ball.pocketed) ?? null;
+  return table.balls.find((ball) => ball.id === cueBallId(table) && !ball.pocketed) ?? null;
 }
 
 function shotDirection(angleRadians: number): Vec2 {

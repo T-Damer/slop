@@ -91,7 +91,7 @@ test('prediction uses the selected geometry and limits the object-ball guide', (
 });
 
 test('pocket history records the shooter even for a foul, not the owner of the group', () => {
-  const match = { ...createInitialMatch(undefined, 'russian'), phase: 'open' as const, turnIndex: 1 as const };
+  const match = { ...createInitialMatch(undefined, 'american'), phase: 'open' as const, turnIndex: 1 as const };
   const table = { ...match.table, balls: match.table.balls.map((entry) => [0, 9].includes(entry.id)
     ? { ...entry, pocketed: true } : entry.id === 1 ? { ...entry, pocketed: true, pocketedBy: 0 as const } : entry) };
   const trace: BilliardsShotTrace = { eligibleForEightAtStart: false, firstObjectBallId: 9, pocketedBallIds: [0, 9],

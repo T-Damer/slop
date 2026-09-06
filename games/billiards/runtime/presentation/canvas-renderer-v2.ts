@@ -1,3 +1,4 @@
+import { cueBallId } from '../domain/table-presets.ts';
 import { selectedCue, type BilliardsCueId } from './cue-selection.ts';
 import type { BilliardsPocketJourney } from './pocket-journey.ts';
 import { tableModelFor, type BilliardsTableModel } from '../domain/table-model.ts';
@@ -98,7 +99,7 @@ export class BilliardsCanvasRendererV2 {
     if (!placing && snapshot.match.activeShot === null && snapshot.match.winnerIndex === null) {
       drawBilliardsGuideV2(context, snapshot.preview, snapshot.interaction);
       const cue = snapshot.match.table.balls.find(
-        (ball) => ball.id === 0 && !ball.pocketed,
+        (ball) => ball.id === cueBallId(snapshot.match.table) && !ball.pocketed,
       );
       if (cue !== undefined) {
         drawBilliardsCueV2(context, {

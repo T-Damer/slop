@@ -1,4 +1,4 @@
-import { tablePreset, type BilliardsPresetId } from './table-presets.ts';
+import { cueBallId, tablePreset, type BilliardsPresetId } from './table-presets.ts';
 import { isFiniteVec2 } from './geometry.ts';
 import {
   billiardsBallIds,
@@ -70,7 +70,7 @@ export function advanceMatchShotWithEvents(
   const movingMatch = {
     ...match,
     table: { ...simulation.table, balls: simulation.table.balls.map((ball) =>
-      ball.id !== billiardsBallIds.cue && trace.pocketedBallIds.includes(ball.id)
+      (match.table.presetId === 'russian' || ball.id !== billiardsBallIds.cue) && trace.pocketedBallIds.includes(ball.id)
         ? { ...ball, pocketedBy: match.turnIndex } : ball) },
     activeShot: trace,
   };
@@ -144,11 +144,12 @@ function shotRejectionReason(
   if (match.activeShot !== null || !isTableAtRest(match.table)) {
     return 'Дождитесь остановки шаров';
   }
+  if (match.pyramidPenalty) return match.status;
   if (match.ballInHand) return billiardsMessages.placementRequired;
   if (!isValidShotCommand(command)) {
     return 'Параметры удара недопустимы';
   }
-  const cue = match.table.balls.find((ball) => ball.id === billiardsBallIds.cue);
+  const cue = match.table.balls.find((ball) => ball.id === cueBallId(match.table));
   if (cue === undefined || cue.pocketed) {
     return billiardsMessages.scratch;
   }

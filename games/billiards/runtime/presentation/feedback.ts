@@ -1,3 +1,4 @@
+import { cueBallId } from '../domain/table-presets.ts';
 import { addVec2, lengthVec2, scaleVec2, subtractVec2 } from '../domain/geometry.ts';
 import {
   billiardsCollisionKinds,
@@ -38,7 +39,7 @@ export function createCueFeedback(
   angleRadians: number,
   power: number,
 ): BilliardsFeedbackEvent | null {
-  const cue = match.table.balls.find((ball) => ball.id === 0 && !ball.pocketed);
+  const cue = match.table.balls.find((ball) => ball.id === cueBallId(match.table) && !ball.pocketed);
   return cue === undefined ? null : {
     kind: billiardsFeedbackKinds.cue,
     position: cue.position,

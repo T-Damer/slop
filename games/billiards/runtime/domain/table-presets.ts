@@ -5,7 +5,7 @@ export type BilliardsPresetId = typeof billiardsPresetIds[keyof typeof billiards
 
 /** Both tables use the same 2:1 canonical plane. Dimensions in centimetres only
  * define ratios, not a second world coordinate system. These are gameplay
- * presets, NOT certified tournament tables or a second set of rules. */
+ * presets, NOT certified tournament tables. Rule resolution is domain-owned. */
 export const billiardsTablePresets = {
   american: {
     id: billiardsPresetIds.american,
@@ -36,4 +36,8 @@ export function isBilliardsPresetId(value: unknown): value is BilliardsPresetId 
 
 export function tablePreset(table: { readonly presetId?: BilliardsPresetId }): BilliardsTablePreset {
   return billiardsTablePresets[table.presetId ?? billiardsPresetIds.american];
+}
+
+export function cueBallId(table: { readonly presetId?: BilliardsPresetId; readonly cueBallId?: number }): number {
+  return table.presetId === 'russian' ? table.cueBallId ?? 0 : 0;
 }

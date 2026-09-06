@@ -45,7 +45,7 @@ export async function verifyPresetRoundtrip(cdp, ui, directory, playBreak) {
   await clickControl(cdp, ui.restartSelector);
   await waitForExpression(cdp, "document.querySelector('.billiards-match-dialog')?.open === true", 3000);
   const note = await evaluate(cdp, "document.querySelector('.billiards-match-dialog').textContent");
-  if (!note.includes('не правила пирамиды') || !note.includes('8-ball')) failures.push('Preset rule limitations are not explained.');
+  if (!note.includes('клубная свободная пирамида') || !note.includes('8-ball') || !note.includes('не турнирный регламент')) failures.push('Preset rule limitations are not explained.');
   await captureScreenshot(cdp, `${directory}/new-match.png`);
   await clickControl(cdp, '.billiards-match-dialog button[value="cancel"]');
   if ((await evaluate(cdp, ui.qaExpression)).match.revision !== before.match.revision) failures.push('Cancel reset the match.');

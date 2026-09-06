@@ -1,3 +1,4 @@
+import { resolvePyramidShot } from './pyramid.ts';
 import {
   billiardsBallIds,
   billiardsBallKinds,
@@ -20,6 +21,7 @@ export function resolveCompletedShot(
   table: BilliardsTableState,
   trace: BilliardsShotTrace,
 ): BilliardsMatchState {
+  if (match.table.presetId === 'russian') return resolvePyramidShot(match, table, trace);
   const current = match.turnIndex;
   const opponent = otherPlayer(current);
   const eightPocketed = trace.pocketedBallIds.includes(billiardsBallIds.eight);

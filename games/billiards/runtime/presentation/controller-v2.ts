@@ -1,3 +1,4 @@
+import { selectPyramidBall } from '../domain/pyramid.ts';
 import { tablePreset, type BilliardsPresetId } from '../domain/table-presets.ts';
 import { createInitialMatch, positionCueBall, restartMatch, startMatchShot } from '../domain/match.ts';
 import { billiardsMatchPhases } from '../domain/registry.ts';
@@ -107,6 +108,24 @@ export class BilliardsGameControllerV2 {
     this.shot.synchronizeMatch(this.match);
     this.emitFeedback(result.events);
     this.emit();
+  }
+
+  public selectBallAt(point: Vec2): boolean {
+    if (!this.canInteract() || this.session.mode !== 'local') return false;
+    const radius = tablePreset(this.match.table).ballRadius;
+    const ball = this.match.table.balls.find(ball => !ball.pocketed
+      && Math.hypot(ball.position.x - point.x, ball.position.y - point.y) <= radius * 1.5);
+    if (!ball) return false;
+    const selected = selectPyramidBall(this.match, ball.id);
+    if (selected === this.match) return false;
+    this.match = selected; this.shot.synchronizeMatch(selected); this.emit(); return true;
+  }
+
+  public selectNextBall(): void {
+    const balls = this.match.table.balls.filter(ball => !ball.pocketed);
+    const index = balls.findIndex(ball => ball.id === this.match.table.cueBallId);
+    const next = balls[(index + 1) % balls.length];
+    if (next) this.selectBallAt(next.position);
   }
 
   public setAimFromWorld(point: Vec2): void { if (this.canInteract()) this.shot.setAimFromWorld(this.match, point); }
