@@ -72,6 +72,7 @@
  #slop-billiards-root .billiards-ball-slot { width:14px; height:14px; font-size:8px; }
 }
 @media (max-height:680px) and (orientation:portrait) {
+ .billiards-shell { row-gap:1px; }
  .billiards-brand { display:none; }
  .billiards-connection { flex:1; text-align:right; }
  .billiards-player-group { font-size:8px; }

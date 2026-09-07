@@ -20,16 +20,19 @@ const outputRoot = path.resolve(
   'billiards-ui',
 );
 await mkdir(outputRoot, { recursive: true });
-const chromium = await openChromium();
-const { cdp } = chromium;
-try {
-  await cdp.send('Page.enable');
-  await cdp.send('Runtime.enable');
-  await cdp.send('Log.enable');
-  const runtimeErrors = collectRuntimeErrors(cdp);
-  const viewportReports = [];
-  for (const viewport of quality.ui.requiredViewports) {
-    runtimeErrors.length = 0;
+const viewportReports = [];
+let browserPath = null;
+// A viewport is a separate device, including its native input state. Reusing a
+// target after device emulation and touch strokes leaks Chrome pointer state.
+for (const viewport of quality.ui.requiredViewports) {
+  const chromium = await openChromium();
+  const { cdp } = chromium;
+  browserPath = chromium.browserPath;
+  try {
+    await cdp.send('Page.enable');
+    await cdp.send('Runtime.enable');
+    await cdp.send('Log.enable');
+    const runtimeErrors = collectRuntimeErrors(cdp);
     viewportReports.push(await inspectViewport({ cdp, viewport, ui, outputRoot, runtimeErrors, exerciseShot: true })
       .catch(async (error) => {
         const failure = { id: viewport.id, failures: [String(error)], stack: error.stack, state: await evaluate(cdp, 'window.__SLOP_BILLIARDS_QA_V2__?.snapshot()').catch(() => null) };
@@ -37,34 +40,21 @@ try {
         try { await captureScreenshot(cdp, path.join(outputRoot, viewport.id, 'failure.png')); } catch { /* retain original failure */ }
         return failure;
       }));
-  }
-  const failures = viewportReports.flatMap((report) =>
-    report.failures.map((failure) => `${report.id}: ${failure}`),
-  );
-  const report = {
-    schemaVersion: 1,
-    browserPath: chromium.browserPath,
-    baseUrl,
-    viewports: viewportReports,
-    failures,
-  };
-  await writeFile(
-    path.join(outputRoot, 'report.json'),
-    `${JSON.stringify(report, null, 2)}\n`,
-  );
-  console.log(JSON.stringify(report, null, 2));
-  if (failures.length > 0) {
-    process.exitCode = 1;
-  }
-} finally {
-  await chromium.close();
-  if (process.exitCode) {
-    const errors = chromium.getBrowserErrors().trim();
-    if (errors !== '') {
-      console.error(errors.slice(-4000));
+  } finally {
+    await chromium.close();
+    if (viewportReports.at(-1)?.failures.length) {
+      const errors = chromium.getBrowserErrors().trim();
+      if (errors !== '') console.error(errors.slice(-4000));
     }
   }
 }
+const failures = viewportReports.flatMap((report) =>
+  report.failures.map((failure) => `${report.id}: ${failure}`),
+);
+const report = { schemaVersion: 1, browserPath, baseUrl, viewports: viewportReports, failures };
+await writeFile(path.join(outputRoot, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
+console.log(JSON.stringify(report, null, 2));
+if (failures.length > 0) process.exitCode = 1;
 async function inspectViewport({
   cdp,
   viewport,

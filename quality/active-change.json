@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "area": "pocket-club-release-repair",
-  "problem": "Publish the recorded-audio / club-pyramid candidate. It builds, but the local-game chunk exceeds its allocation and a browser input command is rejected. The user explicitly authorized relaxing or reallocating that gate.",
+  "problem": "Stable 73475db builds and passes bundle limits, but Pages is blocked by a 238.5px canvas on 360x640 and native touch state leaking between emulated device runs. Publish and verify the actual served SHA.",
   "existingOwnersChecked": [
     "AGENTS.md",
     "games/billiards/AGENTS.md",
@@ -23,7 +23,7 @@
     "games/billiards/runtime/presentation/pocket-club.css",
     "games/billiards/runtime/presentation/table-camera.ts"
   ],
-  "reuseDecision": "Keep the existing gate and transfer 10 kB raw / 4 kB gzip / 3 kB Brotli from unused Colyseus allowance to the expanded local game. Base and aggregate limits and matching are unchanged. Extend the existing CDP client with actionable errors; repair actual gestures instead of skipping assertions. Use canonical wheel tuning for native crown input, polling its observable result after every event; no synthetic shot or state writes. Faster held-key polling in the existing island harness prevents test navigation from overshooting corners. Preserve fatal viewport errors with screenshots and continue collecting evidence; every error still fails the run. Reserve two hint lines in the existing route stylesheet so the camera ResizeObserver does not cancel a cue gesture when copy wraps. End each native touch sequence exactly once; never cancel an already-ended sequence.",
+  "reuseDecision": "Keep the existing gate and transfer 10 kB raw / 4 kB gzip / 3 kB Brotli from unused Colyseus allowance to the expanded local game. Base and aggregate limits and matching are unchanged. Extend the existing CDP client with actionable errors; repair actual gestures instead of skipping assertions. Use canonical wheel tuning for native crown input, polling its observable result after every event; no synthetic shot or state writes. Faster held-key polling in the existing island harness prevents test navigation from overshooting corners. Preserve fatal viewport errors with screenshots and continue collecting evidence; every error still fails the run. Reserve two hint lines in the existing route stylesheet so the camera ResizeObserver does not cancel a cue gesture when copy wraps. End each native touch sequence exactly once; never cancel an already-ended sequence. Run each required viewport through the existing Chromium host with a fresh browser/profile; keep every interaction/assertion, including persisted-settings reload within a viewport. Reduce only short-portrait grid gaps so the table clears the existing 240px minimum without reducing touch targets or hint height. Retain failed publication artifacts with always().",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
     "Changing main, game physics or club-pyramid scope; claiming tournament rules",
@@ -40,7 +40,10 @@
     "Only a validated candidate is moved to stable; publication validates it again and verifies the deployed HTML commit identity",
     "The recorded-pot setup adjusts the relative crown with real wheel events; verifies target power, unchanged angle and unchanged match revision before the real shot.",
     "Every required billiards viewport records fatal diagnostics without hiding failures. Held-key navigation releases keys even when the unchanged predicate times out.",
-    "A captured native manual stroke preserves camera-stage height when interaction hints change; real orientation/viewport changes still cancel safely."
+    "A captured native manual stroke preserves camera-stage height when interaction hints change; real orientation/viewport changes still cancel safely.",
+    "Every device starts in an isolated Chromium process/profile; all six existing viewport assertions remain blocking.",
+    "At 360x640 the table is at least 240px wide, primary controls remain 44px and hints cannot resize the table mid-stroke.",
+    "The publication workflow retains its quality report on failure and verifies the exact deployed commit on success."
   ],
   "parallelChanges": [
     "quality/changes/island-cozy.json",

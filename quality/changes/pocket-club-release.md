@@ -45,3 +45,22 @@ between one and two lines, resizing the stage and invoking the camera's safety
 cancellation. Reserve a two-line hint box in the existing stylesheet and assert
 that stage height remains stable during a native stroke. End failed native
 touch sequences; do not send cancel after a successfully ended sequence.
+
+## 2026-09-07: actual publication blocker
+
+Stable 73475db did not deploy: Publish stable #20 failed its candidate browser
+step. CI 34060657764 confirms production, types and budgets pass. Small-phone
+completed touch stroke, audio, both breaks and pot feedback, but its canvas was
+238.53125px wide against the unchanged 240px minimum. Later portrait viewports
+failed native multiTouch capture, while both landscape devices passed.
+
+The runner now opens and closes the existing Chromium host for each device,
+without sharing emulated/native input state or saved graphics preferences.
+Settings persistence is still tested by reload within every device. All six
+viewports and every gameplay assertion remain required. Short portrait grid
+gaps reclaim six pixels of stage height; the hint stays fixed at two lines and
+primary touch targets stay 44px. Failed publication reports are now uploaded.
+
+Local source-only validation and exact-candidate CI are recorded separately;
+local Chromium cannot navigate HTTP in this environment (administrator policy),
+so production browser evidence must come from the GitHub runner.
