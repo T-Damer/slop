@@ -1,0 +1,34 @@
+name: Island asset review
+on:
+  push:
+    branches: [feature/core-traffic]
+    paths: ['tools/review-island-assets.mjs', '.github/workflows/island-asset-review.yml']
+  pull_request:
+    branches: [main]
+    paths: ['tools/review-island-assets.mjs', '.github/workflows/island-asset-review.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: island-asset-review-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Acquire public-domain reference and exact review source
+        run: node tools/review-island-assets.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: island-asset-review-${{ github.sha }}
+          path: quality-artifacts/island-asset-review
+          if-no-files-found: error
+          retention-days: 7
