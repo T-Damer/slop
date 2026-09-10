@@ -43,3 +43,13 @@ test('portrait and landscape aim retain the exact canvas direction across scaled
     }
   }
 });
+
+
+test('non-scratch fixture restores the settled camera before the next real break', async () => {
+  const source = await readFile(new URL('./browser-quality/billiards-hud-guide.mjs', import.meta.url), 'utf8');
+  const reset = source.lastIndexOf('await chooseNewMatch(cdp, ui)');
+  const settled = source.indexOf('await settleCamera(cdp)', reset);
+  const returned = source.indexOf('return { cueStayedOnTable', reset);
+  assert.ok(reset >= 0 && settled > reset && settled < returned);
+  assert.doesNotMatch(source.slice(reset, returned), /await delay\(/);
+});

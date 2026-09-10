@@ -19,3 +19,7 @@ The production browser contract additionally observes stage, HUD and controls th
 ## First production run follow-up
 
 CI 34489249262 passed types, build, assets, budgets and the three other browser suites. Desktop and landscape billiards passed the new real-play HUD/guide/foul checks with 0px shift. The shortest phone needed actual dialog scrolling to reach the new-match action. Portrait tests also rounded native aim coordinates to 0.01 CSS pixels, changing the symmetric break and the following recorded pot. Preserve CDP's native floating-point coordinates, keep non-finite rejection, add round-trip regressions, and scroll/hit-test dialog controls before real mouse input. No gameplay state is injected and every outcome assertion remains blocking.
+
+## Release verification follow-up
+
+Run 34516189242 reproduced the pot failure on all four portrait devices; both landscape devices passed, with 0px HUD movement. The non-scratch fixture deliberately locks aim before restart, triggering portrait auto-zoom. Its fixed 100ms sleep did not guarantee that restart's overview transition finished before the next break converted world coordinates to a screen point. Replace that sleep with the existing camera-settled predicate. This changes only fixture sequencing, not game physics, native input, pot/HUD assertions or budgets. Add a regression guard against restoring a time-based delay. CI now retains the browser log even for failures before viewport reports.

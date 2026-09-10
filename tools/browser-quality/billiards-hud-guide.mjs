@@ -1,4 +1,4 @@
-import { evaluate, waitForExpression, captureScreenshot, delay } from './cdp-client.mjs';
+import { evaluate, waitForExpression, captureScreenshot } from './cdp-client.mjs';
 import { setPowerWithWheel, settleCamera } from './billiards-camera.mjs';
 import { clickAt, aimPoint } from './billiards-controls.mjs';
 import { clickControl, chooseNewMatch } from './billiards-presets.mjs';
@@ -70,6 +70,8 @@ export async function verifyNonScratchFoul(cdp, ui, directory) {
   await clickAt(cdp, await aimPoint(cdp, ui, 900, 350));
   if (JSON.stringify((await read()).match.table.balls.find(b => b.id === 0).position) !== position) throw new Error('Ordinary aiming moved the cue ball.');
   await chooseNewMatch(cdp, ui);
-  await delay(100);
+  // Restart restores the overview asynchronously. Its rectangle must stop
+  // moving before the next fixture converts a world aim into screen input.
+  await settleCamera(cdp);
   return { cueStayedOnTable: true, reason: foul.match.status, placementRevision: placed.match.revision, baselineRevision: before.match.revision };
 }

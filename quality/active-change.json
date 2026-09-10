@@ -20,9 +20,11 @@
     "tools/browser-quality/billiards-camera.mjs",
     ".github/workflows/ci.yml",
     ".github/workflows/publish-stable.yml",
-    "tools/browser-quality/chromium-host.mjs"
+    "tools/browser-quality/chromium-host.mjs",
+    "tools/browser-quality/billiards-hud-guide.mjs",
+    "tools/browser-quality/billiards-controls.mjs"
   ],
-  "reuseDecision": "Extend the existing CSS/player view with a fixed-height horizontally scrollable pocket shelf alongside the name, single-line status, and fixed shot-action footprint. Preserve the domain-owned 8-ball standard-foul rule; explicitly show its reason and test placement permissions. Extend existing prediction using actual strike speed, rolling deceleration and first-collision geometry rather than adding a physics engine. Native overflow and existing browser harness suffice; no package or subsystem is added. Retain the existing browser command output in its quality artifact with pipefail so startup failures remain diagnosable without changing pass/fail semantics.",
+  "reuseDecision": "Extend the existing CSS/player view with a fixed-height horizontally scrollable pocket shelf alongside the name, single-line status, and fixed shot-action footprint. Preserve the domain-owned 8-ball standard-foul rule; explicitly show its reason and test placement permissions. Extend existing prediction using actual strike speed, rolling deceleration and first-collision geometry rather than adding a physics engine. Native overflow and existing browser harness suffice; no package or subsystem is added. Retain the existing browser command output in its quality artifact with pipefail so startup failures remain diagnosable without changing pass/fail semantics. The non-scratch-foul fixture must await the existing camera settlement predicate after resetting its zoomed table, not a fixed 100 ms delay; otherwise the following native break uses a moving screen transform.",
   "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
     "Changing 8-ball into scratch-only house rules or expanding club pyramid scope",
@@ -36,7 +38,8 @@
     "The foul reason and bitok-s-ruki explanation remain visible during placement instead of only a generic instruction",
     "Cue preview grows with weak/medium power, stops at first reachable collision, omits unreachable object guides, and uses the selected pyramid striker",
     "Strict types, domain and source checks, existing budgets and all four production/Pages browser suites pass for the exact release",
-    "CI retains the browser command log even when the browser exits before producing viewport JSON; the original nonzero exit status remains blocking."
+    "CI retains the browser command log even when the browser exits before producing viewport JSON; the original nonzero exit status remains blocking.",
+    "After the non-scratch-foul fixture, the camera is at settled overview before the next real break; all portrait pot/HUD assertions remain unchanged."
   ],
   "parallelChanges": [
     "quality/changes/island-world-input.json",
