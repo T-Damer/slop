@@ -73,6 +73,7 @@ function bindKeyboard(options: BilliardsControlInputOptionsV2): () => void {
 
 function bindWheel(options: BilliardsControlInputOptionsV2): () => void {
   const onWheel = (event: WheelEvent): void => {
+    if (event.target instanceof HTMLElement && event.target.closest('[data-player-ball-slots]')) return;
     if (event.ctrlKey || event.metaKey || event.deltaY === 0 || !options.snapshot().canInteract
       || options.view.root.querySelector('dialog[open]') !== null) return;
     event.preventDefault();
@@ -123,5 +124,5 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement
     || target instanceof HTMLTextAreaElement
     || target instanceof HTMLSelectElement
-    || (target instanceof HTMLElement && target.isContentEditable);
+    || (target instanceof HTMLElement && (target.isContentEditable || target.closest('[data-player-ball-slots]') !== null));
 }

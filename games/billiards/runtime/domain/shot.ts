@@ -59,13 +59,17 @@ export function previewShot(
   if (cue === null) {
     return { cuePath: [], objectPath: [], firstCollision: null };
   }
-  const maximumTime = billiardsPhysics.maximumGuideDistance
-    / Math.max(billiardsPhysics.minimumShotSpeed, vectorSpeed(cue.velocity));
+  const speed = vectorSpeed(cue.velocity);
+  // Free-roll estimate, not a full rebound simulation. Use the actual strike
+  // speed, cloth deceleration and stop threshold; never predict unreachable hits.
+  const distance = Math.min(billiardsPhysics.maximumGuideDistance, Math.max(0,
+    (speed ** 2 - billiardsPhysics.stopSpeed ** 2) / (2 * billiardsPhysics.rollingDeceleration)));
+  const maximumTime = distance / speed;
   const collision = findFirstCollision(movingTable.balls, maximumTime, tableModelFor(table));
   const end = collision === null
     ? addVec2(
       cue.position,
-      scaleVec2(normalizeVec2(cue.velocity), billiardsPhysics.maximumGuideDistance),
+      scaleVec2(normalizeVec2(cue.velocity), distance),
     )
     : addVec2(cue.position, scaleVec2(cue.velocity, Math.max(0, collision.time)));
   return {

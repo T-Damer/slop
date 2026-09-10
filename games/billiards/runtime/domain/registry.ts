@@ -98,6 +98,7 @@ export const billiardsRules = {
 
 export const billiardsMessages = {
   placementRequired: 'Сначала подтвердите установку битка',
+  ballInHand: 'Биток с руки',
   break: 'Разбей пирамиду',
   openTable: 'Стол открыт',
   solids: 'Сплошные',

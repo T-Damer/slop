@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "area": "island-world-and-shared-input",
+  "problem": "The island has sparse primitive scenery, an overly regular coast, indistinct locations and inaccessible-looking entrances. Island and billiards expose touch and keyboard hints simultaneously. Improve the actual playable world, preserve saves, and share one live input-context owner.",
+  "existingOwnersChecked": [
+    "AGENTS.md",
+    "games/island-hub/AGENTS.md",
+    "architecture/target.mmd",
+    "quality/generation-policy.md",
+    "quality/active-change.json",
+    ".github/workflows/island-quality.yml",
+    ".github/workflows/billiards-asset-review.yml",
+    "games/shared/player-movement/input.ts"
+  ],
+  "reuseDecision": "Extend the existing island blueprint, movement, scene and interior owners rather than adding a second world or router. Share browser input modality in game-shell, independently of viewport size, and compose it into the existing joystick and billiards presentation. Native Pointer Events and matchMedia provide the required capability without a device-detection package. Follow the existing asset-review workflow pattern for inspecting the official Kenney CC0 archive before selecting, pinning and integrating assets. Review artifacts retain the exact tracked source for reproducibility; no workflow writes source back to branches.",
+  "stateOwner": "games/shared/player-movement/input.ts",
+  "nonGoals": [
+    "Changing billiards physics or network protocols",
+    "Erasing player progress or silently regenerating saved islands",
+    "Copying Nintendo assets, branding or exact scenes",
+    "Publishing unvalidated changes to stable or relaxing budgets to hide regressions"
+  ],
+  "acceptance": [
+    "Imported assets have verified provenance, explicit license, hashes and bounded runtime cost; no runtime CDN dependency",
+    "Land generation and walkability share a deterministic boundary, keep routes and entrances accessible and support bounded shallow-water walking",
+    "Houses and cave can be entered and exited using normal player controls; saved progress survives",
+    "Forest, beach and interiors have distinct smoothly transitioning presentation",
+    "Touch, pen and keyboard/mouse input update both games without reload; resizing alone never guesses input modality",
+    "Device context listeners are shared and released; gestures survive or cancel safely on focus loss and route disposal",
+    "Types, domain tests, ownership, asset checks and existing bundle ratchets pass",
+    "Actual browser interaction and screenshot evidence cover mobile, desktop and hybrid input, including the existing failing island walk fixture"
+  ],
+  "parallelChanges": [
+    "quality/changes/island-cozy.json",
+    "quality/changes/island-home-audio.json",
+    "quality/changes/island-voyages.json"
+  ]
+}

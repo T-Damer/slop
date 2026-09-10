@@ -51,7 +51,8 @@ export function resolveCompletedShot(
     phase: nextPhase(assigned),
     ballInHand: foul !== null,
     activeShot: null,
-    status: foul ?? turnStatus(assigned, nextTurn, retainedTurn),
+    status: foul === null ? turnStatus(assigned, nextTurn, retainedTurn)
+      : `${foul} · ${billiardsMessages.ballInHand}`,
   };
 }
 

@@ -22,16 +22,17 @@
 #slop-billiards-root .billiards-player.is-active { opacity:1; border-color:#c5a365; box-shadow:inset 0 0 12px #d4af690c; animation:none; }
 #slop-billiards-root .billiards-avatar { border:1px solid #b3945a66; width:30px; height:30px; flex-shrink:0; display:grid; place-items:center;
  background:#0002; border-radius:50%; color:#dbc79f; font:bold 16px Georgia,serif; }
-.billiards-player-copy { min-width:0; }
-.billiards-player-name { font-weight:bold; font-size:14px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.billiards-player-copy { min-width:0; flex:1; }
+.billiards-player-heading { display:flex; align-items:center; gap:5px; height:17px; min-width:0; }
+.billiards-player-name { flex:0 1 auto; max-width:55%; min-width:0; font-weight:bold; font-size:14px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .billiards-player-group { color:#bca783; font:10px system-ui,sans-serif; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-#slop-billiards-root .billiards-pocketed-balls { display:flex; flex-wrap:wrap; gap:3px; min-height:0; max-width:190px; margin-top:3px; }
-.billiards-player[data-player-index='1'] .billiards-pocketed-balls { justify-content:flex-end; }
-#slop-billiards-root .billiards-ball-slot { display:inline-grid; width:17px; height:17px; place-items:center; border:1px solid #977846;
+#slop-billiards-root .billiards-pocketed-balls { display:flex; flex:1; flex-wrap:nowrap; gap:3px; min-width:0; height:17px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-x:contain; }
+.billiards-player[data-player-index='1'] .billiards-pocketed-balls { justify-content:safe flex-end; }
+#slop-billiards-root .billiards-ball-slot { display:inline-grid; flex-shrink:0; width:17px; height:17px; place-items:center; border:1px solid #977846;
  border-radius:50%; font:700 9px system-ui; color:#151414; background:radial-gradient(circle at 35% 25%,#fff 0 12%,var(--slot-color) 25% 68%,#34302a); }
 #slop-billiards-root .billiards-ball-slot[hidden] { display:none; }
 .billiards-ball-slot[data-return-pending] { opacity:0; }
-#slop-billiards-root .billiards-status { grid-column:1/-1; text-align:center; padding:0; border:0; background:none; box-shadow:none; font-size:11px; line-height:1.2; }
+#slop-billiards-root .billiards-status { grid-column:1/-1; text-align:center; padding:0; border:0; background:none; box-shadow:none; font-size:11px; height:14px; line-height:14px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .billiards-stage { position:relative; min-width:0; min-height:0; width:100%; height:100%; overflow:hidden; border-radius:14px; touch-action:none; contain:layout paint; }
 #slop-billiards-canvas { position:absolute; max-width:none; max-height:none; display:block; user-select:none; touch-action:none; border:0; transition:none; }
 .billiards-camera-tools { display:flex; gap:12px; align-items:center; justify-content:center; }
@@ -49,7 +50,7 @@
 .billiards-roller-drum output { z-index:1; font:700 18px system-ui; color:#ebc977; text-shadow:0 1px 5px #000,0 0 9px #000; pointer-events:none; }
 .billiards-roller-drum input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; touch-action:none; cursor:ew-resize; }
 .billiards-actions { display:flex; align-items:end; gap:8px; }
-.billiards-button { min-height:44px; min-width:140px; padding:8px 20px; border:1px solid #c7a565; border-radius:12px;
+.billiards-button { height:44px; width:190px; min-width:140px; white-space:nowrap; padding:8px 20px; border:1px solid #c7a565; border-radius:12px;
  color:#ead5ae; background:linear-gradient(#664129,#2d1c12); font-weight:bold!important; }
 #slop-billiards-root .billiards-table-hint { grid-column:1/-1; margin:0; text-align:center; line-height:1.2; font:10px system-ui; color:#b29b75; }
 #slop-billiards-root[data-aim-locked=true] .billiards-button { box-shadow:0 0 0 2px #d4ac6455; }
@@ -65,6 +66,7 @@
  .billiards-actions { justify-content:center; }
  .billiards-button { min-width:190px; }
  #slop-billiards-root .billiards-player { gap:5px; padding:5px 7px; }
+ .billiards-player-heading, #slop-billiards-root .billiards-pocketed-balls { height:14px; }
  .billiards-player-name { font-size:12px; }
  .billiards-player-group { font-size:9px; }
  #slop-billiards-root .billiards-avatar { width:25px; height:25px; font-size:13px; }
@@ -97,7 +99,7 @@
 @media (max-width:560px) and (orientation:landscape) {
  #slop-billiards-root .billiards-controls { grid-template-columns:minmax(0,1fr) auto; gap:6px; }
  .billiards-rollers { gap:6px; }
- .billiards-button { min-width:80px; padding:8px; }
+ .billiards-button { width:140px; min-width:80px; padding:8px; font-size:12px; }
 }
 
 /* Interaction hints must never resize the camera stage while a pointer owns

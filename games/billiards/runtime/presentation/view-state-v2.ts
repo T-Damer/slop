@@ -48,6 +48,7 @@ export function updateBilliardsViewV2(
       : interaction.placementPreview.valid
         ? 'Кликните или коснитесь свободного места для установки битка'
         : 'В этом месте биток поставить нельзя';
+    view.hint.textContent = `${snapshot.match.status}. ${view.hint.textContent}`;
     return;
   }
 

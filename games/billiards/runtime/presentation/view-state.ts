@@ -27,6 +27,7 @@ export function updateBilliardsView(
   view.root.setAttribute(billiardsUiAttributes.ballRenderMode, 'spherical-roll');
 
   view.status.textContent = match.status;
+  view.status.title = match.status;
   const build = document.querySelector<HTMLMetaElement>('meta[name="slop-build-sha"]')?.content;
   view.connection.textContent = `${connectionBadge(snapshot.connection.state)} · ${build?.slice(0, 7) ?? 'dev'}`;
   view.connection.title = `${snapshot.connection.detail} · ${build ?? 'development build'}`;
@@ -40,6 +41,7 @@ export function updateBilliardsView(
     panel.classList.toggle('is-winner', winnerIndex === playerIndex);
     view.playerNames[playerIndex].textContent = player.name;
     view.playerGroups[playerIndex].textContent = `${match.table.presetId === 'russian' ? 'Пирамида · до 8' : groupLabel(player.group)} · забито ${match.table.balls.filter((ball) => ball.pocketed && ball.pocketedBy === playerIndex).length}`;
+    view.playerGroups[playerIndex].title = view.playerGroups[playerIndex].textContent ?? '';
     panel.setAttribute('aria-current', String(match.turnIndex === playerIndex));
     updatePocketSlots(
       view.pocketSlots[playerIndex],

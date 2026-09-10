@@ -1,36 +1,41 @@
 {
   "schemaVersion": 1,
-  "area": "island-world-and-shared-input",
-  "problem": "The island has sparse primitive scenery, an overly regular coast, indistinct locations and inaccessible-looking entrances. Island and billiards expose touch and keyboard hints simultaneously. Improve the actual playable world, preserve saves, and share one live input-context owner.",
+  "area": "billiards-stable-hud-foul-explanation-power-guide",
+  "problem": "Player changes and pocketed balls resize the HUD and table; ball-in-hand after a non-scratch foul is unexplained; cue preview ignores shot power.",
   "existingOwnersChecked": [
     "AGENTS.md",
-    "games/island-hub/AGENTS.md",
+    "games/billiards/AGENTS.md",
     "architecture/target.mmd",
     "quality/generation-policy.md",
-    "quality/active-change.json",
-    ".github/workflows/island-quality.yml",
-    ".github/workflows/billiards-asset-review.yml",
-    "games/shared/player-movement/input.ts"
+    "games/billiards/runtime/presentation/view-elements.ts",
+    "games/billiards/runtime/presentation/pocket-club.css",
+    "games/billiards/runtime/presentation/view-state-v2.ts",
+    "games/billiards/runtime/presentation/table-camera.ts",
+    "games/billiards/runtime/domain/rules.ts",
+    "games/billiards/runtime/domain/match.ts",
+    "games/billiards/runtime/domain/rack.ts",
+    "games/billiards/runtime/domain/shot.ts",
+    "games/billiards/runtime/domain/registry.ts",
+    "tools/check-billiards-quality.mjs",
+    "tools/browser-quality/billiards-camera.mjs"
   ],
-  "reuseDecision": "Extend the existing island blueprint, movement, scene and interior owners rather than adding a second world or router. Share browser input modality in game-shell, independently of viewport size, and compose it into the existing joystick and billiards presentation. Native Pointer Events and matchMedia provide the required capability without a device-detection package. Follow the existing asset-review workflow pattern for inspecting the official Kenney CC0 archive before selecting, pinning and integrating assets. Review artifacts retain the exact tracked source for reproducibility; no workflow writes source back to branches.",
-  "stateOwner": "games/shared/player-movement/input.ts",
+  "reuseDecision": "Extend the existing CSS/player view with a fixed-height horizontally scrollable pocket shelf alongside the name, single-line status, and fixed shot-action footprint. Preserve the domain-owned 8-ball standard-foul rule; explicitly show its reason and test placement permissions. Extend existing prediction using actual strike speed, rolling deceleration and first-collision geometry rather than adding a physics engine. Native overflow and existing browser harness suffice; no package or subsystem is added.",
+  "stateOwner": "games/billiards/runtime/domain/types.ts",
   "nonGoals": [
-    "Changing billiards physics or network protocols",
-    "Erasing player progress or silently regenerating saved islands",
-    "Copying Nintendo assets, branding or exact scenes",
-    "Publishing unvalidated changes to stable or relaxing budgets to hide regressions"
+    "Changing 8-ball into scratch-only house rules or expanding club pyramid scope",
+    "Changing actual physics, remote authority or any byte/UI limit",
+    "Overwriting concurrent island work or merging main"
   ],
   "acceptance": [
-    "Imported assets have verified provenance, explicit license, hashes and bounded runtime cost; no runtime CDN dependency",
-    "Land generation and walkability share a deterministic boundary, keep routes and entrances accessible and support bounded shallow-water walking",
-    "Houses and cave can be entered and exited using normal player controls; saved progress survives",
-    "Forest, beach and interiors have distinct smoothly transitioning presentation",
-    "Touch, pen and keyboard/mouse input update both games without reload; resizing alone never guesses input modality",
-    "Device context listeners are shared and released; gestures survive or cancel safely on focus loss and route disposal",
-    "Types, domain tests, ownership, asset checks and existing bundle ratchets pass",
-    "Actual browser interaction and screenshot evidence cover mobile, desktop and hybrid input, including the existing failing island walk fixture"
+    "HUD, stage and primary control bounds stay constant through real turns, pocket events, fouls, placement and reset on all six required viewports",
+    "Pocket history never wraps or enlarges the HUD; both players can scroll all their potted balls, and full status remains available",
+    "Legal miss and legal pot do not grant placement; each implemented standard foul does; placement consumes the permission once; pyramid retains its own rules",
+    "The foul reason and bitok-s-ruki explanation remain visible during placement instead of only a generic instruction",
+    "Cue preview grows with weak/medium power, stops at first reachable collision, omits unreachable object guides, and uses the selected pyramid striker",
+    "Strict types, domain and source checks, existing budgets and all four production/Pages browser suites pass for the exact release"
   ],
   "parallelChanges": [
+    "quality/changes/island-world-input.json",
     "quality/changes/island-cozy.json",
     "quality/changes/island-home-audio.json",
     "quality/changes/island-voyages.json"

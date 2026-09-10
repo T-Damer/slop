@@ -1,3 +1,4 @@
+import { watchHud, finishHudWatch, verifyPowerGuide, verifyNonScratchFoul } from './browser-quality/billiards-hud-guide.mjs';
 import { waitForBilliardsStartup } from './browser-quality/billiards-startup.mjs';
 import { verifyGraphicsMenu, verifyCamera, verifyPocketJourney } from './browser-quality/billiards-camera.mjs';
 import { verifyPresetRoundtrip } from './browser-quality/billiards-presets.mjs';
@@ -82,11 +83,14 @@ async function inspectViewport({
   await waitForBilliardsStartup(cdp, ui, directory, runtimeErrors);
   await delay(700);
   const settings = await verifyGraphicsMenu(cdp, directory);
+  await watchHud(cdp);
   const layout = await evaluate(cdp, createLayoutExpression(ui));
   const screenshot = await captureScreenshot(cdp, path.join(directory, 'boot.png'));
   const failures = [...layout.failures];
   const interactions = { settings, camera: await verifyCamera(cdp, ui, directory), controls: await verifyAimControls(cdp, ui) };
   failures.push(...interactions.controls.failures);
+  interactions.powerGuide = await verifyPowerGuide(cdp, ui, directory);
+  interactions.nonScratchFoul = await verifyNonScratchFoul(cdp, ui, directory);
   if (exerciseShot) {
     interactions.breakShot = await runBreakShot(cdp, ui, directory);
     if (!interactions.breakShot.completed) {
@@ -105,6 +109,8 @@ async function inspectViewport({
   interactions.pocketJourney = await verifyPocketJourney(cdp, ui, directory, aimPoint, clickAt);
   interactions.presets = await verifyPresetRoundtrip(cdp, ui, directory, () => runBreakShot(cdp, ui, directory));
   failures.push(...interactions.presets.failures);
+  interactions.hud = await finishHudWatch(cdp);
+  failures.push(...interactions.hud.failures);
   for (const runtimeError of runtimeErrors) {
     failures.push(`Browser error: ${runtimeError}`);
   }

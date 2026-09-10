@@ -52,9 +52,9 @@ export function createBilliardsViewElements(): BilliardsViewElements {
 function playerCard(index: number): string {
   return `<article class="billiards-player" data-billiards-player data-player-index="${index}">
     <div class="billiards-avatar" aria-hidden="true">${index + 1}</div><div class="billiards-player-copy">
-    <div class="billiards-player-name"></div><div class="billiards-player-group"></div>
-    <div class="billiards-pocketed-balls" data-player-ball-slots="${index}">${billiardsBallIds.allObjects.map((id) =>
-      `<span class="billiards-ball-slot" data-billiards-pocket-slot data-ball-id="${id}" hidden role="img"></span>`).join('')}</div></div></article>`;
+    <div class="billiards-player-heading"><div class="billiards-player-name"></div>
+    <div class="billiards-pocketed-balls" data-player-ball-slots="${index}" tabindex="0" aria-label="Забитые шары игрока ${index + 1}">${billiardsBallIds.allObjects.map((id) =>
+      `<span class="billiards-ball-slot" data-billiards-pocket-slot data-ball-id="${id}" hidden role="img"></span>`).join('')}</div></div><div class="billiards-player-group"></div></div></article>`;
 }
 function roller(id: string, label: string, value: string, min: string, max: string, step: string): string {
   return `<label class="billiards-side-control billiards-${id}-control" data-billiards-${id}-rail title="${label}: тяните влево/вправо или прокручивайте колесо">
