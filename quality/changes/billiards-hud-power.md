@@ -15,3 +15,7 @@ Local source check: 177 passed, 7 toolchain-dependent skips, zero failures. Eigh
 A local Chromium component fixture used the actual view projection, stylesheet and camera (without the Modoki bootstrap). Projecting 0/1/8/15 pocketed balls, turn changes, a long foul and placement/reset caused 0px stage/scoreboard/primary-action shift on all six required viewports. The 360x640 stage remains 385px high. This fixture is not a claim of full production validation.
 
 The production browser contract additionally observes stage, HUD and controls throughout real play; exercises a real weak non-scratch foul and one-time placement; and checks weak/medium/strong guides with real crown wheel events. CI and deployed Pages evidence must validate the exact committed tree before claiming release success. No checks or budgets are relaxed.
+
+## First production run follow-up
+
+CI 34489249262 passed types, build, assets, budgets and the three other browser suites. Desktop and landscape billiards passed the new real-play HUD/guide/foul checks with 0px shift. The shortest phone needed actual dialog scrolling to reach the new-match action. Portrait tests also rounded native aim coordinates to 0.01 CSS pixels, changing the symmetric break and the following recorded pot. Preserve CDP's native floating-point coordinates, keep non-finite rejection, add round-trip regressions, and scroll/hit-test dialog controls before real mouse input. No gameplay state is injected and every outcome assertion remains blocking.

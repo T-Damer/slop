@@ -4,8 +4,11 @@ export async function clickControl(cdp, selector) {
   const point = await evaluate(cdp, `(() => {
     const element = document.querySelector(${JSON.stringify(selector)});
     if (!element) throw new Error('Missing control: ' + ${JSON.stringify(selector)});
+    element.scrollIntoView({block:'nearest', inline:'nearest', behavior:'instant'});
     const rect = element.getBoundingClientRect();
-    return {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2};
+    const x = rect.x + rect.width / 2, y = rect.y + rect.height / 2;
+    if (!element.contains(document.elementFromPoint(x,y))) throw new Error('Obscured control: ' + ${JSON.stringify(selector)});
+    return {x,y};
   })()`);
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point });
   await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 });

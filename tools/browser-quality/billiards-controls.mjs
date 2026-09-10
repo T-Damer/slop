@@ -19,12 +19,13 @@ export async function aimPoint(cdp, ui, x, y) {
 }
 
 /** Native input coordinates are viewport CSS pixels. Preserve subpixel accuracy
- * but never send NaN/null to CDP, whose JSON transport would hide their origin. */
+ * without rounding: quantizing a portrait target changes the break and makes
+ * subsequent deterministic pot fixtures depend on viewport geometry. */
 export function inputPoint(point) {
   if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y)) {
     throw new Error(`Invalid billiards input coordinate: ${JSON.stringify(point)}`);
   }
-  return { x: Math.round(point.x * 100) / 100, y: Math.round(point.y * 100) / 100 };
+  return { x: point.x, y: point.y };
 }
 
 export async function verifyAimControls(cdp, ui) {
