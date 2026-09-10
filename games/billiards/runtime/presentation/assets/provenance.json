@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "id": "pocket-club-room",
+      "path": "games/billiards/runtime/presentation/assets/pocket-club-room.svg",
+      "license": "project-authored",
+      "source": "Original vector artwork authored for SLOP from the user's billiards-room direction; no third-party game artwork embedded.",
+      "runtimeUse": "Decorative room backdrop behind the deterministic table canvas.",
+      "bytes": 3565,
+      "maximumBytes": 6000,
+      "sha256": "e5534542148ee4ff272e003aaa061c60f920e7a9f39afe10b38393ad1a012675",
+      "promptSummary": "Warm top-down billiards lounge with dark herringbone wood, amber lamps, leather seating, plants, and a clear central gameplay area."
+    },
+    {
+      "id": "pocket-club-scoreboard",
+      "path": "games/billiards/runtime/presentation/assets/pocket-club-scoreboard.svg",
+      "license": "project-authored",
+      "source": "Original vector artwork authored for SLOP from the user's billiards-room direction; no third-party game artwork embedded.",
+      "runtimeUse": "Decorative frame beneath the live player names and potted-ball slots.",
+      "bytes": 1587,
+      "maximumBytes": 4000,
+      "sha256": "b31b5c71d9d7bf28893b1c6d6583102f846e90a54eacb5b2c9a2a5ed221daed0",
+      "promptSummary": "Original blue-versus-red luxury pool scoreboard frame with dark metal, wood, gold trim, avatar medallions, and seven ball slots per player."
+    },
+    {
+      "id": "house-cue",
+      "path": "games/billiards/runtime/presentation/assets/house-cue.svg",
+      "license": "project-authored",
+      "source": "Original SLOP vector art; shape inspired by the user reference, not copied pixels.",
+      "promptSummary": "Tapered maple and walnut house cue, wood fibres, pointed inlays, brass rings, woven wrap, lacquer shading.",
+      "runtimeUse": "Locally loaded cue texture, same body for both players; tip color rendered separately.",
+      "bytes": 1651,
+      "maximumBytes": 4000,
+      "sha256": "5e9253cbf2f715469d7f928e6ddfa8450a2e68c667a29186acaf3610bc773af4"
+    },
+    {
+      "id": "ebony-cue",
+      "path": "games/billiards/runtime/presentation/assets/ebony-cue.svg",
+      "license": "project-authored",
+      "source": "Original SVG authored for Pocket Club; no external textures.",
+      "promptSummary": "Tapered cue with cylindrical shading, brass/ivory rings, contrasting wrap and geometric inlays. Viewbox 760x28; tip left, butt right.",
+      "runtimeUse": "Cue choice preview and the actual aiming/strike renderer.",
+      "sha256": "2f85968ce2de091d4e102a5664dcc03f71cf844cc4bef7329b6445aca99fc78b",
+      "bytes": 1043,
+      "maximumBytes": 2000
+    },
+    {
+      "id": "maple-cue",
+      "path": "games/billiards/runtime/presentation/assets/maple-cue.svg",
+      "license": "project-authored",
+      "source": "Original SVG authored for Pocket Club; no external textures.",
+      "promptSummary": "Tapered cue with cylindrical shading, brass/ivory rings, contrasting wrap and geometric inlays. Viewbox 760x28; tip left, butt right.",
+      "runtimeUse": "Cue choice preview and the actual aiming/strike renderer.",
+      "sha256": "70852af607add1a95e99912447b18e25e7368799fd9c24acd86219630bbe74ce",
+      "bytes": 1071,
+      "maximumBytes": 2000
+    },
+    {
+      "id": "recorded-billiards-impacts",
+      "path": "games/billiards/runtime/presentation/assets/billiards-impacts.mp3",
+      "license": "CC-BY-4.0 + CC-BY-3.0 + CC0-1.0",
+      "source": "Four reviewed Freesound recordings; per-recording authors, URLs and hashes below.",
+      "promptSummary": "No synthesis or generative audio. Isolated recorded cue strike, ball clack, rail hit and pocket drop.",
+      "runtimeUse": "Lazily decoded local WebAudio sprite; four semantic impact events.",
+      "bytes": 11745,
+      "maximumBytes": 16000,
+      "sha256": "df7690ed9dfb71bedb27ba1acfd4948090961928694bdea794052a75c995f13c",
+      "sources": [
+        {
+          "id": 45804,
+          "author": "Bunyi",
+          "name": "cue",
+          "license": "CC-BY-4.0",
+          "licensePath": "licenses/by/4.0",
+          "source": "https://freesound.org/people/Bunyi/sounds/45804/",
+          "preview": "https://cdn.freesound.org/previews/45/45804_510910-hq.mp3",
+          "sha256": "b1172caccf1d5fde06382ac155af1c86aad6fba9dfd8788d37495a8197d80c20",
+          "bytes": 48426,
+          "trimStart": 0,
+          "trimDuration": 0.2,
+          "spriteOffset": 0,
+          "processing": "Mono 44.1 kHz; peak normalized to 0.60; 5 ms fade-out; concatenated with silence; MP3 64 kbps."
+        },
+        {
+          "id": 539854,
+          "author": "Za-Games",
+          "name": "ball",
+          "license": "CC0-1.0",
+          "licensePath": "publicdomain/zero/1.0",
+          "source": "https://freesound.org/people/Za-Games/sounds/539854/",
+          "preview": "https://cdn.freesound.org/previews/539/539854_12029332-hq.mp3",
+          "sha256": "8fba3f6faccc03d06ac6fa7f1a3e496b7dba18468364082526a9b8b52af0950d",
+          "bytes": 7515,
+          "trimStart": 0,
+          "trimDuration": 0.239,
+          "spriteOffset": 0.25,
+          "processing": "Mono 44.1 kHz; peak normalized to 0.60; 5 ms fade-out; concatenated with silence; MP3 64 kbps."
+        },
+        {
+          "id": 42364,
+          "author": "mccarthy@bedmas.com",
+          "name": "cushion",
+          "license": "CC0-1.0",
+          "licensePath": "publicdomain/zero/1.0",
+          "source": "https://freesound.org/people/mccarthy%40bedmas.com/sounds/42364/",
+          "preview": "https://cdn.freesound.org/previews/42/42364_450724-hq.mp3",
+          "sha256": "fa28e2881ac275f33df3f682da97475c2e3b7823a10e3ee16b9c22d963c097ec",
+          "bytes": 17951,
+          "trimStart": 0.374,
+          "trimDuration": 0.25,
+          "spriteOffset": 0.55,
+          "processing": "Mono 44.1 kHz; peak normalized to 0.60; 5 ms fade-out; concatenated with silence; MP3 64 kbps."
+        },
+        {
+          "id": 241373,
+          "author": "jtroan",
+          "name": "pocket",
+          "license": "CC-BY-3.0",
+          "licensePath": "licenses/by/3.0",
+          "source": "https://freesound.org/people/jtroan/sounds/241373/",
+          "preview": "https://cdn.freesound.org/previews/241/241373_4396563-hq.mp3",
+          "sha256": "fae10aec24f160c22226a8aa413267496043aa0d10838d2dc0eb5c3c91e141ab",
+          "bytes": 10493,
+          "trimStart": 0,
+          "trimDuration": 0.49,
+          "spriteOffset": 0.85,
+          "processing": "Mono 44.1 kHz; peak normalized to 0.60; 5 ms fade-out; concatenated with silence; MP3 64 kbps."
+        }
+      ]
+    }
+  ]
+}

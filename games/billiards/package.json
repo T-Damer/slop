@@ -1,0 +1,11 @@
+{
+  "name": "@slop-game/billiards-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SolidJS and Colyseus client dependencies for Pocket Club.",
+  "dependencies": {
+    "@colyseus/sdk": "0.18.2",
+    "solid-js": "1.9.15"
+  }
+}

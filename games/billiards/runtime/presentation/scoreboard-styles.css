@@ -1,0 +1,123 @@
+.billiards-scoreboard {
+  position: relative;
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, .72fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 7px;
+  padding: 8px 18px;
+  border-radius: 22px;
+  background-image:
+    linear-gradient(90deg, rgba(15, 36, 45, .62), rgba(16, 10, 8, .42) 43% 57%, rgba(58, 20, 19, .62)),
+    var(--billiards-scoreboard-art);
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 10px 14px rgba(0,0,0,.62));
+  animation: billiards-hud-enter 320ms ease-out both;
+}
+.billiards-scoreboard::after {
+  content: "";
+  position: absolute;
+  inset: 8px 12px;
+  border: 1px dashed rgba(227, 190, 126, .13);
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+.billiards-player {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  opacity: .62;
+  transition: opacity 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.billiards-player:nth-child(3) { direction: rtl; }
+.billiards-player:nth-child(3) .billiards-player-copy { direction: ltr; text-align: right; }
+.billiards-player.is-active {
+  opacity: 1;
+  transform: translateY(-1px);
+  border-color: rgba(221, 185, 112, .44);
+  box-shadow: inset 0 0 22px rgba(198, 142, 61, .08), 0 0 16px rgba(173, 119, 48, .13);
+  animation: billiards-active-player 2.4s ease-in-out infinite;
+}
+.billiards-player.is-winner { opacity: 1; border-color: #d8b56d; }
+.billiards-avatar {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #ad7b36;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(255,255,255,.14), transparent 16%),
+    radial-gradient(circle at 50% 38%, #231611 0 21%, transparent 22%),
+    radial-gradient(ellipse at 50% 78%, #231611 0 34%, transparent 35%),
+    linear-gradient(145deg, #684022, #180b07);
+  box-shadow: inset 0 0 0 3px rgba(0,0,0,.54), 0 3px 10px rgba(0,0,0,.52);
+  color: #e4c991;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 900;
+}
+.billiards-player-copy { min-width: 0; }
+.billiards-player-name,
+.billiards-player-group { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.billiards-player-name { color: #f0dfbf; font-weight: 700; font-size: .82rem; }
+.billiards-player-group {
+  color: #b79c75;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: .59rem;
+  margin-top: 1px;
+}
+.billiards-pocketed-balls {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(12px, 18px));
+  gap: 4px;
+  margin-top: 4px;
+}
+.billiards-player:nth-child(3) .billiards-pocketed-balls { justify-content: end; }
+.billiards-ball-slot {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(193, 145, 73, .56);
+  border-radius: 50%;
+  background: radial-gradient(circle at 43% 35%, #22211e, #030303 74%);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.82), 0 1px 0 rgba(255,255,255,.06);
+  color: #fff;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: .45rem;
+  font-weight: 900;
+}
+.billiards-ball-slot.is-assigned:not(.is-pocketed) { border-color: color-mix(in srgb, var(--slot-color) 62%, #d4b47a); }
+.billiards-ball-slot.is-pocketed {
+  background: radial-gradient(circle at 34% 25%, #fff 0 8%, var(--slot-color) 18% 67%, #050505 100%);
+  animation: billiards-ball-pocketed 340ms cubic-bezier(.2,.9,.2,1.35) both;
+}
+
+.billiards-status {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(187, 139, 67, .4);
+  border-radius: 14px;
+  background:
+    repeating-radial-gradient(circle at 14% 18%, rgba(255,255,255,.02) 0 1px, transparent 1px 4px),
+    linear-gradient(180deg, #2e211a, #0b0807);
+  color: #d9b96d;
+  text-align: center;
+  font-size: clamp(.67rem, 1.35vw, .84rem);
+  font-weight: 700;
+  text-shadow: 0 2px 8px #000;
+  box-shadow: inset 0 1px rgba(255,255,255,.05);
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "area": "island.cozy-life",
+  "problem": "The island used a detached diorama camera, mirrored grass/coastline geometry, faceless residents and non-interactive props.",
+  "stateOwner": "games/island-hub/runtime/domain/life.ts",
+  "existingOwnersChecked": ["games/island-hub/AGENTS.md", "games/shared/player-movement/input.ts", "games/shared/proximity-world/domain/rules.ts", "games/island-hub/runtime/presentation/scene.ts"],
+  "reuseDecision": "Reuse Three.js 0.180, its MIT-licensed composer/bloom/output passes, shared keyboard/joystick input and shared proximity selection/progress. Original parametric models, no downloaded game assets. Isolate art, camera, rendering, input, walking, interactions and persistence. Preserve v1 island snapshots with a validated journal sidecar.",
+  "nonGoals": ["Change billiards, routing, runtime dependencies or stable/main", "Copy Nintendo characters, branding or assets", "Claim a complete Animal Crossing simulation or multiplayer persistence"],
+  "acceptance": ["Existing deterministic generation tests and new walking/life tests pass", "Strict island typecheck and production Modoki hub build pass", "Six viewport screenshots and browser error checks", "Keyboard/touch controls, camera, modal pause, harvest, planting and journal reload work", "No island-specific size/ownership errors and no bundle limit relaxation"],
+  "provenance": {"license": "project-authored", "units": "metres", "upAxis": "+Y", "forwardAxis": "+Z", "originPolicy": "resident foot plane; blueprint X/Z unchanged", "source": ["games/island-hub/runtime/presentation/models.ts", "games/island-hub/runtime/presentation/residents.ts", "games/island-hub/runtime/presentation/landscape.ts"], "externalAssets": []}
+}

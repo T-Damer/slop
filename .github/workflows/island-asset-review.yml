@@ -1,0 +1,42 @@
+name: Island asset review
+on:
+  push:
+    branches: [feature/core-traffic]
+    paths: ['tools/review-island-assets.mjs', '.github/workflows/island-asset-review.yml']
+  pull_request:
+    branches: [main]
+    paths: ['tools/review-island-assets.mjs', '.github/workflows/island-asset-review.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: island-asset-review-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Acquire public-domain reference and exact review source
+        run: node tools/review-island-assets.mjs
+      - name: Package isolated offline review tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOLS="${RUNNER_TEMP}/island-review-tools"
+          npm install --prefix "$TOOLS" --ignore-scripts --no-audit --no-fund --save-exact three@0.184.0 @types/three@0.183.1 @types/node@24.13.3 typescript@6.0.3 esbuild@0.28.0 solid-js@1.9.15
+          tar -czf quality-artifacts/island-asset-review/toolchain.tar.gz -C "$TOOLS" package.json package-lock.json node_modules
+          sha256sum quality-artifacts/island-asset-review/toolchain.tar.gz > quality-artifacts/island-asset-review/toolchain.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: island-asset-review-${{ github.sha }}
+          path: quality-artifacts/island-asset-review
+          if-no-files-found: error
+          retention-days: 7

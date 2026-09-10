@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "area": "island.expanded-home-world",
+  "problem": "The home island still reads as a compact procedural hub. The next DESIGN.md P0-C slice needs enough space and authored geography for a residential street, dense forest, beach, cave approach, river, multiple bridges, shrubs, flowers and exploration-driven play without resetting existing island/home/voyage saves.",
+  "stateOwner": "games/island-hub/runtime/domain/voyage-registry.ts",
+  "existingOwnersChecked": [
+    "games/island-hub/DESIGN.md",
+    "games/island-hub/AGENTS.md",
+    "games/island-hub/runtime/domain/generator.ts",
+    "games/island-hub/runtime/domain/voyage-world.ts",
+    "games/island-hub/runtime/domain/voyage-layout.ts",
+    "games/island-hub/runtime/domain/walking.ts",
+    "games/island-hub/runtime/domain/village-paths.ts",
+    "games/island-hub/runtime/presentation/voyage-scenery.ts",
+    "games/island-hub/runtime/presentation/voyage-props.ts",
+    "games/island-hub/runtime/presentation/voyage-notebook.ts"
+  ],
+  "reuseDecision": "Keep the persisted v1 core untouched and enlarge only the deterministic voyage envelope. Extend VoyageLayout with river, bridges, resident homes and derived shrubs so rendering, movement, map UI and placement use the same geometry. Reuse the existing pooled/instanced primitive atelier and discovery/quest state instead of introducing a second world or save format.",
+  "nonGoals": [
+    "Move or recreate the player's persisted house and furniture",
+    "Make NPC homes or caves fully enterable in this slice",
+    "Replace the existing two away-island travel flow",
+    "Change Pocket Club or publication branches",
+    "Copy Nintendo models, textures, characters, music or branding"
+  ],
+  "acceptance": [
+    "The derived home envelope has useful radius >= 32 while preserving every persisted v1 core placement and identifier",
+    "Three original resident houses, nine home discovery areas, a river, two authored river bridges plus the pond bridge, forest clusters, shrubs, beach and cave entrance render from deterministic domain geometry",
+    "River and pond water block walking except through the same bridge corridors that are rendered and produce wooden footstep surfaces",
+    "All resident interaction points, discovery points, pickups and dock remain reachable across deterministic seed sweeps",
+    "The notebook map shows the expanded coast, river, bridges and resident houses and computes discovery totals instead of hard-coding them",
+    "A new forest/cave request requires the named discoveries and cannot be forged through persisted state",
+    "Existing island, home, journal and voyage saves remain valid; no reset or schema bump is required",
+    "Strict island TypeScript, domain/storage regressions, architecture/change checks, production build, unchanged bundle ratchets and browser suites pass before any publication"
+  ]
+}

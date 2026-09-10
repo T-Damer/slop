@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 4,
+  "modules": [
+    {
+      "id": "proximity-domain",
+      "kind": "domain",
+      "path": "games/shared/proximity-world/domain",
+      "owns": [
+        "top-down movement",
+        "world bounds",
+        "nearest interaction selection",
+        "interaction progress",
+        "cooldown",
+        "completion events"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "player-movement-input",
+      "kind": "shared-presentation",
+      "path": "games/shared/player-movement",
+      "owns": [
+        "keyboard movement input",
+        "touch joystick normalization"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "game-shell-navigation",
+      "kind": "shared-presentation",
+      "path": "games/shared/game-shell",
+      "owns": [
+        "standalone game return navigation",
+        "shared licensed Phosphor SVG subset",
+        "shared graphics preferences and accessible menu",
+        "renderer quality binding"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "island-domain",
+      "kind": "domain",
+      "path": "games/island-hub/runtime/domain",
+      "owns": [
+        "player preferences",
+        "avatar appearance",
+        "deterministic island seed",
+        "island blueprint",
+        "portal placements",
+        "island obstacle movement",
+        "harvest and garden journal"
+      ],
+      "dependsOn": [
+        "proximity-domain"
+      ]
+    },
+    {
+      "id": "island-application",
+      "kind": "application",
+      "path": "games/island-hub/runtime/application",
+      "owns": [
+        "island session bootstrap",
+        "snapshot creation"
+      ],
+      "dependsOn": [
+        "island-domain"
+      ]
+    },
+    {
+      "id": "island-storage",
+      "kind": "infrastructure",
+      "path": "games/island-hub/runtime/storage",
+      "owns": [
+        "versioned local island persistence",
+        "local player id"
+      ],
+      "dependsOn": [
+        "island-domain"
+      ]
+    },
+    {
+      "id": "island-presentation",
+      "kind": "presentation",
+      "path": "games/island-hub/runtime/presentation",
+      "owns": [
+        "first-run guide",
+        "preference wizard",
+        "generation overlay",
+        "3D island scene",
+        "camera",
+        "movement",
+        "portal UI"
+      ],
+      "dependsOn": [
+        "island-domain",
+        "island-application",
+        "island-storage",
+        "player-movement-input",
+        "game-shell-navigation"
+      ]
+    },
+    {
+      "id": "parking-domain",
+      "kind": "domain",
+      "path": "games/traffic-jam/runtime/domain",
+      "owns": [
+        "parking state",
+        "path validation",
+        "pickup bays",
+        "passenger queue",
+        "score",
+        "combo",
+        "jam detection",
+        "solver"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "parking-presentation",
+      "kind": "presentation",
+      "path": "games/traffic-jam/runtime/presentation",
+      "owns": [
+        "parking 3D scene",
+        "parking models",
+        "parking HUD",
+        "parking input",
+        "parking animation",
+        "local preferences"
+      ],
+      "dependsOn": [
+        "parking-domain",
+        "game-shell-navigation"
+      ]
+    },
+    {
+      "id": "junkyard-domain",
+      "kind": "domain",
+      "path": "games/junkyard-tycoon/runtime/domain",
+      "owns": [
+        "junk clearing",
+        "pump construction",
+        "fuel service",
+        "cash collection",
+        "starter objectives"
+      ],
+      "dependsOn": [
+        "proximity-domain"
+      ]
+    },
+    {
+      "id": "junkyard-presentation",
+      "kind": "presentation",
+      "path": "games/junkyard-tycoon/runtime/presentation",
+      "owns": [
+        "junkyard 3D scene",
+        "character controller input",
+        "interaction feedback",
+        "station models",
+        "junkyard HUD"
+      ],
+      "dependsOn": [
+        "junkyard-domain",
+        "proximity-domain",
+        "player-movement-input",
+        "game-shell-navigation"
+      ]
+    },
+    {
+      "id": "billiards-domain",
+      "kind": "domain",
+      "path": "games/billiards/runtime/domain",
+      "owns": [
+        "8-ball match state",
+        "continuous collision detection",
+        "fixed-step simulation",
+        "shot prediction",
+        "fouls and scoring"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "billiards-network",
+      "kind": "infrastructure",
+      "path": "games/billiards/runtime/network",
+      "owns": [
+        "versioned billiards wire messages",
+        "local session fallback",
+        "lazy Colyseus client transport",
+        "snapshot validation",
+        "transient interaction relay"
+      ],
+      "dependsOn": [
+        "billiards-domain"
+      ]
+    },
+    {
+      "id": "billiards-presentation",
+      "kind": "presentation",
+      "path": "games/billiards/runtime/presentation",
+      "owns": [
+        "SolidJS billiards HUD",
+        "Canvas 2D table renderer",
+        "pointer touch wheel and keyboard controls",
+        "client prediction and reconciliation",
+        "manual cue stroke interaction",
+        "adaptive presentation quality"
+      ],
+      "dependsOn": [
+        "billiards-domain",
+        "billiards-network",
+        "game-shell-navigation"
+      ]
+    },
+    {
+      "id": "billiards-tests",
+      "kind": "test",
+      "path": "games/billiards/tests",
+      "owns": [
+        "billiards collision regression tests",
+        "determinism tests",
+        "8-ball rules tests",
+        "billiards wire contract tests",
+        "presentation feedback rolling-orientation and interaction tests"
+      ],
+      "dependsOn": [
+        "billiards-domain",
+        "billiards-network",
+        "billiards-presentation",
+        "game-shell-navigation"
+      ]
+    },
+    {
+      "id": "hub-presentation",
+      "kind": "presentation",
+      "path": "games/hub/runtime/presentation",
+      "owns": [
+        "default personal-island route",
+        "game routing",
+        "game lifecycle",
+        "direct game links",
+        "legacy Parking Jam links",
+        "Pocket Club direct links"
+      ],
+      "dependsOn": [
+        "island-presentation",
+        "parking-presentation",
+        "junkyard-presentation",
+        "billiards-presentation",
+        "game-shell-navigation"
+      ]
+    },
+    {
+      "id": "arcade-runtime-config",
+      "kind": "runtime-config",
+      "path": "games/traffic-jam/runtime/config.ts",
+      "owns": [
+        "Slop arcade world and scene configuration"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "arcade-entrypoint",
+      "kind": "entrypoint",
+      "path": "games/traffic-jam/game.ts",
+      "owns": [
+        "Slop arcade Modoki game definition and lazy bootstrap"
+      ],
+      "dependsOn": [
+        "arcade-runtime-config",
+        "modoki-adapter"
+      ]
+    },
+    {
+      "id": "modoki-adapter",
+      "kind": "adapter",
+      "path": "games/traffic-jam/runtime/setup.ts",
+      "owns": [
+        "Modoki registration lifecycle"
+      ],
+      "dependsOn": [
+        "hub-presentation"
+      ]
+    },
+    {
+      "id": "junkyard-runtime-config",
+      "kind": "runtime-config",
+      "path": "games/junkyard-station/runtime/config.ts",
+      "owns": [
+        "standalone Junkyard Station world and scene configuration"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "junkyard-adapter",
+      "kind": "adapter",
+      "path": "games/junkyard-station/runtime/setup.ts",
+      "owns": [
+        "standalone Junkyard Station presentation lifecycle and return navigation"
+      ],
+      "dependsOn": [
+        "junkyard-presentation",
+        "game-shell-navigation"
+      ]
+    },
+    {
+      "id": "junkyard-entrypoint",
+      "kind": "entrypoint",
+      "path": "games/junkyard-station/game.ts",
+      "owns": [
+        "standalone Junkyard Station Modoki game definition and lazy bootstrap"
+      ],
+      "dependsOn": [
+        "junkyard-runtime-config",
+        "junkyard-adapter"
+      ]
+    },
+    {
+      "id": "quality-contract",
+      "kind": "contract",
+      "path": "quality",
+      "owns": [
+        "code ratchets",
+        "asset recipes",
+        "runtime budgets",
+        "UI contracts",
+        "visual target"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "quality-tooling",
+      "kind": "tooling",
+      "path": "tools",
+      "owns": [
+        "architecture validation",
+        "asset validation",
+        "browser interaction tests",
+        "build reports"
+      ],
+      "dependsOn": [
+        "quality-contract"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "proximity-domain",
+      "to": "hub-presentation"
+    },
+    {
+      "from": "proximity-domain",
+      "to": "junkyard-presentation"
+    },
+    {
+      "from": "junkyard-domain",
+      "to": "junkyard-presentation"
+    },
+    {
+      "from": "junkyard-domain",
+      "to": "modoki-adapter"
+    },
+    {
+      "from": "parking-domain",
+      "to": "parking-presentation"
+    },
+    {
+      "from": "parking-domain",
+      "to": "modoki-adapter"
+    },
+    {
+      "from": "island-domain",
+      "to": "island-presentation"
+    },
+    {
+      "from": "island-domain",
+      "to": "hub-presentation"
+    },
+    {
+      "from": "island-domain",
+      "to": "modoki-adapter"
+    },
+    {
+      "from": "billiards-domain",
+      "to": "billiards-network"
+    },
+    {
+      "from": "billiards-domain",
+      "to": "billiards-presentation"
+    },
+    {
+      "from": "billiards-domain",
+      "to": "hub-presentation"
+    },
+    {
+      "from": "billiards-domain",
+      "to": "modoki-adapter"
+    }
+  ],
+  "coverage": {
+    "typescriptRoots": [
+      "games"
+    ]
+  },
+  "workflowPolicy": {
+    "directory": ".github",
+    "allowRepositoryContentWrites": false,
+    "forbiddenPayloadSuffixes": [
+      ".tar",
+      ".tar.gz",
+      ".tar.xz",
+      ".zip"
+    ],
+    "workflowDirectory": ".github/workflows"
+  }
+}

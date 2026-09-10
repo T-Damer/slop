@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 3,
+  "islandSelector": "#slop-personal-island",
+  "onboardingSelector": "#slop-island-onboarding",
+  "startSelector": "[data-island-action=\"start\"]",
+  "chipSelector": ".island-chip",
+  "nextSelector": "[data-island-action=\"next\"]",
+  "canvasSelector": ".island-canvas",
+  "joystickSelector": ".island-joystick-base",
+  "cameraSelector": "[data-island-shell-action=\"camera\"]",
+  "gameMenuSelector": ".island-game-menu",
+  "gameMenuButtonSelector": "[data-island-shell-action=\"games\"]",
+  "gameCardSelector": ".island-game-card",
+  "junkyardLinkSelector": "[data-island-game-id=\"junkyard-station\"]",
+  "homeSelector": ".slop-home-button",
+  "junkyardRootSelector": "#slop-junkyard-tycoon",
+  "expectedGameIds": [
+    "billiards",
+    "junkyard-station",
+    "parking-jam"
+  ],
+  "preferenceStepCount": 7,
+  "minimumCardCount": 3,
+  "minimumTouchTargetPx": 44,
+  "maximumHorizontalOverflowPx": 0
+}

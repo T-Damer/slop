@@ -1,0 +1,23 @@
+Pocket Club — sound credits
+
+cue: Bunyi — Freesound #45804
+https://freesound.org/people/Bunyi/sounds/45804/
+https://creativecommons.org/licenses/by/4.0/
+Mono 44.1 kHz; peak normalized to 0.60; 5 ms fade-out; concatenated with silence; MP3 64 kbps.
+
+ball: Za-Games — Freesound #539854
+https://freesound.org/people/Za-Games/sounds/539854/
+https://creativecommons.org/publicdomain/zero/1.0/
+Mono 44.1 kHz; peak normalized to 0.60; 5 ms fade-out; concatenated with silence; MP3 64 kbps.
+
+cushion: mccarthy@bedmas.com — Freesound #42364
+https://freesound.org/people/mccarthy%40bedmas.com/sounds/42364/
+https://creativecommons.org/publicdomain/zero/1.0/
+Mono 44.1 kHz; peak normalized to 0.60; 5 ms fade-out; concatenated with silence; MP3 64 kbps.
+
+pocket: jtroan — Freesound #241373
+https://freesound.org/people/jtroan/sounds/241373/
+https://creativecommons.org/licenses/by/3.0/
+Mono 44.1 kHz; peak normalized to 0.60; 5 ms fade-out; concatenated with silence; MP3 64 kbps.
+
+These recordings are licensed independently of the game source. No endorsement by their authors is implied.

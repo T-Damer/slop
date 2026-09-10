@@ -1,0 +1,14 @@
+.slop-graphics-launcher { position:fixed; left:64px; top:max(10px,env(safe-area-inset-top)); z-index:10010;
+ width:44px; height:44px; display:grid; place-items:center; border:1px solid #997749; border-radius:50%;
+ background:#271d14; color:#ead2a4; cursor:pointer; }
+.slop-graphics dialog { box-sizing:border-box; width:min(390px,calc(100vw - 24px)); max-height:calc(100dvh - 24px);
+ padding:22px; border:1px solid #ac8956; border-radius:18px; background:#201711; color:#f0e2c8;
+ font:14px/1.5 system-ui,sans-serif; box-shadow:0 24px 90px #000a; }
+.slop-graphics dialog::backdrop { background:#050403c9; }
+.slop-graphics h2 { margin:0 0 14px; font:700 22px Georgia,serif; }
+.slop-graphics label { display:flex; min-height:44px; gap:10px; align-items:center; justify-content:space-between; }
+.slop-graphics select,.slop-graphics button[type=submit] { min-height:44px; padding:8px 12px; background:#49351e;
+ color:#f0e2c8; border:1px solid #ac8956; border-radius:8px; font:inherit; }
+.slop-graphics input { width:20px; height:20px; accent-color:#d1aa64; }
+.slop-graphics p { color:#c9b491; font-size:12px; }
+.slop-graphics :focus-visible { outline:2px solid #f4d499; outline-offset:3px; }

@@ -1,0 +1,16 @@
+{
+  "build": {
+    "webDeployMode": "none",
+    "webBucket": "",
+    "webBasePath": "/slop/games/junkyard-station/",
+    "webCdnUrlMap": "",
+    "appleTeamId": "",
+    "debugBuild": false
+  },
+  "app": {
+    "appId": "io.tdamer.slop.junkyardstation",
+    "appName": "Junkyard Station",
+    "version": "0.1.0",
+    "buildNumber": 1
+  }
+}

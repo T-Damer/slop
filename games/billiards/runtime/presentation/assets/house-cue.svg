@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 28">
+  <defs>
+    <linearGradient id="wood"><stop stop-color="#edce94"/><stop offset=".56" stop-color="#c39152"/><stop offset=".61" stop-color="#693016"/><stop offset="1" stop-color="#24110c"/></linearGradient>
+    <linearGradient id="round" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#000" stop-opacity=".5"/><stop offset=".25" stop-color="#fff" stop-opacity=".3"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".68"/></linearGradient>
+    <pattern id="grain" width="190" height="24" patternUnits="userSpaceOnUse"><path d="M-12 7Q45 3 120 8T202 6M-12 12Q59 8 117 13T202 12M-12 17Q50 14 108 18T202 17" fill="none" stroke="#4a250c" stroke-opacity=".3" stroke-width=".6"/></pattern>
+    <clipPath id="body"><path d="M2 11.5 751 2Q760 14 751 26L2 16.5Z"/></clipPath>
+  </defs>
+  <g clip-path="url(#body)">
+    <path d="M0 0H760V28H0Z" fill="url(#wood)"/>
+    <path d="M0 0H760V28H0Z" fill="url(#grain)"/>
+    <path d="m470 14 83-11-19 11 19 11Zm65 0 60-12-16 12 16 12Z" fill="#edcea0"/>
+    <path d="m482 14 57-6-10 6 10 6Zm64 0 40-6-10 6 10 6Z" fill="#421a10"/>
+    <path d="M610 0H690V28H610Z" fill="#342722"/>
+    <path d="M612 3 687 25M612 7 687 29M612-1 687 21M612 11 682 31M622-1 690 19" stroke="#967855" stroke-width=".7"/>
+    <path d="M442 0V28M451 0V28M602 0V28M694 0V28M739 0V28" stroke="#d7b574" stroke-width="3"/>
+    <path d="m710 14 9-8 9 8-9 8Z" fill="#dec292"/>
+    <path d="M0 0H12V28H0Z" fill="#f1e8cf"/>
+    <path d="M749 0H760V28H749Z" fill="#171719"/>
+    <path d="M0 0H760V28H0Z" fill="url(#round)"/>
+  </g>
+</svg>

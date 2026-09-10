@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "games/traffic-jam/runtime/presentation/app.ts",
+      "maximumBytes": 21520,
+      "owner": "parking-presentation-controller",
+      "reason": "The prototype controller still combines lifecycle, persistence, HUD, overlays, and event playback.",
+      "splitPlan": "Extract controller, HUD, persistence, and QA bridge modules without changing domain ownership.",
+      "expiresOn": "2026-11-30"
+    },
+    {
+      "path": "games/traffic-jam/runtime/presentation/scene.ts",
+      "maximumBytes": 39262,
+      "owner": "parking-scene",
+      "reason": "The first 3D vertical slice still combines renderer, crowd, vehicles, effects, environment, and resource disposal.",
+      "splitPlan": "Extract resources, crowd, vehicles, effects, environment, quality, and tween owners; this file may not grow meanwhile.",
+      "expiresOn": "2026-11-30"
+    },
+    {
+      "path": "games/traffic-jam/runtime/presentation/models.ts",
+      "maximumBytes": 15432,
+      "owner": "parking-model-factory",
+      "reason": "Procedural placeholder model families share one bootstrap file.",
+      "splitPlan": "Separate vehicle, passenger, and environment model factories and introduce shared geometry/material caches.",
+      "expiresOn": "2026-11-30"
+    },
+    {
+      "path": "games/traffic-jam/runtime/presentation/styles.ts",
+      "maximumBytes": 10312,
+      "owner": "parking-ui-style",
+      "reason": "The prototype CSS baseline predates component-level style ownership.",
+      "splitPlan": "Split shell, HUD, controls, dialogs, and accessibility styles while preserving one visual token registry.",
+      "expiresOn": "2026-11-30"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@slop-game/arcade",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "A compact multi-game hub built with Modoki and Three.js.",
+  "dependencies": {
+    "three": "0.180.0"
+  }
+}

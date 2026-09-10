@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package slop.billiards.v1;
+
+// Stable cross-language contract for authoritative room implementations.
+// The browser client may use Colyseus' default transport initially, but field
+// names, units, and semantics must continue to mirror this schema.
+
+message Vec2 {
+  double x = 1;
+  double y = 2;
+}
+
+message BallState {
+  uint32 id = 1;
+  string kind = 2;
+  Vec2 position = 3;
+  Vec2 velocity = 4;
+  double side_spin = 5;
+  double follow_spin = 6;
+  bool pocketed = 7;
+}
+
+message TableState {
+  uint32 schema_version = 1;
+  uint64 step = 2;
+  repeated BallState balls = 3;
+}
+
+message PlayerState {
+  uint32 index = 1;
+  string name = 2;
+  string group = 3;
+}
+
+message ShotTrace {
+  bool eligible_for_eight_at_start = 1;
+  optional uint32 first_object_ball_id = 2;
+  repeated uint32 pocketed_ball_ids = 3;
+  uint32 cushion_hits_after_contact = 4;
+  uint32 collision_count = 5;
+}
+
+message MatchSnapshot {
+  uint32 schema_version = 1;
+  uint64 revision = 2;
+  TableState table = 3;
+  repeated PlayerState players = 4;
+  uint32 turn_index = 5;
+  string phase = 6;
+  optional uint32 winner_index = 7;
+  bool ball_in_hand = 8;
+  string status = 9;
+  ShotTrace active_shot = 10; // Absent on the wire maps to null in TypeScript.
+}
+
+message ShotCommand {
+  uint32 schema_version = 1;
+  uint64 client_sequence = 2;
+  uint64 expected_revision = 3;
+  double angle_radians = 4;
+  double power = 5;
+  double side_spin = 6;
+  double follow_spin = 7;
+}
+
+message PlaceCueCommand {
+  uint32 schema_version = 1;
+  uint64 client_sequence = 2;
+  uint64 expected_revision = 3;
+  Vec2 position = 4;
+}
+
+message RestartCommand {
+  uint32 schema_version = 1;
+  uint64 client_sequence = 2;
+  uint64 expected_revision = 3;
+}
+
+message CommandRejected {
+  uint32 schema_version = 1;
+  uint64 client_sequence = 2;
+  string reason = 3;
+  MatchSnapshot authoritative_snapshot = 4;
+}
+
+message JoinOptions {
+  uint32 protocol_version = 1;
+  string player_name = 2;
+  string matchmaking_key = 3;
+}

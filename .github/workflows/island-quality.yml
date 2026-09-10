@@ -1,0 +1,101 @@
+name: Island quality
+on:
+  push:
+    branches: [feature/core-traffic]
+    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', 'tools/browser-quality/island-home.mjs', 'tools/browser-quality/island-voyages.mjs', 'tools/browser-quality/voyage-harness.mjs', 'tools/build-island-preview.mjs', 'tools/browser-quality/island-preview/**', '.github/workflows/island-quality.yml']
+  pull_request:
+    branches: [main]
+    paths: ['games/island-hub/**', 'tools/check-island-quality.mjs', 'tools/browser-quality/island-home.mjs', 'tools/browser-quality/island-voyages.mjs', 'tools/browser-quality/voyage-harness.mjs', 'tools/build-island-preview.mjs', 'tools/browser-quality/island-preview/**', '.github/workflows/island-quality.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: island-quality-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  island-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      MODOKI_COMMIT: 145bae5b2dc38ac0561a2b627d726cba69a99c1f
+      QUALITY_REPORT_DIR: quality-artifacts
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: lsgmasa33/modoki-engine
+          ref: ${{ env.MODOKI_COMMIT }}
+          path: .modoki-engine
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: .modoki-engine/package-lock.json
+      - name: Install pinned engine and game runtimes
+        run: |
+          npm ci --no-audit --no-fund --prefix .modoki-engine
+          npm ci --ignore-scripts --no-audit --no-fund --prefix games/traffic-jam
+          npm ci --ignore-scripts --no-audit --no-fund --prefix games/billiards
+      - name: Island types and deterministic gameplay
+        run: |
+          node .modoki-engine/node_modules/typescript/bin/tsc -p games/island-hub/tsconfig.json --noEmit
+          node --experimental-strip-types --test games/island-hub/runtime/domain/generator.test.ts games/island-hub/runtime/storage/*.test.ts
+          npm run architecture:check
+          npm run change:check
+      - name: Prepare compact static web profile
+        run: node tools/prepare-web-engine.mjs
+      - name: Build actual production hub
+        id: hub
+        continue-on-error: true
+        working-directory: .modoki-engine
+        env:
+          MODOKI_PROJECT: ${{ github.workspace }}/games/traffic-jam
+        run: npm run build -- --target web
+      - name: Record unchanged bundle ratchet
+        if: steps.hub.outcome == 'success'
+        id: budget
+        continue-on-error: true
+        run: npm run web:budget
+      - name: Build isolated island evidence fixture
+        run: node tools/build-island-preview.mjs
+      - name: Serve isolated island and exercise real controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .island-site/slop
+          cp -a quality-artifacts/island-preview/. .island-site/slop/
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory .island-site > /tmp/island-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/slop/ >/dev/null; then break; fi
+            sleep 1
+          done
+          node tools/check-island-quality.mjs http://127.0.0.1:4173/slop/
+      - name: Exercise production hub when available
+        if: steps.hub.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .island-site/slop
+          mkdir -p .island-site/slop
+          cp -a games/traffic-jam/dist/. .island-site/slop/
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory .island-site > /tmp/island-hub-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" || true' EXIT
+          sleep 1
+          npm run hub:quality -- http://127.0.0.1:4173/slop/
+      - name: Enforce integration build and bundle results after island evidence
+        if: steps.hub.outcome == 'failure' || steps.budget.outcome == 'failure'
+        run: exit 1
+      - name: Upload production build and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: island-quality-${{ github.sha }}
+          path: |
+            games/traffic-jam/dist
+            quality-artifacts
+          if-no-files-found: warn
+          retention-days: 7

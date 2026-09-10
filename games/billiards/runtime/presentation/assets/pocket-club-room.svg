@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-label="Warm billiards lounge">
+  <defs>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b150d"/><stop offset=".45" stop-color="#130a07"/><stop offset="1" stop-color="#3a1e11"/>
+    </linearGradient>
+    <radialGradient id="lamp"><stop stop-color="#ffd88c"/><stop offset=".28" stop-color="#d88325" stop-opacity=".58"/><stop offset="1" stop-color="#7b2d0a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="roomGlow"><stop stop-color="#8d5d2c" stop-opacity=".28"/><stop offset=".58" stop-color="#1b110c" stop-opacity=".08"/><stop offset="1" stop-color="#050403" stop-opacity=".8"/></radialGradient>
+    <linearGradient id="leather" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#6d351b"/><stop offset=".48" stop-color="#2d160f"/><stop offset="1" stop-color="#120908"/></linearGradient>
+    <pattern id="planks" width="112" height="56" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="112" height="56" fill="url(#wood)"/>
+      <path d="M0 0h112M0 28h112M56 0v28M0 28v28" stroke="#7a3c1b" stroke-opacity=".2" stroke-width="2"/>
+      <path d="M3 6c24 8 48-7 76 3M14 39c32-8 55 7 91-3" fill="none" stroke="#d27a35" stroke-opacity=".08"/>
+    </pattern>
+    <filter id="blur"><feGaussianBlur stdDeviation="16"/></filter>
+    <filter id="shadow"><feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#000" flood-opacity=".65"/></filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#planks)"/>
+  <rect width="1280" height="720" fill="url(#roomGlow)"/>
+  <circle cx="86" cy="68" r="180" fill="url(#lamp)"/><circle cx="1192" cy="70" r="180" fill="url(#lamp)"/>
+  <circle cx="82" cy="656" r="150" fill="url(#lamp)" opacity=".55"/><circle cx="1200" cy="652" r="150" fill="url(#lamp)" opacity=".45"/>
+  <g filter="url(#shadow)">
+    <g transform="translate(1120 116)">
+      <path d="M14 42Q14 4 52 4h92q38 0 38 38v106q0 30-30 30H44q-30 0-30-30Z" fill="url(#leather)" stroke="#9b5b31" stroke-width="4"/>
+      <path d="M28 55h140M30 99h136M72 18v146M119 18v146" stroke="#bd7441" stroke-opacity=".28" stroke-width="3"/>
+      <g fill="#c48b55" opacity=".6"><circle cx="72" cy="55" r="4"/><circle cx="119" cy="55" r="4"/><circle cx="72" cy="99" r="4"/><circle cx="119" cy="99" r="4"/></g>
+    </g>
+    <g transform="translate(1126 525)">
+      <path d="M10 24Q10 4 30 4h126q20 0 20 20v116q0 20-20 20H30q-20 0-20-20Z" fill="url(#leather)" stroke="#8f502c" stroke-width="4"/>
+      <path d="M26 45h134M26 82h134M26 119h134M68 14v136M116 14v136" stroke="#bc7240" stroke-opacity=".22" stroke-width="3"/>
+    </g>
+  </g>
+  <g transform="translate(34 556)" filter="url(#shadow)">
+    <circle cx="56" cy="56" r="52" fill="#1a0f0b" stroke="#9a5c2d" stroke-width="4"/>
+    <circle cx="56" cy="56" r="34" fill="#29160d"/>
+    <circle cx="43" cy="48" r="11" fill="#f7d38c" opacity=".78"/><circle cx="72" cy="64" r="9" fill="#d48a36" opacity=".68"/>
+  </g>
+  <g fill="#183a1f" stroke="#396a3a" stroke-width="2" opacity=".86">
+    <path d="M1164 620c-42-45-40-92-4-119 20 42 24 82 4 119Z"/><path d="M1190 626c-16-60 12-103 57-113-2 52-19 88-57 113Z"/>
+    <path d="M112 114c-30-47-18-88 23-107 11 44 2 82-23 107Z"/><path d="M77 122c-54-18-69-57-44-95 39 27 55 58 44 95Z"/>
+  </g>
+  <ellipse cx="640" cy="360" rx="540" ry="286" fill="#d89c50" opacity=".08" filter="url(#blur)"/>
+  <rect x="18" y="18" width="1244" height="684" rx="40" fill="none" stroke="#d59b55" stroke-opacity=".12" stroke-width="3"/>
+</svg>

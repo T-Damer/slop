@@ -1,0 +1,144 @@
+import { writeFile } from 'node:fs/promises';
+import { billiardsInputTuning as input } from '../../games/billiards/runtime/presentation/registry.ts';
+import { billiardsRules } from '../../games/billiards/runtime/domain/registry.ts';
+import { exercisePinch } from './billiards-pinch.mjs';
+import { captureScreenshot, delay, evaluate, waitForExpression } from './cdp-client.mjs';
+import { clickControl } from './billiards-presets.mjs';
+
+const qa = 'window.__SLOP_BILLIARDS_QA_V2__';
+export async function settleCamera(cdp) {
+  await waitForExpression(cdp, `${qa}?.snapshot().camera.settled === true`, 4000);
+}
+async function key(cdp, name) {
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: name, code: name });
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: name, code: name });
+}
+export async function verifyGraphicsMenu(cdp, directory) {
+  await clickControl(cdp, '.slop-graphics-launcher');
+  await waitForExpression(cdp, "document.querySelector('.slop-graphics dialog')?.open === true", 3000);
+  await clickControl(cdp, '.slop-graphics select'); await key(cdp, 'End'); await key(cdp, 'Enter');
+  await waitForExpression(cdp, `${qa}.snapshot().renderer.quality === 'low'`, 3000);
+  await captureScreenshot(cdp, `${directory}/graphics-settings.png`);
+  await clickControl(cdp, '.slop-graphics dialog button');
+  await cdp.send('Page.reload');
+  await waitForExpression(cdp, `${qa}?.snapshot().renderer.quality === 'low'`, 20000);
+  await clickControl(cdp, '.slop-graphics-launcher');
+  await clickControl(cdp, '.slop-graphics select'); await key(cdp, 'Home'); await key(cdp, 'ArrowDown'); await key(cdp, 'Enter');
+  await waitForExpression(cdp, `${qa}.snapshot().renderer.quality === 'high'`, 3000);
+  await clickControl(cdp, '.slop-graphics select'); await key(cdp, 'Home'); await key(cdp, 'Enter');
+  await clickControl(cdp, '.slop-graphics dialog button');
+  return { persistedLow: true, appliedHigh: true };
+}
+
+export async function verifyCamera(cdp, ui, directory) {
+  try {
+    await settleCamera(cdp);
+    const before = await evaluate(cdp, `${qa}.snapshot()`);
+
+    // Verify explicit close-up separately. Pinching from an already zoomed
+    // camera can legitimately hit the maximum scale and is not a useful test.
+    await clickControl(cdp, '[data-billiards-zoom]');
+    await settleCamera(cdp);
+    const closeUp = await evaluate(cdp, `${qa}.snapshot()`);
+    if (closeUp.camera.zoom < 1.3) throw new Error('Explicit close-up did not enlarge the balls.');
+    await captureScreenshot(cdp, `${directory}/close-up.png`);
+
+    await clickControl(cdp, '[data-billiards-zoom]');
+    await settleCamera(cdp);
+    const overview = await evaluate(cdp, `${qa}.snapshot().camera`);
+    if (Math.abs(overview.zoom - 1) > 0.001) throw new Error('Overview failed to restore the whole table.');
+
+    let pinchZoom = null;
+    if (closeUp.camera.portrait) {
+      await exercisePinch(cdp, directory);
+      const after = await evaluate(cdp, `${qa}.snapshot()`);
+      if (after.controller.match.revision !== before.controller.match.revision || after.controller.match.activeShot !== null) {
+        throw new Error('A two-finger camera gesture executed a gameplay command.');
+      }
+      if (after.camera.zoom < 1.2) throw new Error('Pinch did not enlarge the table from overview.');
+      if (after.camera.multiTouch) throw new Error('The pinch gesture remained captured after release.');
+      pinchZoom = after.camera.zoom;
+      await captureScreenshot(cdp, `${directory}/pinch.png`);
+      await clickControl(cdp, '[data-billiards-zoom]');
+      await settleCamera(cdp);
+      const restored = await evaluate(cdp, `${qa}.snapshot().camera`);
+      if (Math.abs(restored.zoom - 1) > 0.001) throw new Error('Overview failed after the pinch gesture.');
+    }
+    return { enlargedBy: closeUp.camera.zoom, overview: 1, pinchZoom, pinchTested: closeUp.camera.portrait };
+  } catch (error) {
+    await recordCameraFailure(cdp, directory, error);
+    throw error;
+  }
+}
+
+async function recordCameraFailure(cdp, directory, error) {
+  let browser = null;
+  try {
+    browser = await evaluate(cdp, `(() => {
+      const stage=document.querySelector('.billiards-stage'), canvas=document.querySelector('[data-billiards-canvas]');
+      const root=document.querySelector('#slop-billiards-root');
+      const rect=(node)=>node instanceof Element?(() => {const r=node.getBoundingClientRect();
+        return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};})():null;
+      return {qa:${qa}?.snapshot?.()??null, stage:rect(stage), canvas:rect(canvas),
+        root:{portrait:root?.dataset.billiardsPortrait??null,interaction:root?.dataset.interactionMode??null,shot:root?.dataset.shotActive??null}};
+    })()`);
+  } catch (diagnosticError) {
+    browser = { diagnosticError: String(diagnosticError) };
+  }
+  const evidence = { error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error), browser };
+  await writeFile(`${directory}/camera-error.json`, `${JSON.stringify(evidence, null, 2)}\n`);
+  try { await captureScreenshot(cdp, `${directory}/camera-error.png`); } catch { /* keep the original failure */ }
+}
+
+export async function verifyPocketJourney(cdp, ui, directory, aimPoint, clickAt) {
+  // This is a real second shot after the unchanged 0.68-power break, not injected pots.
+  const angle = -1.4336742886722746, power = 0.35;
+  const position = await evaluate(cdp, `(() => {const cue=${qa}.snapshot().controller.match.table.balls.find(b=>b.id===0);
+    return {x:640+cue.position.x*1020/254, y:360+cue.position.y*1020/254};})()`);
+  await setPowerWithWheel(cdp, power);
+  await clickAt(cdp, await aimPoint(cdp, ui, position.x + Math.cos(angle) * 200, position.y + Math.sin(angle) * 200));
+  await settleCamera(cdp);
+  await evaluate(cdp, `(() => {
+    const evidence=window.__billiardsPotEvidence={drops:0,returns:0,stop:false};
+    const sample=()=>{if(evidence.stop)return; const p=${qa}.snapshot().pockets;
+      evidence.drops=Math.max(evidence.drops,p.activeDrops); evidence.returns=Math.max(evidence.returns,p.activeReturns); requestAnimationFrame(sample);}; sample();
+  })()`);
+  await clickControl(cdp, ui.shootSelector);
+  await waitForExpression(cdp, `${qa}.snapshot().pockets.activeDrops > 0`, 20000);
+  await captureScreenshot(cdp, `${directory}/pocket-sink.png`);
+  await waitForExpression(cdp, `${qa}.snapshot().pockets.deliveredCount > 0`, 5000);
+  await captureScreenshot(cdp, `${directory}/pot-arrival.png`);
+  await waitForExpression(cdp, `${qa}.snapshot().controller.match.activeShot === null`, 20000);
+  await delay(600);
+  const evidence = await evaluate(cdp, '(() => { window.__billiardsPotEvidence.stop=true; return window.__billiardsPotEvidence; })()');
+  if (evidence.drops === 0 || evidence.returns === 0) throw new Error('Pocket sink / HUD roll-out was not rendered.');
+  return evidence;
+}
+
+/** Use the real crown wheel path; never mutate gameplay through the QA bridge. */
+export async function setPowerWithWheel(cdp, target) {
+  if (!Number.isFinite(target) || target < billiardsRules.minimumPower || target > billiardsRules.maximumPower) {
+    throw new Error(`Invalid test shot power: ${target}`);
+  }
+  const read = () => evaluate(cdp, `${qa}.snapshot().controller`);
+  const before = await read();
+  if (!before.canInteract) throw new Error('Cannot adjust shot power while the table is locked.');
+  const point = await evaluate(cdp, `(() => {
+    const rail=document.querySelector('[data-billiards-power-rail]');
+    const rect=rail.querySelector('.billiards-roller-drum').getBoundingClientRect();
+    const x=rect.x+rect.width/2, y=rect.y+rect.height/2;
+    if (!rail.contains(document.elementFromPoint(x,y))) throw new Error('Power crown is obscured.');
+    return {x,y};
+  })()`);
+  if (![point?.x, point?.y].every(Number.isFinite)) throw new Error('Invalid power crown coordinates.');
+  const delta = (before.power - target) * input.wheelPixelsPerPower;
+  const count = Math.max(1, Math.ceil(Math.abs(delta) / input.crownWheelPixels));
+  for (let step = 1; step <= count; step += 1) {
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...point, deltaX: 0, deltaY: delta / count });
+    const expected = before.power + (target - before.power) * step / count;
+    await waitForExpression(cdp, `Math.abs(${qa}.snapshot().controller.power - ${expected}) < 0.00001`, 3000);
+  }
+  const after = await read();
+  if (Math.abs(after.power - target) > 0.00001 || after.angleRadians !== before.angleRadians
+    || after.match.revision !== before.match.revision) throw new Error('Power wheel changed unrelated shot state.');
+}

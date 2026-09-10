@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 3,
+  "rootSelector": "#slop-junkyard-tycoon",
+  "canvasSelector": ".junkyard-canvas",
+  "touchTargetSelector": "button",
+  "criticalSelectors": [
+    ".junkyard-resource-strip",
+    ".junkyard-objective",
+    ".junkyard-message",
+    ".junkyard-joystick",
+    ".junkyard-reset"
+  ],
+  "stableQuery": "game=junkyard-station&quality=low&qa=1",
+  "qaExpression": "window.__SLOP_JUNKYARD_QA__?.snapshot()",
+  "movement": {
+    "key": "d",
+    "code": "KeyD",
+    "virtualKeyCode": 68,
+    "holdMs": 520,
+    "settleMs": 1400,
+    "minimumDistance": 0.45,
+    "rewardResourceId": "scrap",
+    "minimumReward": 1
+  }
+}
