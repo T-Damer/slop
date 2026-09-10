@@ -148,7 +148,11 @@ jobs:
         if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
         env:
           EXPECTED_DEPLOYMENT_SHA: ${{ github.sha }}
-        run: npm run billiards:quality -- http://127.0.0.1:4173/slop/
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$QUALITY_REPORT_DIR"
+          npm run billiards:quality -- http://127.0.0.1:4173/slop/ 2>&1 | tee "$QUALITY_REPORT_DIR/billiards-browser.log"
 
       - name: Run game hub browser contract
         if: ${{ !cancelled() && steps.serve.outcome == 'success' }}
